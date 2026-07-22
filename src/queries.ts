@@ -144,10 +144,12 @@ export function canonicalEvents(params: DesktopQueryParams | AndroidQueryParams)
     // Fetch browser events
     isDesktopParams(params) && params.bid_browsers
       ? browserEvents(params) +
-        // Include focused and audible browser events as indications of not-afk
+        // Include audible browser events as indications of not-afk.
+        // audible_events was collected from ALL browser events (including
+        // background tabs) inside browserEvents(), so background audio
+        // correctly counts as active. See #852.
         (params.include_audible
-          ? `audible_events = filter_keyvals(browser_events, "audible", [true]);
-             not_afk = period_union(not_afk, audible_events);`
+          ? `not_afk = period_union(not_afk, audible_events);`
           : '')
       : '',
     // Filter out window events when the user was afk
@@ -283,9 +285,27 @@ function browserEvents(params: DesktopQueryParams): string {
     browser_events = [];
   `;
 
+  // When include_audible is set, collect audible events from ALL browser
+  // events (before the focus filter below) so that background audio tabs
+  // count as active. The previous approach filtered for audible after the
+  // focus filter, which excluded background audio and could fragment the
+  // not_afk periods — see #852.
+  if (params.include_audible) {
+    code += `audible_events = [];`;
+  }
+
   _.each(browsersWithBuckets(params.bid_browsers), ([browserName, bucketId]) => {
     const browser_appnames_str = JSON.stringify(browser_appnames[browserName]);
-    code += `events_${browserName} = flood(query_bucket("${bucketId}"));
+    code += `events_${browserName} = flood(query_bucket("${bucketId}"));`;
+
+    // Collect audible events from ALL browser events (before focus filter)
+    if (params.include_audible) {
+      code += `
+       audible_${browserName} = filter_keyvals(events_${browserName}, "audible", [true]);
+       audible_events = concat(audible_events, audible_${browserName});`;
+    }
+
+    code += `
        window_${browserName} = filter_keyvals(events, "app", ${browser_appnames_str});`;
 
     // Add regex-based matching to cover case/spacing/versioning variants (e.g., Firefox.exe, firefox-esr-esr140)

@@ -1,6 +1,6 @@
 <template lang="pug">
 div
-  h3 Merge buckets
+  h3 {{ $t('bucketMerge.title') }}
   p.small
     | Sometimes, you might want to merge the events of two buckets together into one.
     | This is commonly useful to address the case where your hostname might have changed,
@@ -9,7 +9,7 @@ div
   // TODO: select which buckets to merge
   b-row
     b-col
-      h4 Bucket from
+      h4 {{ $t('bucketMerge.bucketFrom') }}
       b-form-select(v-model="bucket_from" :options="buckets" :disabled="buckets.length === 0")
       p.small
         | Select the bucket from which you want to merge the events.
@@ -17,7 +17,7 @@ div
       p.small(v-if="events_from !== null")
         | Events: {{ events_from.length }}
     b-col
-      h4 Bucket to
+      h4 {{ $t('bucketMerge.bucketTo') }}
       b-form-select(v-model="bucket_to" :options="buckets" :disabled="buckets.length === 0")
       p.small
         | Select the bucket to which you want to merge the events.
@@ -27,7 +27,7 @@ div
 
   // TODO: check for overlapping events
   div(v-if="overlappingEvents !== null && overlappingEvents.length > 0")
-    h3 Overlapping events
+    h3 {{ $t('bucketMerge.overlapping') }}
     p
       | The following {{ overlappingEvents.length }} events are overlapping:
       ul
@@ -37,7 +37,7 @@ div
           | {{ event[1].start }} - {{ event[1].end }} ({{ event[1].event.id }})
 
   // TODO: confirm dialog
-  b-button(variant="success" :disabled="!validate" @click="merge()") Merge
+  b-button(variant="success" :disabled="!validate" @click="merge()") {{ $t('bucketMerge.mergeBtn') }}
 
   // TODO: delete old bucket? (ask user to backup their db if they want to be able to restore after delete)
 </template>

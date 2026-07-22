@@ -5,11 +5,9 @@ import Color from 'color';
 import _ from 'lodash';
 
 import { useCategoryStore } from '~/stores/categories';
-import { getCategoryColorFromString } from '~/util/color';
+import { getCategoryColorFromString, getContrastTextColor, getContrastSubTextColor } from '~/util/color';
 import { seconds_to_duration } from '~/util/time';
 import { IEvent } from '~/util/interfaces';
-
-const textColor = '#333';
 
 function create(container: HTMLElement) {
   // Clear element
@@ -82,6 +80,12 @@ function update(container: HTMLElement, apps: Entry[]) {
 
     const hovercolor = Color(appcolor).darken(0.1).hex();
 
+    // Compute contrast-aware text colors so labels stay readable on both
+    // light and dark category bars. Uses inline !important to override
+    // the dark-mode `svg text { fill: #fff !important }` rule. See #1007.
+    const textColor = getContrastTextColor(appcolor);
+    const subTextColor = getContrastSubTextColor(appcolor);
+
     // Add a parent <a> element if link is set
     const a = app.link ? svg.append('a').attr('href', app.link) : svg;
 
@@ -121,7 +125,7 @@ function update(container: HTMLElement, apps: Entry[]) {
       .text(displayName)
       .attr('font-family', 'sans-serif')
       .attr('font-size', textSize + 'px')
-      .attr('fill', textColor);
+      .style('fill', `${textColor} !important`);
 
     // Duration
     eg.append('text')
@@ -130,7 +134,7 @@ function update(container: HTMLElement, apps: Entry[]) {
       .text(seconds_to_duration(app.duration))
       .attr('font-family', 'sans-serif')
       .attr('font-size', textSize - 3 + 'px')
-      .attr('fill', '#444');
+      .style('fill', `${subTextColor} !important`);
 
     curr_y += barHeight + 5;
   });

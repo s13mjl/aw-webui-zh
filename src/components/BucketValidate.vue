@@ -1,13 +1,13 @@
 <template lang="pug">
 div
-  h3 Validate buckets
+  h3 {{ $t('bucketValidate.title') }}
   p.small
     | This is a small tool to check the validity of your buckets and their events.
 
   // Form
   b-row
     b-col
-      h4 Bucket
+      h4 {{ $t('bucketValidate.bucket') }}
       b-form-select(v-model="bucket" :options="buckets" :disabled="buckets.length === 0")
       p.small
         | Select the bucket to validate.
@@ -21,7 +21,7 @@ div
       summary
         icon.mx-2(name="check", style="color: #0C0", v-if="duplicateEvents.length === 0")
         icon.mx-2(name="exclamation-triangle", style="color: #CC0", v-else)
-        | Duplicates: {{ duplicateEvents.length }}
+        | {{ $t('bucketValidate.duplicates') }}: {{ duplicateEvents.length }}
       div.p-2
         p(v-if="duplicateEvents.length === 0")
           | No duplicate events found.
@@ -37,7 +37,7 @@ div
       summary
         icon.mx-2(name="check", style="color: #0C0", v-if="overlappingEvents.length === 0")
         icon.mx-2(name="exclamation-triangle", style="color: #CC0", v-else)
-        | Overlaps: {{ overlappingEvents.length }}x with a total duration of {{ overlapDuration / 1000 | friendlyduration }}
+        | {{ $t('bucketValidate.overlaps') }}: {{ overlappingEvents.length }}x with a total duration of {{ overlapDuration / 1000 | friendlyduration }}
       div.p-2
         p(v-if="overlappingEvents.length === 0")
           | No overlapping events found.
@@ -57,7 +57,7 @@ div
       summary
         icon.mx-2(name="check", style="color: #0C0", v-if="zeroDurationEvents.length === 0")
         icon.mx-2(name="info-circle", style="color: #09F", v-else)
-        | Zero-duration events: {{ zeroDurationEvents.length }}
+        | {{ $t('bucketValidate.zeroDuration') }}: {{ zeroDurationEvents.length }}
       div.p-2
         p.ml-3(v-if="zeroDurationEvents.length === 0")
           | No zero-duration events found.

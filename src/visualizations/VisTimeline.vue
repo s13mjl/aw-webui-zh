@@ -56,7 +56,7 @@ import _ from 'lodash';
 import moment from 'moment';
 import Color from 'color';
 import { buildTooltip } from '../util/tooltip.js';
-import { getCategoryColorFromEvent, getTitleAttr } from '../util/color';
+import { getCategoryColorFromEvent, getTitleAttr, getContrastTextColor } from '../util/color';
 import { getSwimlane } from '../util/swimlane.js';
 import { IEvent } from '../util/interfaces';
 import { formatTimelineBucketLabelHtml, shortenBucketLabel } from '../util/timelineLabels';
@@ -373,6 +373,9 @@ export default {
       const items = _.map(this.chartData, (item, i) => {
         const bgColor = item.color;
         const borderColor = Color(bgColor).darken(0.3);
+        // Use contrast-aware text color so event titles stay readable on
+        // both light and dark category colors. See #1007.
+        const textColor = getContrastTextColor(bgColor);
         return {
           id: String(i),
           group: item.bucketId,
@@ -380,7 +383,7 @@ export default {
           title: item.tooltip,
           start: moment(item.start),
           end: moment(item.end),
-          style: `background-color: ${bgColor}; border-color: ${borderColor}`,
+          style: `background-color: ${bgColor}; border-color: ${borderColor}; color: ${textColor}`,
           subgroup: item.swimlane,
         };
       });

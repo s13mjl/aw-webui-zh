@@ -10,63 +10,63 @@ div
     details.timeline-filters.mr-2(ref="filtersDetails")
       summary.timeline-chip.timeline-chip--clickable
         icon.mr-1(name="filter")
-        b Filters: {{ filter_summary }}
+        b {{ $t('timeline.filters') }} {{ filter_summary }}
       div.timeline-filters-panel.shadow-sm
         table
           tr
             th.pt-2.pr-3
-              label(for="timeline-filter-host") Host:
+              label(for="timeline-filter-host") {{ $t('timeline.host') }}
             td
               select#timeline-filter-host.form-control.form-control-sm(v-model="filter_hostname")
-                option(:value='null') All
+                option(:value='null') {{ $t('timeline.all') }}
                 option(v-for="host in hosts", :value="host") {{ host }}
           tr
             th.pt-2.pr-3
-              label(for="timeline-filter-client") Client:
+              label(for="timeline-filter-client") {{ $t('timeline.client') }}
             td
               select#timeline-filter-client.form-control.form-control-sm(v-model="filter_client")
-                option(:value='null') All
+                option(:value='null') {{ $t('timeline.all') }}
                 option(v-for="client in clients", :value="client") {{ client }}
           tr
             th.pt-2.pr-3
-              label(for="timeline-filter-duration") Duration:
+              label(for="timeline-filter-duration") {{ $t('timeline.duration') }}
             td
               select#timeline-filter-duration.form-control.form-control-sm(v-model="filter_duration")
-                option(:value='null') All
-                option(:value='2') 2+ secs
-                option(:value='5') 5+ secs
-                option(:value='10') 10+ secs
-                option(:value='30') 30+ sec
-                option(:value='1 * 60') 1+ mins
+                option(:value='null') {{ $t('timeline.all') }}
+                option(:value='2') {{ $t('timeline.duration2s') }}
+                option(:value='5') {{ $t('timeline.duration5s') }}
+                option(:value='10') {{ $t('timeline.duration10s') }}
+                option(:value='30') {{ $t('timeline.duration30s') }}
+                option(:value='1 * 60') {{ $t('timeline.duration1m') }}
                 option(:value='2 * 60') 2+ mins
                 option(:value='3 * 60') 3+ mins
-                option(:value='10 * 60') 10+ mins
+                option(:value='10 * 60') {{ $t('timeline.duration10m') }}
                 option(:value='30 * 60') 30+ mins
                 option(:value='1 * 60 * 60') 1+ hrs
                 option(:value='2 * 60 * 60') 2+ hrs
           tr
             th.pt-2.pr-3
-              label AFK:
+              label {{ $t('timeline.afk') }}
             td
               b-form-checkbox(v-model="filter_afk" size="sm" switch)
                 | {{ $t('timeline.filterAfk') }}
           tr
             th.pt-2.pr-3
-              label Merge:
+              label {{ $t('timeline.merge') }}
             td
               b-form-checkbox(v-model="filter_merge_similar" size="sm" switch)
                 | {{ $t('timeline.mergeByApp') }}
           tr
             th.pt-2.pr-3
-              label(for="timeline-filter-categories") Categories:
+              label(for="timeline-filter-categories") {{ $t('timeline.categories') }}
             td
               select#timeline-filter-categories.form-control.form-control-sm(@change="onCategorySelect($event)", :value="''")
-                option(value="" disabled) {{ filter_categories.length > 0 ? 'Add category...' : 'All' }}
+                option(value="" disabled) {{ filter_categories.length > 0 ? $t('timeline.addCategory') : $t('timeline.all') }}
                 option(v-for="cat in category_options", :key="cat.text", :value="cat.text") {{ cat.text }}
               div.mt-1(v-if="filter_categories.length > 0")
                 span.badge.badge-info.mr-1(v-for="(cat, idx) in filter_categories", :key="idx")
                   | {{ cat.join(' > ') }}
-                  button.ml-1.close.small(@click="removeCategory(idx)", type="button", aria-label="Remove category", style="font-size: 0.85rem; line-height: 1") &times;
+                  button.ml-1.close.small(@click="removeCategory(idx)", type="button", :aria-label="$t('timeline.removeCategory')", style="font-size: 0.85rem; line-height: 1") &times;
 
     // Display options (swimlanes, future visual toggles) tucked behind a
     // ghost kebab so they don't compete visually with Filters.
@@ -76,12 +76,12 @@ div
       toggle-class="border-0"
       no-caret
       right
-      title="Display options"
-      aria-label="Display options"
+      :title="$t('timeline.displayOptions')"
+      :aria-label="$t('timeline.displayOptions')"
     )
       template(v-slot:button-content)
         icon(name="ellipsis-v")
-      b-dropdown-header Swimlanes
+      b-dropdown-header {{ $t('timeline.swimlanes') }}
       b-dropdown-item-button(
         v-for="opt in swimlaneOptions"
         :key="String(opt.value)"
@@ -117,8 +117,8 @@ import { useBucketsStore } from '~/stores/buckets';
 import { getClient } from '~/util/awclient';
 import { canonicalEvents } from '~/queries';
 import { useCategoryStore } from '~/stores/categories';
-import { matchString } from '~/util/classes';
-import { getCategorizationStringFromEvent } from '~/util/color';
+import { matchStrings } from '~/util/classes';
+import { getCategorizationStringsFromEvent } from '~/util/color';
 import { seconds_to_duration } from '~/util/time';
 
 export default {
@@ -138,11 +138,6 @@ export default {
       filter_merge_similar: false,
       filter_categories: [],
       swimlane: null,
-      swimlaneOptions: [
-        { value: null, text: 'None' },
-        { value: 'category', text: 'Group by category' },
-        { value: 'bucketType', text: 'Group by bucket type' },
-      ],
       updateTimelineWindow: true,
     };
   },
@@ -160,6 +155,13 @@ export default {
       const categoryStore = useCategoryStore();
       return categoryStore.allCategoriesSelect;
     },
+    swimlaneOptions() {
+      return [
+        { value: null, text: this.$t('timeline.swimlaneNone') },
+        { value: 'category', text: this.$t('timeline.swimlaneCategory') },
+        { value: 'bucketType', text: this.$t('timeline.swimlaneBucketType') },
+      ];
+    },
     filter_summary() {
       const desc = [];
       if (this.filter_hostname) {
@@ -172,23 +174,25 @@ export default {
         desc.push(seconds_to_duration(this.filter_duration));
       }
       if (this.filter_afk) {
-        desc.push('AFK filtered');
+        desc.push(this.$t('timeline.filterAfkStatus'));
       }
       if (this.filter_merge_similar) {
-        desc.push('merged by app');
+        desc.push(this.$t('timeline.mergedByApp'));
       }
       if (this.filter_categories.length > 0) {
         desc.push(
           this.filter_categories.length +
-            ' categor' +
-            (this.filter_categories.length === 1 ? 'y' : 'ies')
+            ' ' +
+            (this.filter_categories.length === 1
+              ? this.$t('timeline.mergedByCategory')
+              : this.$t('timeline.mergedByCategories'))
         );
       }
 
       if (desc.length > 0) {
         return desc.join(', ');
       }
-      return 'none';
+      return this.$t('timeline.mergeNone');
     },
   },
   watch: {
@@ -276,9 +280,9 @@ export default {
           // Skip AFK buckets — they don't have meaningful categorization
           if (bucket.type === 'afkstatus') continue;
           bucket.events = _.filter(bucket.events, e => {
-            const str = getCategorizationStringFromEvent(bucket, e);
-            if (str === null) return true; // Keep events from unknown bucket types
-            const matched = matchString(str, allCats);
+            const strs = getCategorizationStringsFromEvent(bucket, e);
+            if (strs === null) return true; // Keep events from unknown bucket types
+            const matched = matchStrings(strs, allCats);
             const eventCat = matched ? matched.name : ['Uncategorized'];
             // Check if the event's category matches any selected filter category
             // (including parent matches: selecting "Work" also shows "Work > Programming")

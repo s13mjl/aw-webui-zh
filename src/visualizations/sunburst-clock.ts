@@ -20,7 +20,7 @@ import moment from 'moment';
 import { IEvent } from '~/util/interfaces';
 
 import { seconds_to_duration } from '../util/time';
-import { getColorFromString } from '~/util/color';
+import { getColorFromString, getContrastTextColor } from '~/util/color';
 
 // Dimensions of sunburst.
 const width = 750;
@@ -82,6 +82,9 @@ function drawLegend() {
     .attr('y', li.h / 2)
     .attr('dy', '0.35em')
     .attr('text-anchor', 'middle')
+    .style('fill', function (d) {
+      return `${getContrastTextColor(d.value)} !important`;
+    })
     .text(function (d) {
       return d.key;
     });

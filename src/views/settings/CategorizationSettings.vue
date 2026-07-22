@@ -149,8 +149,8 @@ export default {
   methods: {
     addClass: function () {
       const lastId = this.categoryStore.addClass({
-        name: ['New class'],
-        rule: { type: 'regex', regex: 'FILL ME' },
+        name: [this.$t('settings.categorization.newName')],
+        rule: { type: 'regex', regex: this.$t('settings.categorization.fillRegex') },
       });
       this.editingId = lastId;
     },
@@ -212,10 +212,10 @@ export default {
       }
     },
     createSet: function () {
-      const name = prompt('Name for the new category set:');
+      const name = prompt(this.$t('settings.categorization.promptName'));
       if (!name) return;
       if (this.categoryStore.category_sets.find(s => s.id === name)) {
-        alert(`A set named "${name}" already exists.`);
+        alert(this.$t('settings.categorization.alertExists', { name }));
         return;
       }
       this.categoryStore.createSet(name);
@@ -224,13 +224,13 @@ export default {
     deleteActiveSet: function () {
       const id = this.categoryStore.active_set_ids[0];
       if (!id) return;
-      if (!confirm(`Delete category set "${id}"? This cannot be undone.`)) return;
+      if (!confirm(this.$t('settings.categorization.confirmDelete', { id }))) return;
       this.categoryStore.deleteSet(id);
       this.categoryStore.save();
     },
     onSetChange: function (setId: string) {
       if (this.classes_unsaved_changes) {
-        if (!confirm('You have unsaved changes. Switch sets anyway? (Changes will be discarded)')) {
+        if (!confirm(this.$t('settings.categorization.confirmSwitch'))) {
           this.activeSetId = this.categoryStore.active_set_ids[0] || 'default';
           return;
         }

@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import { IBucket } from '~/util/interfaces';
 import { defineStore } from 'pinia';
-import { getClient } from '~/util/awclient';
+import { getClient, getEventsLong } from '~/util/awclient';
 import { useServerStore } from '~/stores/server';
 
 function select_buckets(
@@ -208,28 +208,48 @@ export const useBucketsStore = defineStore('buckets', {
       start,
       end,
       limit,
+      timeoutMs,
     }: {
       id: string;
       start?: Date;
       end?: Date;
       limit?: number;
+      timeoutMs?: number;
     }) {
       await this.ensureLoaded();
       const bucket = _.cloneDeep(this.getBucket(id));
-      bucket.events = await getClient().getEvents(bucket.id, {
-        start,
-        end,
-        limit: limit || -1,
-      });
+      if (timeoutMs) {
+        // Use extended timeout for large fetches (exports, long ranges) — see #847
+        bucket.events = await getEventsLong(
+          bucket.id,
+          { start, end, limit: limit || -1 },
+          timeoutMs
+        );
+      } else {
+        bucket.events = await getClient().getEvents(bucket.id, {
+          start,
+          end,
+          limit: limit || -1,
+        });
+      }
       return bucket;
     },
 
-    async getBucketsWithEvents({ start, end }: { start?: Date; end?: Date }) {
+    async getBucketsWithEvents({
+      start,
+      end,
+      timeoutMs,
+    }: {
+      start?: Date;
+      end?: Date;
+      timeoutMs?: number;
+    }) {
       await this.ensureLoaded();
       const buckets = await Promise.all(
         _.map(
           this.buckets,
-          async bucket => await this.getBucketWithEvents({ id: bucket.id, start, end })
+          async bucket =>
+            await this.getBucketWithEvents({ id: bucket.id, start, end, timeoutMs })
         )
       );
       return _.orderBy(buckets, [b => b.id], ['asc']);

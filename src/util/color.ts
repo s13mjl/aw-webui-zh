@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { Category, matchString, loadClasses } from './classes';
+import { Category, matchStrings, loadClasses } from './classes';
 import Color from 'color';
 import * as d3 from 'd3';
 import { IEvent, IBucket } from './interfaces';
@@ -9,6 +9,21 @@ import { IEvent, IBucket } from './interfaces';
 //
 
 const COLOR_UNCAT = '#CCC';
+
+// Returns a text color that contrasts with the given background color.
+// Used for labels drawn on top of colored category bars — the dark-mode
+// CSS rule `svg text { fill: #fff !important }` would otherwise force
+// white text on light-colored bars (e.g. #CCC, #FFE082), making labels
+// unreadable. See #1007.
+export function getContrastTextColor(bgColor: string): string {
+  const luminosity = Color(bgColor).luminosity();
+  return luminosity > 0.5 ? '#333' : '#fff';
+}
+
+export function getContrastSubTextColor(bgColor: string): string {
+  const luminosity = Color(bgColor).luminosity();
+  return luminosity > 0.5 ? '#666' : '#ccc';
+}
 
 const scale = d3.scaleOrdinal(['#90CAF9', '#FFE082', '#EF9A9A', '#A5D6A7']);
 
@@ -89,7 +104,7 @@ export function getColorFromCategory(c: Category, allCats: Category[]): string {
 export function getCategoryColorFromString(str: string): string {
   // TODO: Don't load classes on every call
   const allCats = loadClasses();
-  const c = matchString(str, allCats);
+  const c = matchStrings([str], allCats);
   if (c !== null) {
     return getColorFromCategory(c, allCats);
   } else {
@@ -156,10 +171,39 @@ export function getCategorizationStringFromEvent(bucket: IBucket, e: IEvent): st
   return null;
 }
 
+/**
+ * Returns the individual data field values of an event that should be tested
+ * against category rules. Unlike getCategorizationStringFromEvent (which
+ * concatenates fields with '\n'), this returns separate strings so each field
+ * is tested independently — matching the server-side categorize() behaviour.
+ * See #646.
+ */
+export function getCategorizationStringsFromEvent(bucket: IBucket, e: IEvent): string[] | null {
+  if (bucket.type == 'currentwindow') {
+    return [e.data.app, e.data.title].filter(s => s != null);
+  } else if (bucket.type == 'web.tab.current') {
+    return [e.data.title, e.data.url].filter(s => s != null);
+  } else if (bucket.type?.startsWith('app.editor')) {
+    return e.data.file ? [e.data.file] : null;
+  } else if (bucket.type?.startsWith('general.stopwatch')) {
+    return e.data.label ? [e.data.label] : null;
+  }
+
+  return null;
+}
+
 export function getCategoryColorFromEvent(bucket: IBucket, e: IEvent) {
-  const categorizationString = getCategorizationStringFromEvent(bucket, e);
-  if (categorizationString !== null) {
-    return getCategoryColorFromString(categorizationString);
+  const categorizationStrings = getCategorizationStringsFromEvent(bucket, e);
+  if (categorizationStrings !== null) {
+    // Test each field individually against the category rules, matching
+    // the server-side categorize() behaviour. See #646.
+    const allCats = loadClasses();
+    const c = matchStrings(categorizationStrings, allCats);
+    if (c !== null) {
+      return getColorFromCategory(c, allCats);
+    }
+    // Fall back to hashing on the first field (app/title) for a stable color
+    return fallbackColor(categorizationStrings[0] || getTitleAttr(bucket, e));
   }
 
   if (bucket.type == 'afkstatus') {

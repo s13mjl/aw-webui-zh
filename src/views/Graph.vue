@@ -1,59 +1,59 @@
 <template lang="pug">
 div
-  h3 Graph
+  h3 {{ $t('graph.title') }}
 
   b-alert(show variant="warning")
-    | This feature is still in early development. See PR #[a(href="https://github.com/ActivityWatch/aw-webui/pull/365") aw-webui#365] for more information.
+    | {{ $t('graph.earlyDev') }} #[a(href="https://github.com/ActivityWatch/aw-webui/pull/365") aw-webui#365] for more information.
 
-  p Displays a graph of categories and their transitions.
+  p {{ $t('graph.description') }}
 
   b-alert(v-if="error" show variant="danger")
     | {{error}}
 
   // Specify max category depth
-  b-form-group(label="Max category depth")
+  b-form-group(:label="$t('graph.maxDepth')")
     b-form-input(v-model="maxDepth" type="number" min="1")
 
   // Toggle to exclude uncategorized
-  b-form-group(label="Exclude uncategorized")
+  b-form-group(:label="$t('graph.excludeUncategorized')")
     b-form-checkbox(v-model="excludeUncategorized")
 
   div.d-flex
     span.mr-auto
     b-button(type="button", @click="generate()" variant="success")
       icon(name="search")
-      | Generate
+      | {{ $t('graph.generate') }}
 
   div.d-flex.mt-1
     span.mr-auto.small.text-muted Hostname: {{queryOptions.hostname}}
     b-button.border-0(size="sm", variant="outline-dark" @click="show_options = !show_options")
       span(v-if="!show_options")
-        | #[icon(name="angle-double-down")] Show options
+        | #[icon(name="angle-double-down")] {{ $t('graph.showOptions') }}
       span(v-else)
-        | #[icon(name="angle-double-up")] Hide options
+        | #[icon(name="angle-double-up")] {{ $t('graph.hideOptions') }}
 
   div(v-show="show_options")
-    h4 Options
+    h4 {{ $t('graph.options') }}
     aw-query-options(v-model="queryOptions")
 
   div(v-if="status == 'searching'")
-    div #[icon(name="spinner" pulse)] Searching...
+    div #[icon(name="spinner" pulse)] {{ $t('graph.searching') }}
 
 
   div(v-if="events != null")
     hr
 
     div
-        | Found {{ events.length }} events in {{ queryTime / 1000 }} seconds
+        | {{ $t('graph.foundEvents', { count: events.length, seconds: queryTime / 1000 }) }}
 
     aw-force-graph(:data="graphdata")
 
     hr
 
     div
-      | Didn't find what you were looking for?
+      | {{ $t('graph.notFound') }}
       br
-      | Add a week to the search: #[b-button(size="sm" variant="outline-dark" @click="extendByWeek()") +1 week]
+      | {{ $t('graph.addWeek') }} #[b-button(size="sm" variant="outline-dark" @click="extendByWeek()") {{ $t('search.addWeekBtn') }}]
 </template>
 
 <style scoped lang="scss"></style>

@@ -102,7 +102,12 @@ export const useCategoryStore = defineStore('categories', {
       return _.sortBy(hier, [c => c.id || 0]);
     },
     classes_for_query(): [string[], Rule][] {
-      return this.classes
+      // Sort by priority ascending (low priority first, high priority last).
+      // The server-side categorize() iterates rules in order and, for matches
+      // at equal depth, lets later entries override earlier ones — so placing
+      // higher-priority categories last makes them win conflicts.
+      const sorted = _.sortBy(this.classes, [(c: Category) => c.priority ?? 0]);
+      return sorted
         .filter(c => c.rule.type !== null)
         .map(c => {
           return [c.name, c.rule];
@@ -317,6 +322,27 @@ export const useCategoryStore = defineStore('categories', {
       this.classes_unsaved_changes = true;
     },
     updateClass(this: State, new_class: Category) {
+      // Defensive: strip any null/undefined/empty entries from the name array.
+      // A null in name (e.g. when parent is "None" and name was empty) used to
+      // be serialized into settings.json and break the categorize() query —
+      // see https://github.com/ActivityWatch/activitywatch/issues/1355.
+      if (Array.isArray(new_class.name)) {
+        new_class.name = new_class.name.filter(
+          part => part !== null && part !== undefined && String(part).trim() !== ''
+        );
+      }
+      // Defensive: validate regex patterns before saving. An invalid regex
+      // (e.g. "Notepad++") would cause a 500 error from the query engine when
+      // categorize() runs — see https://github.com/ActivityWatch/activitywatch/issues/1340.
+      if (new_class.rule && new_class.rule.type === 'regex' && new_class.rule.regex) {
+        try {
+          new RegExp(new_class.rule.regex);
+        } catch (e) {
+          // Drop the invalid regex by falling back to a 'none' rule, so the
+          // category is still saved but won't break queries.
+          new_class.rule = { type: 'none' };
+        }
+      }
       console.log('Updating class:', new_class);
       const old_class = this.classes.find((c: Category) => c.id === new_class.id);
       const old_name = old_class.name;

@@ -2,9 +2,9 @@
 div
   div
     b-alert(v-if="invalidDaterange", variant="warning", show)
-      | The selected date range is invalid. The second date must be greater or equal to the first date.
+      | {{ $t('inputTime.invalidRange') }}
     b-alert(v-if="daterangeTooLong", variant="warning", show)
-      | The selected date range is too long. The maximum is {{ maxDuration/(24*60*60) }} days.
+      | {{ $t('inputTime.rangeTooLong') }}
 
   div.input-time-interval.d-flex.flex-wrap.align-items-start.justify-content-between
     // Two-row grid: labels share a fixed-width column so the Mode toggle
@@ -13,7 +13,7 @@ div
     // active. Previously the label flipped between "Quick range" / "Range"
     // and the inputs shifted horizontally on every toggle.
     div.time-interval-grid
-      label.col-form-label.col-form-label-sm.mb-0(for="time-mode") Mode
+      label.col-form-label.col-form-label-sm.mb-0(for="time-mode") {{ $t('inputTime.mode') }}
       b-form-radio-group#time-mode(
         v-model="mode",
         @change="valueChanged",
@@ -23,7 +23,7 @@ div
         :options="modeOptions"
       )
 
-      label.col-form-label.col-form-label-sm.mb-0 Range
+      label.col-form-label.col-form-label-sm.mb-0 {{ $t('inputTime.range') }}
       div.d-flex.flex-wrap.align-items-center(v-if="mode == 'last_duration'")
         div.btn-group(role="group" aria-label="Quick durations")
           template(v-for="(dur, idx) in durations")
@@ -48,15 +48,15 @@ div
           size="sm" variant="outline-dark"
           :disabled="invalidDaterange || emptyDaterange || daterangeTooLong"
           @click="applyRange"
-        ) Apply
+        ) {{ $t('inputTime.apply') }}
 
     div.text-right.d-none.d-md-block(v-if="showUpdate")
       b-button.px-2(@click="refresh()", variant="outline-dark", size="sm")
         icon.mr-1(name="sync")
         span.d-none.d-md-inline
-          | Refresh
+          | {{ $t('inputTime.refresh') }}
       div.mt-2.small.text-muted(v-if="lastUpdate")
-        | Last update: #[time(:datetime="lastUpdate.format()") {{lastUpdate | friendlytime}}]
+        | {{ $t('inputTime.lastUpdate') }} #[time(:datetime="lastUpdate.format()") {{lastUpdate | friendlytime}}]
 </template>
 
 <style scoped lang="scss">
@@ -121,13 +121,15 @@ export default {
         { seconds: 24 * 60 * 60, label: '24h' },
         { seconds: 48 * 60 * 60, label: '48h' },
       ],
-      modeOptions: [
-        { text: 'Last duration', value: 'last_duration' },
-        { text: 'Date range', value: 'range' },
-      ],
     };
   },
   computed: {
+    modeOptions() {
+      return [
+        { text: this.$t('inputTime.modeLastDuration'), value: 'last_duration' },
+        { text: this.$t('inputTime.modeRange'), value: 'range' },
+      ];
+    },
     value: {
       get() {
         if (this.mode == 'range' && this.start) {

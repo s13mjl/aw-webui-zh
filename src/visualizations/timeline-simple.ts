@@ -5,7 +5,7 @@ const Color = require('color');
 const _ = require('lodash');
 const moment = require('moment');
 
-import { getTitleAttr, getColorFromString } from '../util/color';
+import { getTitleAttr, getColorFromString, getContrastTextColor } from '../util/color';
 
 const time = require('../util/time');
 
@@ -98,6 +98,7 @@ function update(svg_el, events, event_type: string) {
         .attr('x', 1)
         .attr('y', 2.5)
         .attr('pointer-events', 'none')
+        .style('fill', `${getContrastTextColor(color_base)} !important`)
         .text(getTitleAttr({ type: event_type }, e));
     }
   });

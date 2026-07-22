@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "A webui for ActivityWatch built in Vue.js",
-  "author": "ActivityWatch Developers",
+  "author": "ActivityWatch Developers (derivative: s13mjl)",
   "license": "MPL-2.0",
   "type": "module",
   "scripts": {

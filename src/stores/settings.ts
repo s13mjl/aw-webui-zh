@@ -66,6 +66,11 @@ interface State {
   useMultidevice: boolean;
   requestTimeout: number;
 
+  // Auto-export all buckets as JSON for backup. See #406.
+  autoBackupEnabled: boolean;
+  autoBackupIntervalHours: number;
+  autoBackupLastTime: string; // ISO timestamp of last backup
+
   // Set to true if settings loaded
   _loaded: boolean;
 }
@@ -114,6 +119,11 @@ export const useSettingsStore = defineStore('settings', {
     showYearly: false,
     useMultidevice: false,
     requestTimeout: 30,
+
+    // Auto-export backup (disabled by default, weekly). See #406.
+    autoBackupEnabled: false,
+    autoBackupIntervalHours: 24 * 7,
+    autoBackupLastTime: '',
 
     _loaded: false,
   }),

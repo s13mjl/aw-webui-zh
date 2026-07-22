@@ -16,6 +16,7 @@ div#wrapper(v-if="loaded")
 import { useSettingsStore } from '~/stores/settings';
 import { useServerStore } from '~/stores/server';
 import { detectPreferredTheme } from '~/util/theme';
+import { autoBackupIfNeeded } from '~/util/backup';
 // if vite is used, you can import css file as module
 //import darkCssUrl from '../static/dark.css?url';
 //import darkCssContent from '../static/dark.css?inline';
@@ -68,6 +69,8 @@ export default {
   mounted: async function () {
     const serverStore = useServerStore();
     await serverStore.getInfo();
+    // Check if an auto-backup is due (no-op when disabled). See #406.
+    autoBackupIfNeeded();
   },
 };
 </script>

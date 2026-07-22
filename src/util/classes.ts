@@ -22,6 +22,15 @@ export interface Category {
   depth?: number;
   parent?: string[];
   children?: Category[];
+  // User-defined priority for conflict resolution. When multiple categories
+  // match the same event, the one with the higher priority wins (among
+  // categories at the same depth). Defaults to 0 when unset.
+  priority?: number;
+  // UI-facing list of literal match strings. Each entry is escaped and joined
+  // with '|' into the regex stored on rule.regex. When present, the Category
+  // edit modal edits this list (with a '+' button to add entries) instead of
+  // a single regex text field. '|' inside an entry is treated as a literal.
+  patterns?: string[];
 }
 
 export interface CategorySet {
@@ -269,7 +278,58 @@ function pickDeepest(categories: Category[]) {
   return _.maxBy(categories, c => c.name.length);
 }
 
+/**
+ * Escape a string so it matches as a literal in a regex.
+ * Used when converting a patterns[] list into a single regex string joined by '|'.
+ */
+export function escapeRegExp(str: string): string {
+  // Order matters: backslash first.
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Build a regex string from a list of literal patterns by escaping each one
+ * and joining with '|'. Returns undefined if the list is empty.
+ */
+export function patternsToRegex(patterns: string[] | undefined): string | undefined {
+  if (!patterns || patterns.length === 0) return undefined;
+  return patterns.map(escapeRegExp).join('|');
+}
+
+/**
+ * Heuristically split an existing regex string into a patterns[] list.
+ *
+ * Most legacy rules are simple alternatives like "Google Docs|libreoffice".
+ * We split on top-level '|' (not inside a group or char class, and not
+ * escaped). If the regex uses features we can't reliably split (groups,
+ * quantifiers, anchors, etc.) we keep it as a single unsplit entry so the
+ * user still sees their original regex and can edit it as one field.
+ */
+export function regexToPatterns(regex: string | undefined): string[] {
+  if (!regex) return [];
+  // If the regex contains any regex metacharacters beyond '|', treat it as a
+  // single advanced pattern and don't try to split — the user can still edit
+  // it as one field. This keeps complex rules intact.
+  // eslint-disable-next-line no-useless-escape
+  if (/[.^$*+?{}()\[\]\\]/.test(regex)) {
+    return [regex];
+  }
+  // Only plain text and '|' — safe to split on '|'.
+  return regex.split('|').filter(s => s !== '');
+}
+
 export function matchString(str: string, categories: Category[] | null): Category | null {
+  return matchStrings([str], categories);
+}
+
+/**
+ * Match a list of strings (typically the individual data fields of an event —
+ * app, title, url, etc.) against the category rules. A category matches if its
+ * regex matches ANY of the provided strings. This mirrors the server-side
+ * categorize() behaviour, which tests each data field separately, instead of
+ * concatenating them into one string. See #646.
+ */
+export function matchStrings(strs: string[], categories: Category[] | null): Category | null {
   if (!categories) {
     console.log(
       'Categories not passed, loading... (if you see this outside of a test, you should probably pass them)'
@@ -281,16 +341,31 @@ export function matchString(str: string, categories: Category[] | null): Categor
   const regexes: [Category, RegExp][] = categories
     .filter(c => c.rule.type == 'regex')
     .map(c => {
-      // using 'm' flag to make `$` and `^` in rules work
-      const re = RegExp(c.rule.regex, (c.rule.ignore_case ? 'i' : '') + 'm');
+      // No 'm' flag — each field is tested individually, matching server behaviour.
+      const re = RegExp(c.rule.regex, c.rule.ignore_case ? 'i' : '');
       return [c, re];
     });
 
   // Find the matching category.
-  // If several categories match the event, the deepest category will be chosen.
-  const matchingCats: [Category, RegExp][] = regexes.filter(c => c[1].test(str));
+  // If several categories match the event, the one with the highest priority
+  // wins; ties are broken by depth (deeper wins), matching the server-side
+  // categorize() behaviour for same-depth categories.
+  const matchingCats: [Category, RegExp][] = regexes.filter(c =>
+    strs.some(s => c[1].test(s))
+  );
   if (matchingCats.length > 0) {
-    return pickDeepest(matchingCats.map(c => c[0]));
+    const matched = matchingCats.map(c => c[0]);
+    // Sort by priority (asc), then by depth (asc), so the last element is the
+    // highest-priority deepest match — mirroring the server's
+    // _pick_highest_ranking_category which lets later entries override earlier
+    // ones at equal depth.
+    matched.sort((a, b) => {
+      const pa = a.priority ?? 0;
+      const pb = b.priority ?? 0;
+      if (pa !== pb) return pa - pb;
+      return a.name.length - b.name.length;
+    });
+    return matched[matched.length - 1];
   }
   return null;
 }

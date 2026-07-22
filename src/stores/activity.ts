@@ -21,7 +21,7 @@ import { useSettingsStore } from '~/stores/settings';
 import { useBucketsStore } from '~/stores/buckets';
 import { useCategoryStore } from '~/stores/categories';
 
-import { getClient } from '~/util/awclient';
+import { getClient, queryLong } from '~/util/awclient';
 
 function timeperiodsStrsHoursOfPeriod(timeperiod: TimePeriod): string[] {
   return timeperiodsHoursOfPeriod(timeperiod).map(timeperiodToStr);
@@ -240,7 +240,13 @@ export const useActivityStore = defineStore('activity', {
       if (this.loaded) {
         getClient().abort();
       }
-      if (!this.loaded || this.query_options !== query_options || query_options.force) {
+      // Deep-compare query_options so that refreshing with identical options
+      // (e.g. clicking the same date twice, or toggling a filter back to its
+      // previous value) doesn't trigger a full re-query. The previous
+      // reference-equality check (`!==`) was always true because Activity.vue
+      // builds a fresh object literal on every refresh() call. See #991.
+      const optionsChanged = !this.query_options || !_.isEqual(this.query_options, query_options);
+      if (!this.loaded || optionsChanged || query_options.force) {
         this.start_loading(query_options);
         if (!query_options.timeperiod) {
           query_options.timeperiod = dateToTimeperiod(query_options.date, settingsStore.startOfDay);
@@ -372,10 +378,9 @@ export const useActivityStore = defineStore('activity', {
         include_audible,
         always_active_pattern,
       });
-      const data = await getClient().query(periods, q, {
-        name: 'fullDesktopQuery',
-        verbose: true,
-      });
+      // Use extended timeout — a full-period desktop query can span
+      // weeks/months and exceed the default requestTimeout. See #1099.
+      const data = await queryLong(periods, q);
       this.query_window_completed(data[0].window);
       this.query_browser_completed(data[0].browser);
       if (include_stopwatch) {

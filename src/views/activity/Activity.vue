@@ -48,8 +48,8 @@ div
         toggle-class="border-0"
         no-caret
         right
-        title="More ranges"
-        aria-label="More date ranges"
+        :title="$t('activity.moreRanges')"
+        :aria-label="$t('activity.moreRangesAria')"
       )
         template(v-slot:button-content)
           icon(name="ellipsis-v")
@@ -64,8 +64,8 @@ div
       b-input-group-prepend
         b-button.px-2(:to="link_prefix + '/' + previousPeriod() + '/' + subview + '/' + currentViewId",
                  variant="outline-dark",
-                 :title="'Previous ' + periodLength",
-                 :aria-label="'Previous ' + periodLength")
+                 :title="$t('activity.previous', { period: periodLength })",
+                 :aria-label="$t('activity.previousAria', { period: periodLength })")
           icon(name="arrow-left")
       input.form-control.form-control-sm.activity-dateinput(
         type="date"
@@ -77,18 +77,18 @@ div
       b-input-group-append
         b-button.px-2(:to="link_prefix + '/' + nextPeriod() + '/' + subview + '/' + currentViewId",
                       :disabled="nextPeriod() > today", variant="outline-dark",
-                      :title="'Next ' + periodLength",
-                      :aria-label="'Next ' + periodLength")
+                      :title="$t('activity.next', { period: periodLength })",
+                      :aria-label="$t('activity.nextAria', { period: periodLength })")
           icon(name="arrow-right")
 
     div.ml-auto
       b-button-group(size="sm")
-        b-button.px-2(:pressed.sync="showOptions", variant="outline-dark", title="Filters", aria-label="Filters")
+        b-button.px-2(:pressed.sync="showOptions", variant="outline-dark", :title="$t('activity.filtersTitle')", :aria-label="$t('activity.filtersAria')")
           icon(name="filter")
           span.d-none.d-md-inline
             |  {{ $t('activity.filters') }}
             b-badge(pill, variant="secondary" v-if="filters_set > 0").ml-2 {{ filters_set }}
-        b-button.px-2(@click="refresh(true)", variant="outline-dark", title="Refresh", aria-label="Refresh")
+        b-button.px-2(@click="refresh(true)", variant="outline-dark", :title="$t('activity.refresh')", :aria-label="$t('activity.refreshAria')")
           icon(name="sync")
           span.d-none.d-md-inline
             |  {{ $t('activity.refresh') }}
@@ -438,6 +438,11 @@ export default {
     include_audible: function () {
       this.refresh();
     },
+    // Refresh when the always-active pattern changes in settings so the
+    // activity view picks up the new pattern without a manual refresh. See #1117.
+    always_active_pattern: function () {
+      this.refresh();
+    },
   },
 
   mounted: async function () {
@@ -528,6 +533,10 @@ export default {
     },
 
     refresh: async function (force) {
+      // Ensure settings are loaded before reading always_active_pattern,
+      // otherwise the default empty string is used and the pattern is
+      // silently ignored on the initial page load. See #1117.
+      await this.settingsStore.ensureLoaded();
       const queryOptions: QueryOptions = {
         timeperiod: this.timeperiod,
         host: this.host,

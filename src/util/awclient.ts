@@ -125,3 +125,88 @@ export function getClient(): AWClient {
   }
   return _client;
 }
+
+// Long timeout for operations that may transfer a lot of data or scan
+// long time ranges (exports, full-period queries). The default
+// requestTimeout (30s) is too short for these — see #847, #1099.
+export const LONG_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch events with a custom timeout (default LONG_TIMEOUT_MS).
+ * Use instead of getClient().getEvents() when the bucket may contain
+ * many events (exports, long date ranges). See #847.
+ */
+export async function getEventsLong(
+  bucketId: string,
+  params: { start?: Date; end?: Date; limit?: number } = {},
+  timeoutMs: number = LONG_TIMEOUT_MS
+): Promise<any[]> {
+  const client = getClient();
+  const res = await client.req.get(`/0/buckets/${bucketId}/events`, {
+    params,
+    timeout: timeoutMs,
+    signal: client.controller.signal,
+  });
+  const events = (res && res.data) || res || [];
+  events.forEach((e: any) => {
+    e.timestamp = new Date(e.timestamp);
+  });
+  return events;
+}
+
+/**
+ * Run a query with a custom timeout (default LONG_TIMEOUT_MS).
+ * Use instead of getClient().query() when the timeperiod spans a long
+ * range (e.g. a month or more) that may exceed requestTimeout. See #1099.
+ * NOTE: Cache is bypassed — long queries are relatively rare and caching
+ * them adds complexity without much benefit.
+ */
+export async function queryLong(
+  timeperiods: Array<string | { start: Date; end: Date }>,
+  query: string[],
+  timeoutMs: number = LONG_TIMEOUT_MS
+): Promise<any[]> {
+  const client = getClient();
+  const data = {
+    query,
+    timeperiods: timeperiods.map(tp =>
+      typeof tp !== 'string'
+        ? `${tp.start.toISOString()}/${tp.end.toISOString()}`
+        : tp
+    ),
+  };
+  const res = await client.req.post('/0/query/', data, {
+    timeout: timeoutMs,
+    signal: client.controller.signal,
+  });
+  return (res && res.data) || res;
+}
+
+/**
+ * Export a single bucket with a custom timeout. See #847.
+ */
+export async function exportBucketLong(
+  bucketId: string,
+  timeoutMs: number = LONG_TIMEOUT_MS
+): Promise<any> {
+  const client = getClient();
+  const res = await client.req.get(`/0/buckets/${bucketId}/export`, {
+    timeout: timeoutMs,
+    signal: client.controller.signal,
+  });
+  return (res && res.data) || res;
+}
+
+/**
+ * Export all buckets with a custom timeout. See #847.
+ */
+export async function exportAllBucketsLong(
+  timeoutMs: number = LONG_TIMEOUT_MS
+): Promise<any> {
+  const client = getClient();
+  const res = await client.req.get('/0/export', {
+    timeout: timeoutMs,
+    signal: client.controller.signal,
+  });
+  return (res && res.data) || res;
+}

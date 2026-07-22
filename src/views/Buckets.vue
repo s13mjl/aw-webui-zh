@@ -131,6 +131,8 @@ div
     b-card(:header="$t('buckets.importBuckets')")
       b-alert(v-if="import_error" show variant="danger" dismissible)
         | {{ import_error }}
+      b-alert(v-if="import_success" show variant="success" dismissible)
+        | {{ import_success }}
       b-form-file(v-model="import_file"
                   :placeholder="$t('buckets.importPlaceholder')"
                   :drop-placeholder="$t('buckets.importDrop')")
@@ -235,6 +237,7 @@ import moment from 'moment';
 import { useServerStore } from '~/stores/server';
 import { useBucketsStore } from '~/stores/buckets';
 import { downloadFile } from '~/util/export';
+import { exportBucketLong, exportAllBucketsLong, LONG_TIMEOUT_MS } from '~/util/awclient';
 
 export default {
   name: 'Buckets',
@@ -250,6 +253,7 @@ export default {
 
       import_file: null,
       import_error: null,
+      import_success: null,
       delete_bucket_selected: null,
       delete_host_selected: null,
       deleting_host: false,
@@ -291,11 +295,29 @@ export default {
   watch: {
     import_file: async function (_new_value, _old_value) {
       if (this.import_file != null) {
+        // Clear previous messages so the user sees the result of this attempt
+        this.import_error = null;
+        this.import_success = null;
         try {
-          await this.importBuckets(this.import_file);
-          this.import_error = null;
+          const result = await this.importBuckets(this.import_file);
+          // importBuckets may return a result payload from the server; if it
+          // does, surface it. Otherwise show a generic success message.
+          // (Previously the UI stayed silent on success, which was confusing —
+          // see https://github.com/ActivityWatch/activitywatch/issues/394.)
+          if (result && typeof result === 'object' && 'message' in result && result.message) {
+            this.import_success = this.$t('buckets.importSuccessDetail', { detail: result.message });
+          } else {
+            this.import_success = this.$t('buckets.importSuccess');
+          }
         } catch (err) {
-          this.import_error = 'Import failed, see aw-server logs for more info';
+          // Surface the server-provided error message when available so the
+          // user can act on it (e.g. duplicate bucket id) instead of only
+          // seeing a generic "Import failed" — see issue #394.
+          const detail =
+            err && (err.response?.data?.message || err.message || String(err));
+          this.import_error = detail
+            ? this.$t('buckets.importFailedDetail', { detail })
+            : this.$t('buckets.importFailed');
         }
         await this.bucketsStore.loadBuckets();
         this.import_file = null;
@@ -319,19 +341,19 @@ export default {
       const checks = [
         {
           msg: () => {
-            return `Device known by several hostnames: ${device.hostnames}`;
+            return this.$t('buckets.deviceMultiHost', { hostnames: device.hostnames });
           },
           failed: () => device.hostnames.length > 1,
         },
         {
           msg: () => {
-            return `Device known by several IDs: ${device.device_ids}`;
+            return this.$t('buckets.deviceMultiId', { ids: device.device_ids });
           },
           failed: () => device.device_ids.length > 1,
         },
         {
           msg: () => {
-            return `Device is a special device, unattributed to a hostname, or not assigned a device ID.`;
+            return this.$t('buckets.deviceSpecial');
           },
           failed: () => _.isEqual(device.hostnames, ['unknown']),
         },
@@ -366,7 +388,7 @@ export default {
         this.$root.$emit('bv::hide::modal', 'delete-host-modal');
       } catch (err) {
         this.delete_host_error =
-          err?.message || 'Deletion failed. Some buckets may not have been deleted.';
+          err?.message || this.$t('buckets.deletionFailed');
       } finally {
         this.deleting_host = false;
       }
@@ -379,19 +401,34 @@ export default {
     },
 
     async export_bucket_json(bucketId: string) {
-      const response = await this.$aw.req.get(`/0/buckets/${bucketId}/export`);
-      const data = JSON.stringify(response.data, null, 2);
-      await downloadFile(`aw-bucket-export-${bucketId}.json`, data, 'application/json');
+      // Use extended timeout — buckets with many events can exceed the
+      // default requestTimeout when serialized. See #847.
+      const data = await exportBucketLong(bucketId);
+      await downloadFile(
+        `aw-bucket-export-${bucketId}.json`,
+        JSON.stringify(data, null, 2),
+        'application/json'
+      );
     },
 
     async export_all_buckets_json() {
-      const response = await this.$aw.req.get('/0/export');
-      const data = JSON.stringify(response.data, null, 2);
-      await downloadFile('aw-bucket-export.json', data, 'application/json');
+      // Use extended timeout — exporting all buckets can take a long time
+      // for users with large datasets. See #847.
+      const data = await exportAllBucketsLong();
+      await downloadFile(
+        'aw-bucket-export.json',
+        JSON.stringify(data, null, 2),
+        'application/json'
+      );
     },
 
     async export_csv(bucketId: string) {
-      const bucket = await this.bucketsStore.getBucketWithEvents({ id: bucketId });
+      // Use extended timeout — fetching all events for CSV export can
+      // exceed the default requestTimeout for large buckets. See #847.
+      const bucket = await this.bucketsStore.getBucketWithEvents({
+        id: bucketId,
+        timeoutMs: LONG_TIMEOUT_MS,
+      });
       const events = bucket.events;
       const datakeys = events.length > 0 ? Object.keys(events[0].data) : [];
       const columns = ['timestamp', 'duration'].concat(datakeys);

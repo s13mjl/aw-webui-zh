@@ -1,16 +1,16 @@
 <template lang="pug">
 div
-  b-form-group(label="Hostname" label-cols=2)
+  b-form-group(:label="$t('queryOptions.hostname')" label-cols=2)
     b-form-select(v-model="queryOptionsData.hostname")
       option(v-for="hostname in hostnameChoices")
         | {{hostname}}
-  b-form-group(label="Start" label-cols=2)
+  b-form-group(:label="$t('queryOptions.start')" label-cols=2)
     b-form-datepicker(v-model="queryOptionsData.start")
-  b-form-group(label="Stop" label-cols=2)
+  b-form-group(:label="$t('queryOptions.stop')" label-cols=2)
     b-form-datepicker(v-model="queryOptionsData.stop")
-  b-form-group(label="Toggles" label-cols=2)
-    b-form-checkbox(type="checkbox" v-model="queryOptionsData.filter_afk" label="Filter AFK" description="")
-      label Exclude time away from computer
+  b-form-group(:label="$t('queryOptions.toggles')" label-cols=2)
+    b-form-checkbox(type="checkbox" v-model="queryOptionsData.filter_afk" :label="$t('queryOptions.filterAfk')" description="")
+      label {{ $t('queryOptions.filterAfkHelp') }}
 </template>
 
 <script lang="ts">

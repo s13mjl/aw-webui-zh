@@ -38,6 +38,7 @@ import Theme from '~/views/settings/Theme.vue';
 import ColorSettings from '~/views/settings/ColorSettings.vue';
 import ActivePatternSettings from '~/views/settings/ActivePatternSettings.vue';
 import PrivacyFilterSettings from '~/views/settings/PrivacyFilterSettings.vue';
+import BackupSettings from '~/views/settings/BackupSettings.vue';
 
 interface Group {
   id: string;
@@ -61,6 +62,7 @@ export default {
     DeveloperSettings,
     ActivePatternSettings,
     PrivacyFilterSettings,
+    BackupSettings,
   },
   beforeRouteLeave(to, from, next) {
     const categoryStore = useCategoryStore();
@@ -93,6 +95,7 @@ export default {
           { name: 'TimelineDurationSettings' },
           { name: 'LandingPageSettings' },
           { name: 'UncategorizedHintSettings' },
+          { name: 'BackupSettings' },
           ...(this.$isAndroid ? [] : [{ name: 'ReleaseNotificationSettings' }]),
         ],
       };

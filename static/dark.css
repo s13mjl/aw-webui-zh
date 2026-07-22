@@ -236,7 +236,6 @@ hr {
 
 svg text {
   fill: #fff !important;
-  text-shadow: #000 0.5px 0.5px 0.5px;
 }
 
 /* Timespiral labels are drawn via D3 .style('fill', '#888'), which loses

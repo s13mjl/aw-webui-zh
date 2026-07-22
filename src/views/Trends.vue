@@ -1,7 +1,7 @@
 <template lang="pug">
 div
   div.d-flex.flex-wrap.align-items-center.mb-3
-    h3.mb-0.mr-3 Trends
+    h3.mb-0.mr-3 {{ $t('nav.trends') }}
 
     b-button-group.mr-2.mb-1(size="sm")
       b-button.px-3(
@@ -22,45 +22,45 @@ div
     )
 
     small.text-muted.ml-auto.mb-1
-      | Comparing #[b {{ currentRangeLabel }}] vs #[b {{ previousRangeLabel }}].
+      | {{ $t('trends.comparing') }} #[b {{ currentRangeLabel }}] {{ $t('trends.vs') }} #[b {{ previousRangeLabel }}].
 
   div(v-if="!host")
     b-alert(show variant="info")
-      | No host with window/AFK buckets available. Install
+      | {{ $t('trends.noHosts') }}
       | #[a(href="https://docs.activitywatch.net/en/latest/watchers.html") aw-watcher-window and aw-watcher-afk]
-      | to use this view.
+      | {{ $t('trends.installSuffix') }}
 
   div(v-else-if="loading")
     b-spinner.mr-2(small)
-    span.text-muted Computing trends over {{ periodDays }} + {{ periodDays }} days…
+    span.text-muted {{ $t('trends.computing', { period: periodDays + ' + ' + periodDays + ' days' }) }}
 
   div(v-else)
     b-row.mb-3
       b-col(md="4")
         b-card.h-100
-          small.text-muted Active time
+          small.text-muted {{ $t('trends.activeTime') }}
           h4.mb-0 {{ totalCurrent | friendlyduration }}
           div.small.mt-1(:class="deltaClass(totalDelta)")
-            | {{ formatDelta(totalCurrent, totalPrevious) }} vs previous {{ periodDays }} days
+            | {{ formatDelta(totalCurrent, totalPrevious) }} {{ $t('trends.vsPrevious', { days: periodDays }) }}
       b-col(md="4")
         b-card.h-100
-          small.text-muted Daily average
+          small.text-muted {{ $t('trends.dailyAverage') }}
           h4.mb-0 {{ avgPerDay | friendlyduration }}
           div.small.mt-1(:class="deltaClass(avgDelta)")
-            | {{ formatDelta(avgPerDay, avgPerDayPrevious) }} per day
+            | {{ formatDelta(avgPerDay, avgPerDayPrevious) }} {{ $t('trends.perDay') }}
       b-col(md="4")
         b-card.h-100
-          small.text-muted Most-active day
+          small.text-muted {{ $t('trends.mostActiveDay') }}
           h4.mb-0(v-if="busiestDay") {{ busiestDay.label }}
           h4.mb-0.text-muted(v-else) —
-          div.small.text-muted.mt-1(v-if="busiestDay") {{ busiestDay.duration | friendlyduration }} on this day
+          div.small.text-muted.mt-1(v-if="busiestDay") {{ busiestDay.duration | friendlyduration }} {{ $t('trends.onThisDay') }}
 
-    h5.mt-3 Time per day
+    h5.mt-3 {{ $t('trends.timePerDay') }}
     aw-timeline-barchart(:datasets="datasets" :height="100")
 
-    h5.mt-4 Top changes by category
+    h5.mt-4 {{ $t('trends.topChanges') }}
     p.small.text-muted(v-if="categoryTrends.length === 0")
-      | No categorized data to compare.
+      | {{ $t('trends.noData') }}
     b-table.mt-2(
       v-else
       small
@@ -71,7 +71,7 @@ div
       :sort-desc="true"
     )
       template(#cell(category)="row")
-        | {{ row.item.category.join(' > ') || 'Uncategorized' }}
+        | {{ row.item.category.join(' > ') || $t('trends.uncategorized') }}
       template(#cell(current)="row")
         | {{ row.item.current | friendlyduration }}
       template(#cell(previous)="row")
@@ -92,7 +92,7 @@ import moment from 'moment';
 import { get_today_with_offset, format_date_short, format_date_with_weekday } from '~/util/time';
 import { buildBarchartDataset } from '~/util/datasets';
 import { canonicalEvents } from '~/queries';
-import { getClient } from '~/util/awclient';
+import { getClient, queryLong } from '~/util/awclient';
 import { useBucketsStore } from '~/stores/buckets';
 import { useCategoryStore } from '~/stores/categories';
 import { useSettingsStore } from '~/stores/settings';
@@ -118,11 +118,6 @@ export default {
       settingsStore: useSettingsStore(),
 
       periodDays: 7,
-      periodOptions: [
-        { value: 7, text: '7 days' },
-        { value: 30, text: '30 days' },
-        { value: 90, text: '90 days' },
-      ],
 
       loading: false,
 
@@ -132,14 +127,6 @@ export default {
       // Per-category totals for current and previous periods.
       currentTotals: {} as CategoryTotals,
       previousTotals: {} as CategoryTotals,
-
-      categoryFields: [
-        { key: 'category', label: 'Category', sortable: true },
-        { key: 'current', label: 'Current', class: 'text-right', sortable: true },
-        { key: 'previous', label: 'Previous', class: 'text-right', sortable: true },
-        { key: 'delta', label: 'Change', class: 'text-right', sortable: true },
-        { key: 'absDelta', label: '', class: 'd-none', sortable: true },
-      ],
     };
   },
 
@@ -150,6 +137,24 @@ export default {
 
     hostOptions(): { value: string; text: string }[] {
       return this.bucketsStore.hosts.map(h => ({ value: h, text: h }));
+    },
+
+    periodOptions(): { value: number; text: string }[] {
+      return [
+        { value: 7, text: this.$t('trends.days', { count: 7 }) },
+        { value: 30, text: this.$t('trends.days', { count: 30 }) },
+        { value: 90, text: this.$t('trends.days', { count: 90 }) },
+      ];
+    },
+
+    categoryFields(): { key: string; label: string; class?: string; sortable: boolean }[] {
+      return [
+        { key: 'category', label: 'Category', sortable: true },
+        { key: 'current', label: this.$t('alerts.current'), class: 'text-right', sortable: true },
+        { key: 'previous', label: 'Previous', class: 'text-right', sortable: true },
+        { key: 'delta', label: 'Change', class: 'text-right', sortable: true },
+        { key: 'absDelta', label: '', class: 'd-none', sortable: true },
+      ];
     },
 
     today(): string {
@@ -350,7 +355,9 @@ export default {
     async queryTotals(start: moment.Moment, end: moment.Moment): Promise<CategoryTotals> {
       const query = this.buildCategoryQuery();
       const period = `${start.format()}/${end.format()}`;
-      const r = await getClient().query([period], query, { name: 'trendsTotals', verbose: true });
+      // Use extended timeout — totals span the full period (potentially
+      // months) and can exceed the default requestTimeout. See #1099.
+      const r = await queryLong([period], query);
       const events = (r[0] && r[0].cat_events) || [];
       const totals: CategoryTotals = {};
       for (const e of events) {

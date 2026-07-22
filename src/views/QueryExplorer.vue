@@ -1,9 +1,9 @@
 <template lang="pug">
 
 div
-  h3 Query Explorer
+  h3 {{ $t('query.title') }}
 
-  | See #[a(href="https://docs.activitywatch.net/en/latest/examples/querying-data.html") the documentation] for help on how to write queries.
+  | {{ $t('queryExplorer.docsPrefix') }} #[a(href="https://docs.activitywatch.net/en/latest/examples/querying-data.html") {{ $t('queryExplorer.docsLink') }}] {{ $t('queryExplorer.docsSuffix') }}
 
   hr
 
@@ -16,32 +16,32 @@ div
   form
     div.form-row.align-items-end
       div.form-group.col-lg-6
-        label.mb-1(for="saved-query-select") Saved Queries
+        label.mb-1(for="saved-query-select") {{ $t('queryExplorer.savedQueries') }}
         select#saved-query-select.form-control(v-model="selected_saved_query_id", @change="loadSelectedQuery()")
-          option(value="") Select saved query...
+          option(value="") {{ $t('queryExplorer.selectSaved') }}
           option(v-for="savedQuery in savedQueries", :key="savedQuery.id", :value="savedQuery.id")
             | {{savedQuery.name}}
       div.form-group.col-lg-6
         div.saved-query-actions
-          button.btn.btn-success.mr-2(type="button", @click="saveCurrentQuery()") Save Current
-          button.btn.btn-secondary.mr-2(type="button", @click="renameSelectedQuery()", :disabled="!selected_saved_query_id") Rename
+          button.btn.btn-success.mr-2(type="button", @click="saveCurrentQuery()") {{ $t('queryExplorer.saveCurrent') }}
+          button.btn.btn-secondary.mr-2(type="button", @click="renameSelectedQuery()", :disabled="!selected_saved_query_id") {{ $t('queryExplorer.rename') }}
           button.btn.btn-danger(type="button", @click="deleteSelectedQuery()", :disabled="!selected_saved_query_id")
             icon(name="trash")
-            |  Delete
+            |  {{ $t('queryExplorer.delete') }}
 
     div.form-row
       div.form-group.col-md-6
-        | Start
+        | {{ $t('query.start') }}
         input.form-control(type="date", :max="today", v-model="startdate")
       div.form-group.col-md-6
-        | End
+        | {{ $t('query.end') }}
         input.form-control(type="date", :max="tomorrow", v-model="enddate")
 
     div.form-group
       textarea.form-control(v-model="query_code", @keypress.ctrl.enter="query()" style="font-family: monospace", rows=10)
     div.form-inline
       div.form-group
-        button.btn.btn-success(type="button", @click="query()") Query
+        button.btn.btn-success(type="button", @click="query()") {{ $t('queryExplorer.query') }}
       span(style="padding-left: 1em;")
       | {{eventcount_str}}
 
@@ -117,7 +117,7 @@ RETURN = sort_by_duration(merged_events);
       return this.savedQueries.find(query => query.id === this.selected_saved_query_id) || null;
     },
     eventcount_str: function () {
-      if (Array.isArray(this.events)) return 'Number of events: ' + this.events.length;
+      if (Array.isArray(this.events)) return this.$t('queryExplorer.numberOfEvents') + this.events.length;
       else return '';
     },
   },
@@ -133,7 +133,7 @@ RETURN = sort_by_duration(merged_events);
         return true;
       } catch (e) {
         console.error('Failed to save query presets', e);
-        this.saved_query_error = 'Failed to save query presets.';
+        this.saved_query_error = this.$t('queryExplorer.saveFailed');
         return false;
       }
     },
@@ -153,7 +153,7 @@ RETURN = sort_by_duration(merged_events);
       const current = this.selectedSavedQuery;
 
       if (current) {
-        if (!confirm(`Update saved query "${current.name}"?`)) {
+        if (!confirm(this.$t('queryExplorer.updatePrompt', { name: current.name }))) {
           return;
         }
 
@@ -178,14 +178,14 @@ RETURN = sort_by_duration(merged_events);
       }
 
       const defaultName = getDefaultSavedQueryName(this.query_code);
-      const name = prompt('Name for the saved query:', defaultName);
+      const name = prompt(this.$t('queryExplorer.namePrompt'), defaultName);
       if (name === null) {
         return;
       }
 
       const trimmedName = name.trim();
       if (_.isEmpty(trimmedName)) {
-        alert('Saved query name cannot be empty.');
+        alert(this.$t('queryExplorer.emptyNameAlert'));
         return;
       }
 
@@ -212,14 +212,14 @@ RETURN = sort_by_duration(merged_events);
         return;
       }
 
-      const name = prompt('Rename saved query:', this.selectedSavedQuery.name);
+      const name = prompt(this.$t('queryExplorer.renamePrompt'), this.selectedSavedQuery.name);
       if (name === null) {
         return;
       }
 
       const trimmedName = name.trim();
       if (_.isEmpty(trimmedName)) {
-        alert('Saved query name cannot be empty.');
+        alert(this.$t('queryExplorer.emptyNameAlert'));
         return;
       }
 
@@ -236,7 +236,7 @@ RETURN = sort_by_duration(merged_events);
       }
 
       if (
-        !confirm(`Delete saved query "${this.selectedSavedQuery.name}"? This cannot be undone.`)
+        !confirm(this.$t('queryExplorer.deletePrompt', { name: this.selectedSavedQuery.name }))
       ) {
         return;
       }
@@ -256,7 +256,7 @@ RETURN = sort_by_duration(merged_events);
         const categoryRules = useCategoryStore().classes_for_query;
 
         if (useCategoryStore().classes_for_query.length === 0) {
-          this.error = '__CATEGORIES__ was used in query but no categories have been defined yet.';
+          this.error = this.$t('queryExplorer.categoriesMissing');
           return;
         }
 

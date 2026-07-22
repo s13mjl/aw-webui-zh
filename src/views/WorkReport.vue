@@ -1,15 +1,15 @@
 <template lang="pug">
 div
-  h3.mb-3 Work Time Report
+  h3.mb-3 {{ $t('workReport.title') }}
 
   div.row.mb-4
     div.col-md-3
-      b-form-group(label="Hosts" label-class="font-weight-bold")
+      b-form-group(:label="$t('workReport.hosts')" label-class="font-weight-bold")
         b-form-select(v-model="selectedHosts" :options="hostOptions" multiple :select-size="4")
-        small.text-muted Select devices to include
+        small.text-muted {{ $t('workReport.selectDevices') }}
 
     div.col-md-3
-      b-form-group(label="Categories" label-class="font-weight-bold")
+      b-form-group(:label="$t('workReport.categories')" label-class="font-weight-bold")
         b-form-select(
           :value="''"
           :options="addableCategoryOptions"
@@ -21,14 +21,14 @@ div
             | {{ JSON.parse(cat).join(' > ') }}
             button.ml-1.close.small(
               type="button"
-              aria-label="Remove category"
+              :aria-label="$t('workReport.removeCategory')"
               style="font-size: 0.85rem; line-height: 1"
               @click="removeCategory(idx)"
             ) &times;
-        small.text-muted.d-block.mt-1 Subcategories are included automatically (e.g. "Work" also covers "Work > Programming").
+        small.text-muted.d-block.mt-1 {{ $t('workReport.subcatsHelp') }}
 
     div.col-md-3
-      b-form-group(label="Break Time" label-class="font-weight-bold")
+      b-form-group(:label="$t('workReport.breakTime')" label-class="font-weight-bold")
         div.d-flex.align-items-center
           b-form-input(
             v-model="breakTime"
@@ -37,38 +37,38 @@ div
             max="30"
             step="1"
           )
-          span.ml-2.text-nowrap {{ breakTime }} min
-        small.text-muted Gaps shorter than this will be counted as work time
+          span.ml-2.text-nowrap {{ breakTime }} {{ $t('workReport.breakTimeSuffix') }}
+        small.text-muted {{ $t('workReport.breakTimeHelp') }}
 
     div.col-md-3
-      b-form-group(label="Date Range" label-class="font-weight-bold")
+      b-form-group(:label="$t('workReport.dateRange')" label-class="font-weight-bold")
         b-form-select(v-model="dateRange" :options="dateRangeOptions")
 
   div.mb-3
     b-button(@click="loadData" variant="primary")
       icon(name="sync")
-      |  Calculate Work Time
+      |  {{ $t('workReport.calculate') }}
     b-button.ml-2(@click="exportCSV" variant="outline-secondary" :disabled="!hasData")
       icon(name="download")
-      |  Export CSV
+      |  {{ $t('workReport.exportCsv') }}
     b-button.ml-2(@click="exportJSON" variant="outline-secondary" :disabled="!hasData")
       icon(name="download")
-      |  Export JSON
+      |  {{ $t('workReport.exportJson') }}
 
   div(v-if="loading")
     b-spinner.mr-2
-    | Loading...
+    | {{ $t('workReport.loading') }}
 
   div(v-if="hasData && !loading")
-    h5.mt-4 Daily Breakdown
+    h5.mt-4 {{ $t('workReport.dailyBreakdown') }}
 
     table.table.table-sm.table-hover
       thead
         tr
-          th Date
-          th.text-right Work Time
-          th.text-right Sessions
-          th.text-right Avg Session
+          th {{ $t('workReport.dateHeader') }}
+          th.text-right {{ $t('workReport.workTimeHeader') }}
+          th.text-right {{ $t('workReport.sessionsHeader') }}
+          th.text-right {{ $t('workReport.avgSessionHeader') }}
       tbody
         tr(v-for="day in dailyData" :key="day.date")
           td {{ day.date }}
@@ -77,7 +77,7 @@ div
           td.text-right {{ formatDuration(day.avgSession) }}
       tfoot
         tr.font-weight-bold
-          td Total
+          td {{ $t('workReport.total') }}
           td.text-right {{ formatDuration(totalDuration) }}
           td.text-right {{ totalSessions }}
           td.text-right {{ formatDuration(avgSessionLength) }}
@@ -163,7 +163,7 @@ export default {
       return [
         {
           value: '',
-          text: this.selectedCategories.length === 0 ? 'Select category…' : 'Add category…',
+          text: this.selectedCategories.length === 0 ? this.$t('workReport.selectCategoryPlaceholder') : this.$t('workReport.addCategoryPlaceholder'),
           disabled: true,
         },
         ...this.categoryOptions.filter(opt => !isCoveredBySelected(JSON.parse(opt.value))),
@@ -171,10 +171,10 @@ export default {
     },
     dateRangeOptions() {
       return [
-        { value: 'last7d', text: 'Last 7 days' },
-        { value: 'last30d', text: 'Last 30 days' },
-        { value: 'thisWeek', text: 'This week' },
-        { value: 'thisMonth', text: 'This month' },
+        { value: 'last7d', text: this.$t('workReport.last7days') },
+        { value: 'last30d', text: this.$t('workReport.last30days') },
+        { value: 'thisWeek', text: this.$t('workReport.thisWeek') },
+        { value: 'thisMonth', text: this.$t('workReport.thisMonth') },
       ];
     },
     hasData() {
@@ -205,13 +205,13 @@ export default {
         const client = getClient();
 
         if (this.selectedHosts.length === 0) {
-          alert('Please select at least one host');
+          alert(this.$t('workReport.errNoHost'));
           this.loading = false;
           return;
         }
 
         if (this.selectedCategories.length === 0) {
-          alert('Please select at least one category');
+          alert(this.$t('workReport.errNoCategory'));
           this.loading = false;
           return;
         }
@@ -226,20 +226,12 @@ export default {
             this.bucketsStore.buckets || []
           );
           if (supportedHosts.length === 0) {
-            alert(
-              `The selected hosts are missing aw-watcher-afk buckets and can't be included in Work Report: ${unsupportedHosts.join(
-                ', '
-              )}`
-            );
+            alert(this.$t('workReport.errMissingAfk'));
             this.loading = false;
             return;
           }
 
-          alert(
-            `Skipping hosts without aw-watcher-afk buckets: ${unsupportedHosts.join(
-              ', '
-            )}. Work Report will use: ${supportedHosts.join(', ')}`
-          );
+          alert(this.$t('workReport.warnSkippingHosts'));
           this.selectedHosts = supportedHosts;
         }
 
@@ -309,7 +301,7 @@ export default {
         this.rawData = results;
       } catch (error) {
         console.error('Error loading work time data:', error);
-        alert('Error loading data. See console for details.');
+        alert(this.$t('workReport.errLoading'));
       } finally {
         this.loading = false;
       }
@@ -367,7 +359,7 @@ export default {
     },
 
     exportCSV() {
-      const headers = ['Date', 'Duration (hours)', 'Sessions', 'Avg Session (minutes)'];
+      const headers = [this.$t('workReport.csvDate'), this.$t('workReport.csvDuration'), this.$t('workReport.csvSessions'), this.$t('workReport.csvAvgSession')];
       const rows = this.dailyData.map(day => [
         day.date,
         (day.duration / 3600).toFixed(2),
@@ -379,7 +371,7 @@ export default {
         headers.join(','),
         ...rows.map(row => row.join(',')),
         '',
-        `Total,${(this.totalDuration / 3600).toFixed(2)},${this.totalSessions},${(
+        `${this.$t('workReport.total')},${(this.totalDuration / 3600).toFixed(2)},${this.totalSessions},${(
           this.avgSessionLength / 60
         ).toFixed(1)}`,
       ].join('\n');

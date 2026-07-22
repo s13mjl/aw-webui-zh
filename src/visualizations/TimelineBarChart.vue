@@ -3,9 +3,9 @@ div(v-if="datasets && datasets.length > 0")
   // Height set here to avoid elements jumping when loading Activity view
   bar(:chart-data="chartData" :chart-options="chartOptions" :height="330")
 div.small(v-else-if="datasets === null", style="font-size: 16pt; color: #aaa;")
-  | No data
+  | {{ $t('timelineBarChart.noData') }}
 div.small(v-else, style="font-size: 16pt; color: #aaa;")
-  .aw-loading Loading...
+  .aw-loading {{ $t('timelineBarChart.loading') }}
 </template>
 
 <script lang="ts">
@@ -42,7 +42,7 @@ export default {
       type: Array,
       default: () => [
         {
-          label: 'Total time',
+          label: (this as any).$t('timelineBarChart.totalTime'),
           backgroundColor: '#6699ff',
           data: Array.from({ length: 40 }, () => Math.floor(Math.random() * 40)),
         },
@@ -95,7 +95,7 @@ export default {
         datasets: _.sortBy(this.datasets, d => d.label),
         title: {
           display: true,
-          text: 'Timeline',
+          text: this.$t('timelineBarChart.timeline'),
         },
         responsive: true,
         maintainAspectRatio: false,
@@ -133,7 +133,11 @@ export default {
           y: {
             stacked: true,
             min: 0,
-            suggestedMax: resolution.startsWith('day') ? 1 : undefined,
+            // Use a hard max for day view: each bar represents one hour, so
+            // activity can never legitimately exceed 1h. Using suggestedMax
+            // lets Chart.js extend the axis past 1h (e.g. to 2h) when data
+            // contains overlapping events, which is misleading — see #851.
+            max: resolution.startsWith('day') ? 1 : undefined,
             ticks: {
               callback: hourToTick,
               stepSize: resolution.startsWith('day') ? 0.25 : 1,

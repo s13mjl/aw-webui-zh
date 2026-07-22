@@ -3,7 +3,10 @@ div
   b-alert(v-if="$isAndroid" show)
     | #[b {{ $t('home.note') }}] {{ $t('home.androidNote') }}
 
-  h3 {{ $t('home.greeting') }}
+  div.d-flex.align-items-center.mb-3
+    img(src="/logo.png" alt="ActivityWatch" style="height: 64px; width: auto; margin-right: 16px;")
+    div
+      h3.mb-0 {{ $t('home.greeting') }}
   p
     | {{ homeIntro1 }}
   p
@@ -50,6 +53,19 @@ div
       p
         | {{ $t('home.support2') }}
         |  #[a(href="https://activitywatch.net/donate/") {{ $t('home.donationPage') }}].
+
+  // 二创作者的工作说明
+  div.row
+    div.col-12
+      h4 {{ $t('home.forkWorkTitle') }}
+      p
+        | {{ $t('home.forkWork1') }}
+      p
+        | {{ $t('home.forkWork2') }}
+      p
+        small.text-muted
+          | {{ $t('home.forkWork3') }}
+          |  #[a(href="https://github.com/s13mjl/aw-tauri-zh") GitHub - s13mjl/aw-tauri-zh]
 
   hr
 
