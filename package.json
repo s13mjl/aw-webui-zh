@@ -121,7 +121,7 @@
     "prettier": "^2.5.1",
     "pug": "^3.0",
     "pug-plain-loader": "^1.0.0",
-    "sass-loader": "^8.0.2",
+    "sass-loader": "^17.0.0",
     "shelljs": "^0.8.5",
     "ts-jest": "^29",
     "ts-loader": "^9.5",
