@@ -355,6 +355,8 @@ export default {
     importHelp: '有效的导入文件是从单个或多个存储桶导出的 JSON 文件。',
     exportBuckets: '导出存储桶',
     exportAllJson: '导出所有存储桶为 JSON',
+    exporting: '正在导出...',
+    exportFailed: '导出失败：{message}',
     tools: '工具',
     importFailed: '导入失败，详见 aw-server 日志',
     importFailedDetail: '导入失败：{detail}',

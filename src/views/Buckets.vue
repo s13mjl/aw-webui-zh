@@ -139,9 +139,13 @@ div
       p.small.text-muted {{ $t('buckets.exportHelp') }}
       b-button(@click="export_all_buckets_json()",
                :title="$t('buckets.exportAllJson')",
+               :disabled="exporting",
                variant="outline-secondary")
-        icon.mr-1(name="download")
-        | {{ $t('buckets.exportAllJson') }}
+        b-spinner.mr-1(v-if="exporting", small)
+        icon.mr-1(v-else, name="download")
+        | {{ exporting ? $t('buckets.exporting') : $t('buckets.exportAllJson') }}
+      b-alert.mt-2(v-if="export_error", variant="danger", show, dismissible, @dismissed="export_error = null")
+        | {{ export_error }}
 
   hr
 
@@ -250,14 +254,8 @@ import moment from 'moment';
 
 import { useServerStore } from '~/stores/server';
 import { useBucketsStore } from '~/stores/buckets';
-import { downloadFile } from '~/util/export';
-import {
-  exportBucketLong,
-  exportAllBucketsLong,
-  getStoredApiToken,
-  LONG_TIMEOUT_MS,
-} from '~/util/awclient';
-
+import { downloadBlob, downloadFile } from '~/util/export';
+import { getStoredApiToken, LONG_TIMEOUT_MS } from '~/util/awclient';
 // Kept outside component methods on purpose: the global asyncErrorCapturedMixin
 // wraps every async method so its rejection is swallowed and reported to the
 // ErrorBoundary. A wrapped import would never reject in onImportFile's catch,
@@ -313,9 +311,14 @@ export default {
       // DELETE acknowledgements that still need reconciling with the catalogue;
       // they survive modal dismissal so a confirmed deletion is never retried.
       delete_host_reconcile_ids: [],
+      export_inflight: 0,
+      export_error: null as string | null,
     };
   },
   computed: {
+    exporting() {
+      return this.export_inflight > 0;
+    },
     deleteHostModalTitle() {
       if (this.delete_host_selected) {
         return this.$t('buckets.deleteHostTitleNamed', {
@@ -497,25 +500,34 @@ export default {
       }
     },
     async export_bucket_json(bucketId: string) {
-      // Use extended timeout — buckets with many events can exceed the
-      // default requestTimeout when serialized. See #847.
-      const data = await exportBucketLong(bucketId);
-      await downloadFile(
-        `aw-bucket-export-${bucketId}.json`,
-        JSON.stringify(data, null, 2),
-        'application/json'
+      await this.export_json(
+        `/0/buckets/${encodeURIComponent(bucketId)}/export`,
+        `aw-bucket-export-${bucketId}.json`
       );
     },
 
     async export_all_buckets_json() {
-      // Use extended timeout — exporting all buckets can take a long time
-      // for users with large datasets. See #847.
-      const data = await exportAllBucketsLong();
-      await downloadFile(
-        'aw-bucket-export.json',
-        JSON.stringify(data, null, 2),
-        'application/json'
-      );
+      await this.export_json('/0/export', 'aw-bucket-export.json');
+    },
+
+    async export_json(path: string, filename: string) {
+      this.export_inflight += 1;
+      this.export_error = null;
+      try {
+        // Keep the axios client so Authorization: Bearer is sent. responseType blob
+        // skips JSON.parse/pretty-print, so a 500k-event export is not doubled in JS memory.
+        const response = await this.$aw.req.get(path, {
+          timeout: LONG_TIMEOUT_MS,
+          responseType: 'blob',
+        });
+        await downloadBlob(filename, response.data, 'application/json');
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        this.export_error = this.$t('buckets.exportFailed', { message: msg });
+        console.error('JSON export failed:', e);
+      } finally {
+        this.export_inflight = Math.max(0, this.export_inflight - 1);
+      }
     },
 
     async export_csv(bucketId: string) {
