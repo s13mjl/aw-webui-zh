@@ -203,7 +203,7 @@ export default {
   },
   methods: {
     showModal() {
-      this.$refs.edit.show();
+      this.$refs.edit?.show();
     },
     hidden() {
       this.$emit('hidden');
@@ -372,15 +372,10 @@ export default {
       };
       this.categoryStore.updateClass(new_class);
 
-      // Hide the modal manually.
-      // Guard against $refs.edit being undefined — the modal may have already
-      // been torn down (e.g. parent set editingId=null during batch edits),
-      // which previously threw "TypeError: e.$refs.edit is undefined"
-      // (see https://github.com/ActivityWatch/activitywatch/issues/1144).
+      // Hide the modal manually. Saving a rename or reparent re-renders the category
+      // tree, which may destroy this component before the tick (activitywatch#1144).
       this.$nextTick(() => {
-        if (this.$refs.edit) {
-          this.$refs.edit.hide();
-        }
+        this.$refs.edit?.hide();
       });
     },
     priorityFromInput(value) {
