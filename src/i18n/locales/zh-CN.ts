@@ -371,6 +371,8 @@ export default {
     for: '查看',
     host: '主机：',
     timeActive: '活跃时间：',
+    timeActiveTooltip:
+      'Active window time in the queried range, after the filters below. The bars in the period chart show raw device active time, so they can be slightly higher.',
     queryRange: '查询范围：',
     filters: '筛选',
     filtersTitle: '筛选',

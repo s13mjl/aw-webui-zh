@@ -10,7 +10,7 @@ div
       li.list-group-item.pl-0.pr-3.py-0.border-0
         b.mr-1 {{ $t('activity.host') }}
         span {{ host }}
-      li.list-group-item.pl-0.pr-3.py-0.border-0
+      li.list-group-item.pl-0.pr-3.py-0.border-0(:title="$t('activity.timeActiveTooltip')")
         b.mr-1 {{ $t('activity.timeActive') }}
         span {{ $filters.friendlyduration(activityStore.active.duration) }}
     ul.list-group.list-group-horizontal-md(v-if="periodLength != 'day'")
