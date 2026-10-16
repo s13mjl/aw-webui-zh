@@ -93,6 +93,9 @@ export default {
   settings: {
     title: 'Settings',
     unsavedCategoriesLeave: 'Your categories have unsaved changes, are you sure you want to leave?',
+    unsavedCategoriesLeaveTitle: 'Unsaved Changes',
+    unsavedCategoriesLeaveOk: 'Leave',
+    unsavedCategoriesLeaveCancel: 'Stay',
     daystart: {
       startOfDay: 'Start of day',
       startOfDayHelp:
@@ -215,6 +218,11 @@ export default {
       alertExists: 'A set named "{name}" already exists.',
       confirmDelete: 'Delete category set "{id}"? This cannot be undone.',
       confirmSwitch: 'You have unsaved changes. Switch sets anyway? (Changes will be discarded)',
+      deleteSetTitle: 'Delete Category Set',
+      deleteOk: 'Delete',
+      unsavedTitle: 'Unsaved Changes',
+      switchOk: 'Switch',
+      cancel: 'Cancel',
       importSetTitle: 'Import category set',
       importSetPrompt: 'The file contains category set "{id}". How should it be imported?',
       importReplace: 'Replace current categories',
@@ -985,6 +993,11 @@ export default {
     renameModalTitle: 'Rename query',
     queryNamePlaceholder: 'Query name',
     deletePrompt: 'Delete saved query "{name}"? This cannot be undone.',
+    updateTitle: 'Update Query',
+    updateOk: 'Update',
+    deleteTitle: 'Delete Query',
+    deleteOk: 'Delete',
+    cancel: 'Cancel',
     categoriesMissing: '__CATEGORIES__ was used in query but no categories have been defined yet.',
     requestError: 'The query request failed.',
   },

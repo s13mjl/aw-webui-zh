@@ -298,16 +298,35 @@ export default {
       this.categoryStore.createSet(name);
       this.categoryStore.switchToSet(name);
     },
-    deleteActiveSet: function () {
+    deleteActiveSet: async function () {
       const id = this.categoryStore.active_set_ids[0];
       if (!id) return;
-      if (!confirm(this.$t('settings.categorization.confirmDelete', { id }))) return;
+      const confirmed = await this.$bvModal.msgBoxConfirm(
+        this.$t('settings.categorization.confirmDelete', { id }),
+        {
+          title: this.$t('settings.categorization.deleteSetTitle'),
+          okTitle: this.$t('settings.categorization.deleteOk'),
+          okVariant: 'danger',
+          cancelTitle: this.$t('settings.categorization.cancel'),
+          centered: true,
+        }
+      );
+      if (!confirmed) return;
       this.categoryStore.deleteSet(id);
       this.categoryStore.save();
     },
-    onSetChange: function (setId: string) {
+    onSetChange: async function (setId: string) {
       if (this.classes_unsaved_changes) {
-        if (!confirm(this.$t('settings.categorization.confirmSwitch'))) {
+        const confirmed = await this.$bvModal.msgBoxConfirm(
+          this.$t('settings.categorization.confirmSwitch'),
+          {
+            title: this.$t('settings.categorization.unsavedTitle'),
+            okTitle: this.$t('settings.categorization.switchOk'),
+            cancelTitle: this.$t('settings.categorization.cancel'),
+            centered: true,
+          }
+        );
+        if (!confirmed) {
           this.activeSetId = this.categoryStore.active_set_ids[0] || 'default';
           return;
         }
