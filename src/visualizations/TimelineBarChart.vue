@@ -25,6 +25,7 @@ import {
 import {
   EXACT_HOURLY_MAX_MS,
   exactBucketLabels,
+  hourlyLabels,
   timeperiodsForPeriod,
   timeperiodsHoursOfPeriod,
 } from '~/util/timeperiod';
@@ -90,6 +91,8 @@ export default {
         return start ? exactBucketLabels({ start, length: [count, resolution] }) : [];
       }
       if (resolution.startsWith('day') && count == 1) {
+        if (start) return hourlyLabels({ start, length: [count, resolution] });
+        // Reports aggregate by wall-clock hour without a selected calendar day.
         const hourOffset = get_hour_offset();
         return _.range(0, 24).map(h => `${(h + hourOffset) % 24}`);
       } else if (resolution.startsWith('day')) {

@@ -148,20 +148,13 @@ export function timeperiodsAroundTimeperiod(timeperiod: TimePeriod): TimePeriod[
   return periods;
 }
 
+/**
+ * Hourly intervals covering `timeperiod` exactly, clipping the final interval
+ * so there is never any overrun. A calendar day is not always 24 elapsed hours
+ * (23/25 across DST, 23.5/24.5 with a 30-minute shift, or fractional-hour
+ * starts), so step by an hour until the bound instead of assuming a count of 24.
+ */
 export function timeperiodsHoursOfPeriod(timeperiod: TimePeriod): TimePeriod[] {
-  if (timeperiod.length[1] !== 'milliseconds') {
-    const periods = [];
-    const _length: [number, string] = [1, 'hour'];
-    for (let i = 0; i < 24; i++) {
-      const start = moment(timeperiod.start)
-        .add(i * _length[0], _length[1] as moment.unitOfTime.DurationConstructor)
-        .format();
-      periods.push({ start, length: _length });
-    }
-    return periods;
-  }
-  // Exact interval: clip the final bucket at the end bound instead of emitting
-  // a full 24-hour day of hourly buckets.
   const start = moment(timeperiod.start);
   const end = start
     .clone()
@@ -181,6 +174,12 @@ export function timeperiodsHoursOfPeriod(timeperiod: TimePeriod): TimePeriod[] {
   return periods;
 }
 
+/**
+ * One label per interval from `timeperiodsHoursOfPeriod`, so the count matches
+ * the intervals (24 normally, 23/25 across DST). Labels are bare hours, or
+ * `H:mm` when a start has non-zero minutes. A repeated wall-clock label (the
+ * fall-back hour) gets its UTC offset appended, e.g. `2 (+02:00)`.
+ */
 export function hourlyLabels(timeperiod: TimePeriod): string[] {
   const periods = timeperiodsHoursOfPeriod(timeperiod);
   const labels = periods.map(p => {
