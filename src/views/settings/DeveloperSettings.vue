@@ -6,10 +6,6 @@ div
     div
       b-form-checkbox.float-right.ml-2(v-model="devmode" switch)
 
-  b-form-group(:label="$t('settings.developer.showYearly')" label-cols-md=3 :description="$t('settings.developer.showYearlyHelp')")
-    div
-      b-form-checkbox.float-right.ml-2(v-model="showYearly" switch)
-
   b-form-group(:label="$t('settings.developer.multidevice')" label-cols-md=3 :description="$t('settings.developer.multideviceHelp')")
     div
       b-form-checkbox.float-right.ml-2(v-model="useMultidevice" switch)
@@ -38,14 +34,6 @@ export default {
       },
       set(devmode) {
         useSettingsStore().update({ devmode });
-      },
-    },
-    showYearly: {
-      get() {
-        return useSettingsStore().showYearly;
-      },
-      set(showYearly) {
-        useSettingsStore().update({ showYearly });
       },
     },
     useMultidevice: {

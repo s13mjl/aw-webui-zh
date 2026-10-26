@@ -62,7 +62,6 @@ interface State {
 
   // Whether to show certain WIP features
   devmode: boolean;
-  showYearly: boolean;
   useMultidevice: boolean;
   requestTimeout: number;
 
@@ -116,7 +115,6 @@ export const useSettingsStore = defineStore('settings', {
     // Developer settings
     // NOTE: PRODUCTION might be undefined (in tests, for example)
     devmode: typeof PRODUCTION === 'undefined' ? true : !PRODUCTION,
-    showYearly: false,
     useMultidevice: false,
     requestTimeout: 30,
 

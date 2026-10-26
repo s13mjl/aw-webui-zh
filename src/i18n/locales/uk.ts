@@ -154,9 +154,6 @@ export default {
       noteBody: 'Ці параметри для розробників; необережна зміна може щось зламати.',
       forceDevmode: 'Примусовий devmode',
       forceDevmodeHelp: 'Devmode вмикає функції, що ще в розробці.',
-      showYearly: 'Показувати річний діапазон',
-      showYearlyHelp:
-        'Запит за цілий рік дуже важкий і часто завершується таймаутом. На aw-server-rust може працювати швидше.',
       multidevice: 'Запит з кількох пристроїв',
       multideviceHelp:
         'Події з кількох хостів у перегляді активності. Експеримент; браузерні bucket-и та «аудіо = активність» поки не підтримуються.',
@@ -274,6 +271,10 @@ export default {
     periodLast30d: '30 днів',
     periodLast7dTitle: 'останні 7 днів',
     periodLast30dTitle: 'останні 30 днів',
+    periodAll: 'Весь час',
+    periodCustom: 'Власний',
+    customRangeStart: 'Дата початку',
+    customRangeEnd: 'Дата завершення',
     filterAfkTooltip: 'Приховати час, коли AFK-watcher не фіксував введення з клавіатури чи миші.',
     filterAudibleTooltip:
       'Якщо активне вікно — вкладка браузера зі звуком, рахувати як активність. Потрібен browser watcher.',
@@ -317,6 +318,8 @@ export default {
     periodThisYear: 'цей рік',
     periodLast7d: 'останні 7 днів',
     periodLast30d: 'останні 30 днів',
+    periodAll: 'весь час',
+    periodCustom: 'вибраний період',
   },
   visualizations: {
     noData: '(немає даних)',

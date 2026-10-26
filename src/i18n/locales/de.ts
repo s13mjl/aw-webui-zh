@@ -156,9 +156,6 @@ export default {
         'Diese Einstellungen sind für Entwickler gedacht und können unerwartet etwas kaputt machen.',
       forceDevmode: 'Devmode erzwingen',
       forceDevmodeHelp: 'Devmode aktiviert noch unfertige Funktionen.',
-      showYearly: 'Jahreszeitraum anzeigen',
-      showYearlyHelp:
-        'Eine Abfrage über ein ganzes Jahr ist sehr schwer und führt oft zu Timeouts. Mit aw-server-rust kann es schneller sein.',
       multidevice: 'Multi-Device-Abfrage',
       multideviceHelp:
         'Frühes Experiment: Ereignisse von mehreren Hosts in der Aktivitätsansicht. Browser-Buckets und „Audio = aktiv“ werden noch nicht unterstützt.',
@@ -277,6 +274,10 @@ export default {
     periodLast30d: '30 Tage',
     periodLast7dTitle: 'letzte 7 Tage',
     periodLast30dTitle: 'letzte 30 Tage',
+    periodAll: 'Gesamter Zeitraum',
+    periodCustom: 'Benutzerdefiniert',
+    customRangeStart: 'Startdatum',
+    customRangeEnd: 'Enddatum',
     filterAfkTooltip: 'Zeit ausblenden, in der der AFK-Watcher keine Eingabe erkannt hat.',
     filterAudibleTooltip:
       'Aktives Fenster mit hörbarem Browser-Tab als aktiv zählen. Erfordert Browser-Watcher.',
@@ -320,6 +321,8 @@ export default {
     periodThisYear: 'dieses Jahr',
     periodLast7d: 'die letzten 7 Tage',
     periodLast30d: 'die letzten 30 Tage',
+    periodAll: 'der gesamte Zeitraum',
+    periodCustom: 'der ausgewählte Zeitraum',
   },
   visualizations: {
     noData: '(keine Daten)',

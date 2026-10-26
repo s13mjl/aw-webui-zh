@@ -10,6 +10,7 @@ div.small(v-else, style="font-size: 16pt; color: #aaa;")
 
 <script lang="ts">
 import _ from 'lodash';
+import moment from 'moment';
 import { ChartOptions } from 'chart.js';
 import 'chart.js/auto';
 import { Bar } from 'vue-chartjs/legacy';
@@ -19,6 +20,7 @@ import {
   get_hour_offset,
   get_short_month_labels,
 } from '~/util/time';
+import { timeperiodsForPeriod } from '~/util/timeperiod';
 
 function hourToTick(hours: number): string {
   if (hours > 1) {
@@ -65,7 +67,19 @@ export default {
         const hourOffset = get_hour_offset();
         return _.range(0, 24).map(h => `${(h + hourOffset) % 24}`);
       } else if (resolution.startsWith('day')) {
-        return _.range(count).map(d => `${d + 1}`);
+        // Mirror the activity store's adaptive splitting so labels line up
+        // with the bars for long custom/all-time ranges.
+        const periods = timeperiodsForPeriod({
+          start,
+          length: this.timeperiod_length,
+        });
+        const firstDays = periods.length > 0 ? periods[0].length[0] : 1;
+        return periods.map(period => {
+          const date = moment(period.start);
+          if (firstDays > 300) return date.format('YYYY');
+          if (firstDays > 25) return date.format('YYYY-MM');
+          return date.format('MM-DD');
+        });
       } else if (resolution.startsWith('week')) {
         // Look up days of the week from `start`
         return _.range(7).map(d => {
@@ -102,7 +116,11 @@ export default {
       };
     },
     chartOptions(): ChartOptions {
-      const resolution = this.timeperiod_length[1];
+      const [count, resolution] = this.timeperiod_length;
+      // Hourly bars are capped at 1h, daily bars at 24h. Longer adaptive
+      // ranges (monthly/yearly bars) need an auto-scaled axis.
+      const isHourly = resolution.startsWith('day') && count == 1;
+      const isDaily = resolution.startsWith('day') && count > 1 && count <= 62;
       return {
         plugins: {
           tooltip: {
@@ -137,10 +155,10 @@ export default {
             // activity can never legitimately exceed 1h. Using suggestedMax
             // lets Chart.js extend the axis past 1h (e.g. to 2h) when data
             // contains overlapping events, which is misleading — see #851.
-            max: resolution.startsWith('day') ? 1 : undefined,
+            max: isHourly ? 1 : isDaily ? 24 : undefined,
             ticks: {
               callback: hourToTick,
-              stepSize: resolution.startsWith('day') ? 0.25 : 1,
+              stepSize: isHourly ? 0.25 : isDaily ? 4 : 1,
             },
           },
         },
