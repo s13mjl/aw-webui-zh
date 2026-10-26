@@ -11,9 +11,7 @@ import {
   TimePeriod,
   dateToTimeperiod,
   timeperiodToStr,
-  timeperiodsHoursOfPeriod,
-  timeperiodsDaysOfPeriod,
-  timeperiodsMonthsOfPeriod,
+  timeperiodsForPeriod,
   timeperiodsAroundTimeperiod,
 } from '~/util/timeperiod';
 
@@ -22,18 +20,6 @@ import { useBucketsStore } from '~/stores/buckets';
 import { useCategoryStore } from '~/stores/categories';
 
 import { getClient, queryLong } from '~/util/awclient';
-
-function timeperiodsStrsHoursOfPeriod(timeperiod: TimePeriod): string[] {
-  return timeperiodsHoursOfPeriod(timeperiod).map(timeperiodToStr);
-}
-
-function timeperiodsStrsDaysOfPeriod(timeperiod: TimePeriod): string[] {
-  return timeperiodsDaysOfPeriod(timeperiod).map(timeperiodToStr);
-}
-
-function timeperiodsStrsMonthsOfPeriod(timeperiod: TimePeriod): string[] {
-  return timeperiodsMonthsOfPeriod(timeperiod).map(timeperiodToStr);
-}
 
 function timeperiodStrsAroundTimeperiod(timeperiod: TimePeriod): string[] {
   return timeperiodsAroundTimeperiod(timeperiod).map(timeperiodToStr);
@@ -68,6 +54,10 @@ export interface QueryOptions {
   dont_query_inactive?: boolean;
   force?: boolean;
   always_active_pattern?: string;
+  // Skip the per-period AFK history query used by the period-usage chart.
+  // Needed for custom/all-time ranges, where querying ±15 periods of the
+  // full range would be prohibitively expensive.
+  skip_active_history?: boolean;
 }
 
 interface State {
@@ -287,7 +277,9 @@ export const useActivityStore = defineStore('activity', {
           this.query_category_time_by_period_completed();
         }
 
-        if (this.active.available) {
+        if (query_options.skip_active_history) {
+          await this.query_active_history_completed();
+        } else if (this.active.available) {
           await this.query_active_history(query_options);
         } else if (this.android.available) {
           await this.query_active_history_android(query_options);
@@ -445,25 +437,10 @@ export const useActivityStore = defineStore('activity', {
       always_active_pattern,
     }: QueryOptions & { dontQueryInactive: boolean }) {
       // TODO: Needs to be adapted for Android
-      let periods: string[];
-      const count = timeperiod.length[0];
-      const res = timeperiod.length[1];
-      if (res.startsWith('day') && count == 1) {
-        // If timeperiod is a single day, we query the individual hours
-        periods = timeperiodsStrsHoursOfPeriod(timeperiod);
-      } else if (
-        res.startsWith('day') ||
-        (res.startsWith('week') && count == 1) ||
-        (res.startsWith('month') && count == 1)
-      ) {
-        // If timeperiod is several days, or a single week/month, we query the individual days
-        periods = timeperiodsStrsDaysOfPeriod(timeperiod);
-      } else if (timeperiod.length[1].startsWith('year') && timeperiod.length[0] == 1) {
-        // If timeperiod a single year, we query the individual months
-        periods = timeperiodsStrsMonthsOfPeriod(timeperiod);
-      } else {
-        console.error(`Unknown timeperiod length: ${timeperiod.length}`);
-      }
+      // Choose an appropriate granularity for the period. Adaptive splitting
+      // keeps custom/all-time ranges (which can span years) from issuing
+      // thousands of sequential per-day queries.
+      let periods: string[] = timeperiodsForPeriod(timeperiod).map(timeperiodToStr);
 
       // Filter out periods that start in the future
       periods = periods.filter(period => new Date(period.split('/')[0]) < new Date());

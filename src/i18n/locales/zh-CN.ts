@@ -184,9 +184,6 @@ export default {
       noteBody: '这些设置面向知道自己在做什么的开发者，可能会意外破坏功能。',
       forceDevmode: '强制开发模式',
       forceDevmodeHelp: '开发模式会启用一些仍在开发中的功能。',
-      showYearly: '显示年度时间范围',
-      showYearlyHelp:
-        '查询整年是一项很重的操作，可能导致超时。不过，如果你运行的是 aw-server-rust，查询可能足够快。',
       multidevice: '使用多设备查询',
       multideviceHelp:
         '多设备查询会在活动视图中收集多个主机的事件。这是早期实验功能，目前不支持浏览器存储桶或有声即活跃功能。',
@@ -316,6 +313,10 @@ export default {
     periodLast30d: '最近 30 天',
     periodLast7dTitle: '最近 7 天',
     periodLast30dTitle: '最近 30 天',
+    periodAll: '自始至终',
+    periodCustom: '自定义',
+    customRangeStart: '开始日期',
+    customRangeEnd: '结束日期',
     filterAfkTooltip: '过滤掉 AFK watcher 未检测到任何输入的时间。',
     filterAudibleTooltip: '如果活动窗口是有声音的浏览器标签页，则计为活跃。需要浏览器 watcher。',
     showCategory: '显示分类',
@@ -373,6 +374,8 @@ export default {
     periodThisYear: '今年',
     periodLast7d: '最近 7 天',
     periodLast30d: '最近 30 天',
+    periodAll: '全部时间',
+    periodCustom: '所选时间段',
   },
   visualizations: {
     noData: '（无数据）',

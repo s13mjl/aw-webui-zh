@@ -154,9 +154,6 @@ export default {
       noteBody: 'Эти параметры для разработчиков; необдуманное изменение может что-то сломать.',
       forceDevmode: 'Принудительный devmode',
       forceDevmodeHelp: 'Devmode включает функции, которые ещё в разработке.',
-      showYearly: 'Показывать годовой диапазон',
-      showYearlyHelp:
-        'Запрос за целый год очень тяжёлый и часто завершается таймаутом. На aw-server-rust может работать быстрее.',
       multidevice: 'Запрос с нескольких устройств',
       multideviceHelp:
         'События с нескольких хостов в просмотре активности. Эксперимент; браузерные bucket-и и «аудио = активность» пока не поддерживаются.',
@@ -274,6 +271,10 @@ export default {
     periodLast30d: '30 дней',
     periodLast7dTitle: 'последние 7 дней',
     periodLast30dTitle: 'последние 30 дней',
+    periodAll: 'Всё время',
+    periodCustom: 'Настраиваемый',
+    customRangeStart: 'Дата начала',
+    customRangeEnd: 'Дата окончания',
     filterAfkTooltip: 'Скрыть время, когда AFK-watcher не фиксировал ввод с клавиатуры или мыши.',
     filterAudibleTooltip:
       'Если активное окно — вкладка браузера со звуком, считать активностью. Нужен browser watcher.',
@@ -317,6 +318,8 @@ export default {
     periodThisYear: 'этот год',
     periodLast7d: 'последние 7 дней',
     periodLast30d: 'последние 30 дней',
+    periodAll: 'всё время',
+    periodCustom: 'выбранный период',
   },
   visualizations: {
     noData: '(нет данных)',

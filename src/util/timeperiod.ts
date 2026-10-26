@@ -115,6 +115,58 @@ export function timeperiodsDaysOfPeriod(timeperiod: TimePeriod): TimePeriod[] {
   return periods;
 }
 
+/**
+ * Split a timeperiod into consecutive sub-periods of the given unit.
+ *
+ * Unlike `timeperiodsMonthsOfPeriod`, this works for arbitrary ranges
+ * (custom date ranges, all-time) and never returns periods outside the
+ * original range. Sub-periods are expressed in days so that their end
+ * timestamp is exact even when the range doesn't start on a unit boundary.
+ */
+export function timeperiodsSplitBy(timeperiod: TimePeriod, unit: 'month' | 'year'): TimePeriod[] {
+  const periods: TimePeriod[] = [];
+  const end = moment(timeperiod.start).add(
+    timeperiod.length[0],
+    timeperiod.length[1] as moment.unitOfTime.DurationConstructor
+  );
+  let cursor = moment(timeperiod.start);
+
+  while (cursor.isBefore(end)) {
+    let next = cursor.clone().add(1, unit);
+    if (next.isAfter(end)) {
+      next = end.clone();
+    }
+    const days = Math.max(next.diff(cursor, 'days'), 1);
+    periods.push({ start: cursor.format(), length: [days, 'day'] as [number, string] });
+    cursor = next;
+  }
+  return periods;
+}
+
+/**
+ * Pick a sensible granularity for a timeperiod and return its sub-periods.
+ *
+ * Short ranges are split into hours/days, medium ranges into months, and
+ * multi-year ranges into years. This keeps the number of sequential queries
+ * (and the number of bars in the barchart) bounded for custom/all-time ranges.
+ */
+export function timeperiodsForPeriod(timeperiod: TimePeriod): TimePeriod[] {
+  const [count, unit] = timeperiod.length;
+  const end = moment(timeperiod.start).add(count, unit as moment.unitOfTime.DurationConstructor);
+  const days = end.diff(moment(timeperiod.start), 'days');
+
+  if (unit.startsWith('day') && count === 1) {
+    return timeperiodsHoursOfPeriod(timeperiod);
+  }
+  if (days <= 62) {
+    return timeperiodsDaysOfPeriod(timeperiod);
+  }
+  if (days <= 5 * 366) {
+    return timeperiodsSplitBy(timeperiod, 'month');
+  }
+  return timeperiodsSplitBy(timeperiod, 'year');
+}
+
 export function timeperiodsMonthsOfPeriod(timeperiod: TimePeriod): TimePeriod[] {
   const periods = [];
   const _length: [number, string] = [1, 'month'];
