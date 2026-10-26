@@ -43,6 +43,7 @@ div(v-else-if="view")
     :title="$t('activityView.removeViewTitle')"
     centered
     :ok-title="$t('activityView.removeViewOk')"
+    :cancel-title="$t('common.cancel')"
     ok-variant="danger"
     cancel-variant="outline-secondary"
     @ok="remove"

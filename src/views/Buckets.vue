@@ -19,7 +19,7 @@ div
           span.font-weight-bold {{ device.hostname }}
           b-badge.ml-2(v-if="serverStore.info.hostname == device.hostname" variant="info") {{ $t('buckets.thisDevice') }}
           div.small.text-muted(v-if="device.hostname !== device.device_id")
-            | ID: {{ device.id }}
+            | {{ $t('common.id') }} {{ device.id }}
           div.small(v-if="deviceHasEvents(device)")
             span.text-muted {{ $t('buckets.lastUpdatedInline') }}&nbsp;
             time(:class="{'text-success': isRecent(device.last_updated)}",
@@ -51,7 +51,8 @@ div
     b-table.mb-0.bucket-table(
       small, hover,
       :items="device.buckets",
-      :fields="fields"
+      :fields="fields",
+      :empty-text="$t('common.noRecords')"
     )
       template(v-slot:cell(id)="data")
         small.text-monospace.bucket-id(:title="data.item.id") {{ data.item.id }}
@@ -135,7 +136,8 @@ div
         | {{ import_success }}
       b-form-file(v-model="import_file"
                   :placeholder="$t('buckets.importPlaceholder')"
-                  :drop-placeholder="$t('buckets.importDrop')")
+                  :drop-placeholder="$t('buckets.importDrop')"
+                  :browse-text="$t('common.browseFiles')")
       div.mt-2(v-if="import_file")
         b-spinner.mr-2(small)
         small.text-muted {{ $t('buckets.importing') }}
@@ -151,7 +153,7 @@ div
 
   hr
 
-  aw-devonly(reason="This section is still under development")
+  aw-devonly(:reason="$t('buckets.devReason')")
     h4.p-2 {{ $t('buckets.tools') }}
 
     hr

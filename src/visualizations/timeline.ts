@@ -10,6 +10,7 @@ import moment from 'moment';
 import { getColorFromString } from '../util/color';
 import { seconds_to_duration, format_time_of_day } from '../util/time';
 import { IEvent } from '../util/interfaces';
+import { i18n } from '~/i18n';
 
 function show_info(container: HTMLElement, elem_id: string): void {
   const title_event_box = container.querySelector('#' + elem_id) as HTMLElement;
@@ -78,7 +79,7 @@ function update(
   d3.select(container.querySelector('.titleinfo-container')).html(null);
 
   if (events.length <= 0) {
-    set_status(container, 'No data');
+    set_status(container, i18n.t('visualizations.noData') as string);
     return container;
   }
 

@@ -1,5 +1,6 @@
 import moment from 'moment';
 import { get_day_start_with_offset } from './time';
+import { i18n } from '~/i18n';
 import { useSettingsStore } from '~/stores/settings';
 
 export interface TimePeriod {
@@ -43,7 +44,9 @@ export function periodReadable(timeperiod: TimePeriod) {
   } else {
     return (
       moment(timeperiod.start).format(dateformat(timeperiod.length[1])) +
-      ' to ' +
+      ' ' +
+      (i18n.t('common.rangeTo') as string) +
+      ' ' +
       moment(timeperiod.start)
         .add(timeperiod.length[0], timeperiod.length[1] as moment.unitOfTime.DurationConstructor)
         .format(dateformat(timeperiod.length[1]))

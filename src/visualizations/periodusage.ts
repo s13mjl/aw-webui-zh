@@ -3,6 +3,7 @@ import _ from 'lodash';
 import moment from 'moment';
 
 import { seconds_to_duration, get_hour_offset } from '../util/time.ts';
+import { i18n } from '~/i18n';
 
 function create(svg_elem: SVGElement) {
   // Clear element
@@ -34,7 +35,7 @@ function update(svg_elem: SVGElement, usage_arr, onPeriodClicked) {
 
   // No apps, sets status to "No data"
   if (usage_arr.length <= 0) {
-    set_status(svg_elem, 'No data');
+    set_status(svg_elem, i18n.t('visualizations.noData') as string);
     return;
   }
   svg_elem.innerHTML = '';

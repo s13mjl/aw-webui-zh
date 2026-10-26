@@ -1,4 +1,5 @@
 import { IBucket } from '~/util/interfaces';
+import { i18n } from '~/i18n';
 
 export interface WorkReportHostOption {
   value: string;
@@ -27,7 +28,7 @@ export function getWorkReportHostOptions(buckets: IBucket[]): WorkReportHostOpti
     const hasAFK = afkHosts.has(host);
     return {
       value: host,
-      text: hasAFK ? host : `${host} (requires aw-watcher-afk)`,
+      text: hasAFK ? host : (i18n.t('workReport.requiresAfk', { host }) as string),
       disabled: !hasAFK,
     };
   });

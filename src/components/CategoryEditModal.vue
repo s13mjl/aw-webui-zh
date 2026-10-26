@@ -1,6 +1,6 @@
 <template lang="pug">
 // The category edit modal
-b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetModal" @hidden="hidden" @ok="handleOk")
+b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetModal" @hidden="hidden" @ok="handleOk" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
   div.my-1
     b-input-group.my-1(:prepend="$t('categoryEdit.name')")
       b-form-input(v-model="editing.name")
@@ -13,7 +13,7 @@ b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetM
 
   hr
   div.my-1
-    b Rule
+    b {{ $t('categoryEdit.rule') }}
     b-input-group.my-1(:prepend="$t('categoryEdit.type')")
       b-select(v-model="editing.rule.type", :options="allRuleTypes")
     div(v-if="editing.rule.type === 'regex'")

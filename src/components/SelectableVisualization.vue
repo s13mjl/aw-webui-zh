@@ -21,7 +21,8 @@ div
     div(v-if="!has_prerequisites")
       b-alert.small.px-2.py-1(show variant="warning")
         | {{ $t('visualizations.missingWatcher') }}
-        | You can find a list of all watchers in #[a(href="https://docs.activitywatch.net/en/latest/watchers.html") {{ $t('visualizations.docLink') }}].
+        | {{ $t('selectableVis.watchersHintPrefix') }}
+        | #[a(href="https://docs.activitywatch.net/en/latest/watchers.html") {{ $t('visualizations.docLink') }}]{{ $t('selectableVis.watchersHintSuffix') }}
 
     div(v-if="type == 'top_apps'")
       aw-summary(:fields="activityStore.window.top_apps",
@@ -118,6 +119,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/bars';
 
 import { buildBarchartDataset } from '~/util/datasets';
+import { i18n } from '~/i18n';
 
 // TODO: Move this somewhere else
 import { build_category_hierarchy } from '~/util/classes';
@@ -177,7 +179,15 @@ export default {
         return f;
       },
       top_editor_files_hoverfunc: e => {
-        return 'file: ' + e.data.file + '\n' + 'project: ' + e.data.project;
+        return (
+          i18n.t('selectableVis.fileLabel') +
+          ' ' +
+          e.data.file +
+          '\n' +
+          i18n.t('selectableVis.projectLabel') +
+          ' ' +
+          e.data.project
+        );
       },
       // TODO: Move this function somewhere else
       top_editor_projects_namefunc: e => {

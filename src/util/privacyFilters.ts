@@ -1,3 +1,5 @@
+import { i18n } from '~/i18n';
+
 export type PrivacyFilterAction = 'drop' | 'redact';
 
 export interface PrivacyFilterRule {
@@ -46,11 +48,11 @@ function optionalString(
     return undefined;
   }
   if (typeof value !== 'string') {
-    errors.push(`Rule ${ruleNumber}: \`${fieldName}\` must be a string when provided.`);
+    errors.push(i18n.t('privacyFilters.mustBeString', { rule: ruleNumber, field: fieldName }) as string);
     return undefined;
   }
   if (value.trim() === '') {
-    errors.push(`Rule ${ruleNumber}: \`${fieldName}\` cannot be empty when provided.`);
+    errors.push(i18n.t('privacyFilters.cannotBeEmpty', { rule: ruleNumber, field: fieldName }) as string);
     return undefined;
   }
   return value;
@@ -73,14 +75,14 @@ export function validatePrivacyFiltersInput(input: string): PrivacyFilterValidat
     const message = error instanceof Error ? error.message : String(error);
     return {
       rules: null,
-      errors: [`Invalid JSON: ${message}`],
+      errors: [i18n.t('privacyFilters.invalidJson', { message }) as string],
     };
   }
 
   if (!Array.isArray(parsed)) {
     return {
       rules: null,
-      errors: ['Top-level value must be a JSON array of privacy filter rules.'],
+      errors: [i18n.t('privacyFilters.topLevelArray') as string],
     };
   }
 
@@ -90,21 +92,21 @@ export function validatePrivacyFiltersInput(input: string): PrivacyFilterValidat
   parsed.forEach((candidate, index) => {
     const ruleNumber = index + 1;
     if (!isRecord(candidate)) {
-      errors.push(`Rule ${ruleNumber}: each rule must be a JSON object.`);
+      errors.push(i18n.t('privacyFilters.eachObject', { rule: ruleNumber }) as string);
       return;
     }
 
     const errorCountBefore = errors.length;
     const enabled = candidate.enabled;
     if (typeof enabled !== 'boolean') {
-      errors.push(`Rule ${ruleNumber}: \`enabled\` must be a boolean.`);
+      errors.push(i18n.t('privacyFilters.enabledBoolean', { rule: ruleNumber }) as string);
     }
 
     const pattern = candidate.pattern;
     if (typeof pattern !== 'string') {
-      errors.push(`Rule ${ruleNumber}: \`pattern\` must be a string.`);
+      errors.push(i18n.t('privacyFilters.patternString', { rule: ruleNumber }) as string);
     } else if (pattern.trim() === '') {
-      errors.push(`Rule ${ruleNumber}: \`pattern\` cannot be an empty string.`);
+      errors.push(i18n.t('privacyFilters.patternEmpty', { rule: ruleNumber }) as string);
     }
 
     const bucketPrefix = optionalString(
@@ -115,13 +117,11 @@ export function validatePrivacyFiltersInput(input: string): PrivacyFilterValidat
     );
     let field: string | undefined;
     if (candidate.field === undefined || candidate.field === null) {
-      errors.push(
-        `Rule ${ruleNumber}: \`field\` is required so the rule only matches the intended event data.`
-      );
+      errors.push(i18n.t('privacyFilters.fieldRequired', { rule: ruleNumber }) as string);
     } else if (typeof candidate.field !== 'string') {
-      errors.push(`Rule ${ruleNumber}: \`field\` must be a string.`);
+      errors.push(i18n.t('privacyFilters.fieldString', { rule: ruleNumber }) as string);
     } else if (candidate.field.trim() === '') {
-      errors.push(`Rule ${ruleNumber}: \`field\` cannot be an empty string.`);
+      errors.push(i18n.t('privacyFilters.fieldEmpty', { rule: ruleNumber }) as string);
     } else {
       field = candidate.field;
     }
@@ -129,11 +129,11 @@ export function validatePrivacyFiltersInput(input: string): PrivacyFilterValidat
 
     const action = candidate.action;
     if (action !== 'drop' && action !== 'redact') {
-      errors.push(`Rule ${ruleNumber}: \`action\` must be either "drop" or "redact".`);
+      errors.push(i18n.t('privacyFilters.actionInvalid', { rule: ruleNumber }) as string);
     }
 
     if (action === 'redact' && replacement === undefined) {
-      errors.push(`Rule ${ruleNumber}: redact rules need a non-empty \`replacement\` string.`);
+      errors.push(i18n.t('privacyFilters.replacementRequired', { rule: ruleNumber }) as string);
     }
 
     if (

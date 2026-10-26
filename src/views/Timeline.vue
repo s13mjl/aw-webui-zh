@@ -38,12 +38,12 @@ div
                 option(:value='10') {{ $t('timeline.duration10s') }}
                 option(:value='30') {{ $t('timeline.duration30s') }}
                 option(:value='1 * 60') {{ $t('timeline.duration1m') }}
-                option(:value='2 * 60') 2+ mins
-                option(:value='3 * 60') 3+ mins
+                option(:value='2 * 60') {{ $t('timeline.duration2m') }}
+                option(:value='3 * 60') {{ $t('timeline.duration3m') }}
                 option(:value='10 * 60') {{ $t('timeline.duration10m') }}
-                option(:value='30 * 60') 30+ mins
-                option(:value='1 * 60 * 60') 1+ hrs
-                option(:value='2 * 60 * 60') 2+ hrs
+                option(:value='30 * 60') {{ $t('timeline.duration30m') }}
+                option(:value='1 * 60 * 60') {{ $t('timeline.duration1h') }}
+                option(:value='2 * 60 * 60') {{ $t('timeline.duration2h') }}
           tr
             th.pt-2.pr-3
               label {{ $t('timeline.afk') }}
@@ -101,7 +101,7 @@ div
   div(v-if="buckets !== null")
     vis-timeline(:buckets="buckets", :showRowLabels='true', :queriedInterval="daterange", :swimlane="swimlane", :updateTimelineWindow='updateTimelineWindow')
 
-    aw-devonly(reason="Not ready for production, still experimenting")
+    aw-devonly(:reason="$t('timeline.devReason')")
       aw-calendar(:buckets="buckets")
   div(v-else)
     h1.aw-loading {{ $t('common.loading') }}

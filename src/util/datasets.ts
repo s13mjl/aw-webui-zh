@@ -5,6 +5,7 @@ import { getColorFromCategory } from '~/util/color';
 import { Category } from '~/util/classes';
 import { IEvent } from './interfaces';
 import { useCategoryStore } from '~/stores/categories';
+import { i18n } from '~/i18n';
 
 interface HourlyData {
   cat_events: IEvent[];
@@ -61,7 +62,7 @@ export function buildBarchartDatasetActive(events_active: IEvent[]) {
   const data = split_by_hour_into_data(events_active);
   return [
     {
-      label: 'Total time',
+      label: i18n.t('datasets.totalTime') as string,
       backgroundColor: '#6699ff',
       data,
     },

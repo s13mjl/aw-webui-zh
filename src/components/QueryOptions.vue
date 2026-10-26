@@ -5,9 +5,9 @@ div
       option(v-for="hostname in hostnameChoices")
         | {{hostname}}
   b-form-group(:label="$t('queryOptions.start')" label-cols=2)
-    b-form-datepicker(v-model="queryOptionsData.start")
+    b-form-datepicker(v-model="queryOptionsData.start" :locale="$i18n.locale")
   b-form-group(:label="$t('queryOptions.stop')" label-cols=2)
-    b-form-datepicker(v-model="queryOptionsData.stop")
+    b-form-datepicker(v-model="queryOptionsData.stop" :locale="$i18n.locale")
   b-form-group(:label="$t('queryOptions.toggles')" label-cols=2)
     b-form-checkbox(type="checkbox" v-model="queryOptionsData.filter_afk" :label="$t('queryOptions.filterAfk')" description="")
       label {{ $t('queryOptions.filterAfkHelp') }}
