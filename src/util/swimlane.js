@@ -1,11 +1,12 @@
 import DOMPurify from 'dompurify';
+import { i18n } from '~/i18n';
 
 const sanitize = DOMPurify.sanitize;
 
 export function getSwimlane(bucket, color, groupBy, e) {
   // WARNING: XSS risk, make sure to sanitize properly
   // FIXME: Not actually tested against XSS attacks, implementation needs to be verified in tests.
-  let subgroup = 'unknown';
+  let subgroup = i18n.t('common.unknown');
 
   if (groupBy == 'category') {
     subgroup = sanitize(color);

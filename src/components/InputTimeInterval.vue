@@ -25,7 +25,7 @@ div
 
       label.col-form-label.col-form-label-sm.mb-0 {{ $t('inputTime.range') }}
       div.d-flex.flex-wrap.align-items-center(v-if="mode == 'last_duration'")
-        div.btn-group(role="group" aria-label="Quick durations")
+        div.btn-group(role="group" :aria-label="$t('inputTime.quickDurations')")
           template(v-for="(dur, idx) in durations")
             input(
               type="radio"
@@ -38,11 +38,11 @@ div
       div.d-flex.flex-wrap.align-items-center(v-else)
         input.form-control.form-control-sm.mr-1(
           type="date", v-model="start", :max="end || undefined", style="width: auto"
-          aria-label="Start date"
+          :aria-label="$t('inputTime.startDate')"
         )
         input.form-control.form-control-sm.mr-1(
-          type="date", v-model="end", :min="start || undefined", placeholder="(optional)", style="width: auto"
-          aria-label="End date (optional)"
+          type="date", v-model="end", :min="start || undefined", :placeholder="$t('common.optional')", style="width: auto"
+          :aria-label="$t('inputTime.endDate')"
         )
         b-button(
           size="sm" variant="outline-dark"
@@ -109,21 +109,23 @@ export default {
       start: null,
       end: null,
       lastUpdate: null,
-      durations: [
-        { seconds: 0.25 * 60 * 60, label: '&frac14;h' },
-        { seconds: 0.5 * 60 * 60, label: '&frac12;h' },
-        { seconds: 60 * 60, label: '1h' },
-        { seconds: 2 * 60 * 60, label: '2h' },
-        { seconds: 3 * 60 * 60, label: '3h' },
-        { seconds: 4 * 60 * 60, label: '4h' },
-        { seconds: 6 * 60 * 60, label: '6h' },
-        { seconds: 12 * 60 * 60, label: '12h' },
-        { seconds: 24 * 60 * 60, label: '24h' },
-        { seconds: 48 * 60 * 60, label: '48h' },
-      ],
     };
   },
   computed: {
+    durations() {
+      return [
+        { seconds: 0.25 * 60 * 60, label: this.$t('durations.quarterHour') },
+        { seconds: 0.5 * 60 * 60, label: this.$t('durations.halfHour') },
+        { seconds: 60 * 60, label: this.$t('durations.hour1') },
+        { seconds: 2 * 60 * 60, label: this.$t('durations.hour2') },
+        { seconds: 3 * 60 * 60, label: this.$t('durations.hour3') },
+        { seconds: 4 * 60 * 60, label: this.$t('durations.hour4') },
+        { seconds: 6 * 60 * 60, label: this.$t('durations.hour6') },
+        { seconds: 12 * 60 * 60, label: this.$t('durations.hour12') },
+        { seconds: 24 * 60 * 60, label: this.$t('durations.hour24') },
+        { seconds: 48 * 60 * 60, label: this.$t('durations.hour48') },
+      ];
+    },
     modeOptions() {
       return [
         { text: this.$t('inputTime.modeLastDuration'), value: 'last_duration' },

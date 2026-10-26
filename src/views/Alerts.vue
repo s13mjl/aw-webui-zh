@@ -23,7 +23,7 @@ div
 
     div {{ $t('alerts.goalName') }} {{ alert.name }}
     div {{ $t('alerts.category') }} {{ alert.category.join(" > ") }}
-    div {{ $t('alerts.current') }} {{ alertTime(alert.category) | friendlyduration }} / {{alert.goal}} minutes
+    div {{ $t('alerts.current') }} {{ alertTime(alert.category) | friendlyduration }} / {{ alert.goal }} {{ $t('alerts.minutes') }}
       span(v-if="alertTime(alert.category) >= alert.goal")
         icon.text-success(name="check")
       span(v-else)

@@ -87,7 +87,7 @@ export default {
 
       const lastId = this.categoryStore.addClass({
         name: parent.name.concat([name]),
-        rule: { type: 'regex', regex: 'FILL ME' },
+        rule: { type: 'regex', regex: this.$t('settings.categorization.fillRegex') as string },
       });
 
       this.editingId = lastId;

@@ -83,7 +83,7 @@ export default {
     bucketOptions(): { value: string; text: string }[] {
       return this.bucketsStore.buckets.map(b => ({
         value: b.id,
-        text: `${b.id} (${b.type || 'unknown'})`,
+        text: `${b.id} (${b.type || this.$t('common.unknown')})`,
       }));
     },
     fieldSelectOptions(): { value: string; text: string }[] {

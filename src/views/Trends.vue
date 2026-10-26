@@ -32,7 +32,7 @@ div
 
   div(v-else-if="loading")
     b-spinner.mr-2(small)
-    span.text-muted {{ $t('trends.computing', { period: periodDays + ' + ' + periodDays + ' days' }) }}
+    span.text-muted {{ $t('trends.computing', { period: $t('trends.days', { count: periodDays + ' + ' + periodDays }) }) }}
 
   div(v-else)
     b-row.mb-3
@@ -66,6 +66,7 @@ div
       small
       hover
       :items="categoryTrends"
+      :empty-text="$t('common.noRecords')"
       :fields="categoryFields"
       sort-by="absDelta"
       :sort-desc="true"

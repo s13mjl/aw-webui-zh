@@ -1,3 +1,5 @@
+import { i18n } from '~/i18n';
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -54,7 +56,8 @@ export function formatTimelineBucketLabelHtml(
   if (syncMatch) {
     const baseLabel = addWrapOpportunities(escapeHtml(syncMatch[1]));
     const remoteLabel = addWrapOpportunities(escapeHtml(syncMatch[2]));
-    return `<span class="timeline-label" title="${escaped}">${baseLabel} (synced from ${remoteLabel})</span>`;
+    const syncedLabel = i18n.t('timeline.syncedFrom', { host: remoteLabel }) as string;
+    return `<span class="timeline-label" title="${escaped}">${baseLabel} ${syncedLabel}</span>`;
   }
 
   const short = shortenBucketLabel(bucketId);

@@ -3,7 +3,7 @@ div
   h3 {{ $t('graph.title') }}
 
   b-alert(show variant="warning")
-    | {{ $t('graph.earlyDev') }} #[a(href="https://github.com/ActivityWatch/aw-webui/pull/365") aw-webui#365] for more information.
+    | {{ $t('graph.earlyDev') }} #[a(href="https://github.com/ActivityWatch/aw-webui/pull/365") aw-webui#365] {{ $t('graph.earlyDevSuffix') }}
 
   p {{ $t('graph.description') }}
 
@@ -25,7 +25,7 @@ div
       | {{ $t('graph.generate') }}
 
   div.d-flex.mt-1
-    span.mr-auto.small.text-muted Hostname: {{queryOptions.hostname}}
+    span.mr-auto.small.text-muted {{ $t('common.hostname') }} {{queryOptions.hostname}}
     b-button.border-0(size="sm", variant="outline-dark" @click="show_options = !show_options")
       span(v-if="!show_options")
         | #[icon(name="angle-double-down")] {{ $t('graph.showOptions') }}

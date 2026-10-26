@@ -3,7 +3,7 @@
     div#visualization
 
     div.small.text-muted.my-2(v-if="bucketsFromEither.length != 1")
-      i Buckets with no events in the queried range will be hidden.
+      i {{ $t('timeline.emptyBucketsHint') }}
 
     div(v-if="editingEvent")
       EventEditor(:event="editingEvent" :bucket_id="editingEventBucket")
@@ -271,8 +271,8 @@ export default {
           // edit flow. Persist the dismissal via localStorage so the user
           // doesn't see it every session.
           if (!this.editRefreshHintDismissed()) {
-            this.$bvToast.toast('Your edit is saved. Refresh the timeline to see it reflected.', {
-              title: 'Heads up',
+            this.$bvToast.toast(this.$t('timeline.editSavedBody'), {
+              title: this.$t('timeline.editSavedTitle'),
               variant: 'info',
               autoHideDelay: 6000,
               solid: true,

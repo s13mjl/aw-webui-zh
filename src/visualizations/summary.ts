@@ -8,6 +8,7 @@ import { useCategoryStore } from '~/stores/categories';
 import { getCategoryColorFromString, getContrastTextColor, getContrastSubTextColor } from '~/util/color';
 import { seconds_to_duration } from '~/util/time';
 import { IEvent } from '~/util/interfaces';
+import { i18n } from '~/i18n';
 
 function create(container: HTMLElement) {
   // Clear element
@@ -47,7 +48,7 @@ interface Entry {
 function update(container: HTMLElement, apps: Entry[]) {
   // No apps, sets status to "No data"
   if (apps.length <= 0) {
-    set_status(container, 'No data');
+    set_status(container, i18n.t('visualizations.noData') as string);
     return container;
   }
 

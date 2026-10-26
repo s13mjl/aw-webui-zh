@@ -1,5 +1,6 @@
 import moment, { Moment, Duration } from 'moment';
 import { useSettingsStore } from '~/stores/settings';
+import { i18n } from '~/i18n';
 
 function getStartOfDayOffset() {
   const settingsStore = useSettingsStore();
@@ -18,12 +19,12 @@ export function seconds_to_duration(seconds: number) {
   const l = [];
 
   if (hrs > 0) {
-    l.push(hrs + 'h');
-    l.push(min + 'm');
+    l.push(hrs + (i18n.t('units.hoursShort') as string));
+    l.push(min + (i18n.t('units.minutesShort') as string));
   } else if (min > 0) {
-    l.push(min + 'm');
+    l.push(min + (i18n.t('units.minutesShort') as string));
   }
-  l.push(sec + 's');
+  l.push(sec + (i18n.t('units.secondsShort') as string));
 
   return l.join(' ');
 }
@@ -33,7 +34,7 @@ export function friendlydate(timestamp: string | Moment) {
   const m = moment.parseZone(timestamp);
   const sinceNow = moment.duration(m.diff(now));
   if (-sinceNow.asSeconds() <= 60) {
-    return `${Math.round(-sinceNow.asSeconds())}s ago`;
+    return i18n.t('units.secondsAgo', { count: Math.round(-sinceNow.asSeconds()) }) as string;
   } else if (-sinceNow.asSeconds() <= 60 * 60 * 24) {
     return sinceNow.humanize(true);
   }

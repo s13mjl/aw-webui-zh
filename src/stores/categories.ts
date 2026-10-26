@@ -13,6 +13,7 @@ import {
   CategorySet,
   Rule,
 } from '~/util/classes';
+import { i18n } from '~/i18n';
 import { getColorFromCategory } from '~/util/color';
 import { defineStore } from 'pinia';
 
@@ -176,8 +177,8 @@ export const useCategoryStore = defineStore('categories', {
           .sort((a, b) => a.text > b.text);
         if (insertMeta) {
           cats = [
-            { text: 'All', value: null },
-            { text: 'Uncategorized', value: ['Uncategorized'] },
+            { text: i18n.t('visualizations.allCategories') as string, value: null },
+            { text: i18n.t('trends.uncategorized') as string, value: ['Uncategorized'] },
           ].concat(cats);
         }
         return cats;

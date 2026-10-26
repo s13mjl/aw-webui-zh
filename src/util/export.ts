@@ -1,3 +1,5 @@
+import { i18n } from '~/i18n';
+
 /**
  * Cross-platform file download utility.
  *
@@ -65,7 +67,7 @@ async function downloadFileTauri(
     };
 
     const path = await save({
-      title: 'Save export',
+      title: i18n.t('common.saveExport') as string,
       defaultPath: filename,
       filters: getFilters(mimeType),
     });

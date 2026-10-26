@@ -155,7 +155,7 @@ div
           span.d-none.d-md-inline
             | {{ $t('activity.newView') }}
 
-  b-modal(id="new_view" ref="new_view" :title="$t('activity.newViewTitle')" @show="resetModal" @hidden="resetModal" @ok="handleOk")
+  b-modal(id="new_view" ref="new_view" :title="$t('activity.newViewTitle')" @show="resetModal" @hidden="resetModal" @ok="handleOk" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
     div.my-1
       b-input-group.my-1(:prepend="$t('activity.viewId')")
         b-form-input(v-model="new_view.id")
