@@ -6,8 +6,8 @@ div
     | {{ $t('buckets.moreWatchers') }} #[a(href="https://docs.activitywatch.net/en/latest/watchers.html") {{ $t('buckets.docsLink') }}].
 
   b-card.bucket-card.mb-3(
-    v-for="device in bucketsStore.bucketsByDevice",
-    :key="device.hostname || device.device_id",
+    v-for="(device, deviceKey) in bucketsStore.bucketsByDevice",
+    :key="deviceKey",
     :class="{'bucket-card--unknown': device.hostname === 'unknown'}"
   )
     div.d-flex.justify-content-between.align-items-start.mb-2
@@ -18,8 +18,8 @@ div
         div
           span.font-weight-bold {{ device.hostname }}
           b-badge.ml-2(v-if="serverStore.info.hostname == device.hostname" variant="info") {{ $t('buckets.thisDevice') }}
-          div.small.text-muted(v-if="device.hostname !== device.device_id")
-            | {{ $t('common.id') }} {{ device.id }}
+          div.small.text-muted(v-if="device.identityAmbiguous")
+            | {{ $t('common.id') }} {{ device.device_id ? device.device_id : $t('common.unknown') }}
           div.small(v-if="deviceHasEvents(device)")
             span.text-muted {{ $t('buckets.lastUpdatedInline') }}&nbsp;
             time(:class="{'text-success': isRecent(device.last_updated)}",
@@ -343,13 +343,13 @@ export default {
       const checks = [
         {
           msg: () => {
-            return this.$t('buckets.deviceMultiHost', { hostnames: device.hostnames });
+            return this.$t('buckets.deviceMultiHost', { hostnames: device.hostnames.join(', ') });
           },
           failed: () => device.hostnames.length > 1,
         },
         {
           msg: () => {
-            return this.$t('buckets.deviceMultiId', { ids: device.device_ids });
+            return this.$t('buckets.deviceMultiId', { ids: device.device_ids.join(', ') });
           },
           failed: () => device.device_ids.length > 1,
         },
