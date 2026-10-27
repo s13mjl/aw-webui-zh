@@ -145,27 +145,37 @@ export const useBucketsStore = defineStore('buckets', {
     },
 
     // Group all buckets by their device.
-    // Returns a dict with buckets by device/host (hostname or device_id)
+    // Returns a dict with buckets by device, keyed by device_id (or hostname
+    // for buckets that don't report a device_id).
     //
-    // First element will be the current hostname/device, if present.
+    // First element will be the current device, if present.
     // Others sorted by last_updated.
     bucketsByDevice: function () {
-      let devices = _.mapValues(
-        _.groupBy(this.buckets, b => b.hostname || b.device_id),
-        d => {
-          const hostnames = _.uniq(_.map(d, b => b.hostname || b.data.hostname));
-          const device_ids = _.uniq(_.map(d, b => b.data.device_id || b.hostname));
-          return {
-            buckets: d,
-            device_id: device_ids[0],
-            device_ids,
-            hostname: hostnames[0],
-            hostnames,
-            first_seen: _.min(_.map(d, b => b.first_seen)),
-            last_updated: _.max(_.map(d, b => b.last_updated)),
-          };
-        }
-      );
+      const bucketHostname = (b: IBucket) => b.hostname || b.data?.hostname;
+      const bucketDeviceId = (b: IBucket) => b.device_id || b.data?.device_id;
+      // Buckets without a device_id are grouped by hostname, so that their
+      // hostname and id end up being the same and the UI doesn't show a bogus
+      // "ID: undefined".
+      const bucketGroupKey = (b: IBucket) => bucketDeviceId(b) || bucketHostname(b);
+
+      let devices = _.mapValues(_.groupBy(this.buckets, bucketGroupKey), d => {
+        const hostnames = _.uniq(_.compact(_.map(d, bucketHostname)));
+        const device_ids = _.uniq(_.compact(_.map(d, bucketDeviceId)));
+        const device_id = device_ids[0];
+        return {
+          buckets: d,
+          device_id,
+          device_ids,
+          hostname: hostnames[0],
+          hostnames,
+          first_seen: _.min(_.map(d, b => b.first_seen)),
+          last_updated: _.max(_.map(d, b => b.last_updated)),
+          // Whether anything about this device's identity is ambiguous.
+          // A device without a device_id is its own ID (the hostname), so it
+          // is not considered ambiguous.
+          identityAmbiguous: device_ids.length > 1 || hostnames.length > 1,
+        };
+      });
 
       // Sort by last_updated
       const sortObjectByUpdated = _.flow([
@@ -177,15 +187,23 @@ export const useBucketsStore = defineStore('buckets', {
 
       // find self-device and put first
       const serverStore = useServerStore();
-      const hostname = serverStore.info && serverStore.info.hostname;
-      const currentDevice = Object.prototype.hasOwnProperty.call(devices, hostname)
-        ? devices[hostname]
-        : null;
-      if (currentDevice) {
+      const info = serverStore.info;
+      if (!info) {
+        return devices;
+      }
+      const selfKeys: string[] = _.compact([
+        info.device_id,
+        info.hostname,
+        _.findKey(devices, (d: any) => d.device_ids.includes(info.device_id)),
+        _.findKey(devices, (d: any) => d.hostnames.includes(info.hostname)),
+      ]);
+      const currentKey = selfKeys.find(key => Object.prototype.hasOwnProperty.call(devices, key));
+      if (currentKey) {
+        const currentDevice = devices[currentKey];
         // remove self from list
-        delete devices[hostname];
+        delete devices[currentKey];
         // add self-device back to the top;
-        devices = { [hostname]: currentDevice, ...devices };
+        devices = { [currentKey]: currentDevice, ...devices };
       }
       return devices;
     },
@@ -248,8 +266,7 @@ export const useBucketsStore = defineStore('buckets', {
       const buckets = await Promise.all(
         _.map(
           this.buckets,
-          async bucket =>
-            await this.getBucketWithEvents({ id: bucket.id, start, end, timeoutMs })
+          async bucket => await this.getBucketWithEvents({ id: bucket.id, start, end, timeoutMs })
         )
       );
       return _.orderBy(buckets, [b => b.id], ['asc']);
