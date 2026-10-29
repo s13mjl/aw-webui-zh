@@ -42,13 +42,15 @@ export default {
   props: {
     datasets: {
       type: Array,
-      default: () => [
-        {
-          label: (this as any).$t('timelineBarChart.totalTime'),
-          backgroundColor: '#6699ff',
-          data: Array.from({ length: 40 }, () => Math.floor(Math.random() * 40)),
-        },
-      ],
+      default() {
+        return [
+          {
+            label: (this as any).$t('timelineBarChart.totalTime'),
+            backgroundColor: '#6699ff',
+            data: Array.from({ length: 40 }, () => Math.floor(Math.random() * 40)),
+          },
+        ];
+      },
     },
     timeperiod_start: {
       type: String,
