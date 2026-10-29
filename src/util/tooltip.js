@@ -9,7 +9,7 @@ const sanitize = DOMPurify.sanitize;
 export function buildTooltip(bucket, e) {
   // WARNING: XSS risk, make sure to sanitize properly
   // FIXME: Not actually tested against XSS attacks, implementation needs to be verified in tests.
-  let inner = i18n.t('tooltip.unknownBucket');
+  let inner;
 
   // if same day, don't show date
   let start = moment(e.timestamp);
