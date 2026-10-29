@@ -53,7 +53,7 @@
  *             (Flatpak app ID retained: 'one.ablaze.floorp')
  */
 
-import { browser_appname_regex } from '~/queries';
+import { browser_appname_regex, editorActivityQuery } from '~/queries';
 
 // Convert ActivityWatch (?i) patterns to JS RegExp with i flag for testing.
 // AW server uses Python-style (?i) inline flag; JS uses RegExp 'i' flag instead.
@@ -229,5 +229,12 @@ describe('browser_appname_regex', () => {
     for (const name of knownNames) {
       expect(re.test(name)).toBe(true);
     }
+  });
+});
+
+describe('bucket ID escaping', () => {
+  test('escapes backslashes before quotes so escaping cannot be bypassed', () => {
+    const query = editorActivityQuery(['aw-watcher-window_a\\"b']).join('\n');
+    expect(query).toContain(String.raw`query_bucket("aw-watcher-window_a\\\"b")`);
   });
 });
