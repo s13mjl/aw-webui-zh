@@ -180,7 +180,7 @@ jobs:
     - name: Print server logs to console
       if: ${{ always() }}
       shell: bash
-      run:
+      run: |
         shopt -s nullglob
         for file in ~/.cache/activitywatch/log/*/*.log; do echo $file; cat $file; echo; done
     - name: Move logs to subdir
