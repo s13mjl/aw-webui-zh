@@ -181,6 +181,7 @@ jobs:
       if: ${{ always() }}
       shell: bash
       run:
+        shopt -s nullglob
         for file in ~/.cache/activitywatch/log/*/*.log; do echo $file; cat $file; echo; done
     - name: Move logs to subdir
       # Run this step even if e2e tests flag failure
@@ -190,7 +191,11 @@ jobs:
         aw_version: ${{ matrix.aw-version }}
       run: |
         mkdir -p logs/dist/$aw_server/$aw_version
-        mv ~/.cache/activitywatch/log/*/*.log logs/dist/$aw_server/$aw_version
+        shopt -s nullglob
+        files=(~/.cache/activitywatch/log/*/*.log)
+        if [ ${#files[@]} -gt 0 ]; then
+          mv "${files[@]}" logs/dist/$aw_server/$aw_version
+        fi
     - name: Upload logs
       if: ${{ always() }}
       uses: actions/upload-artifact@v7
