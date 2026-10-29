@@ -53,7 +53,7 @@ test('rejects redact rules without a replacement', () => {
     ])
   );
   expect(result.rules).toBeNull();
-  expect(result.errors).toContain('Rule 1: redact rules need a non-empty `replacement` string.');
+  expect(result.errors).toContain('Rule 1: redact rules need a non-empty "replacement" string.');
 });
 
 test('rejects rules without a field', () => {
@@ -69,7 +69,7 @@ test('rejects rules without a field', () => {
   );
   expect(result.rules).toBeNull();
   expect(result.errors).toContain(
-    'Rule 1: `field` is required so the rule only matches the intended event data.'
+    'Rule 1: "field" is required so the rule only matches the intended event data.'
   );
 });
 
@@ -86,7 +86,7 @@ test('rejects blank fields without also reporting them as missing', () => {
     ])
   );
   expect(result.rules).toBeNull();
-  expect(result.errors).toEqual(['Rule 1: `field` cannot be an empty string.']);
+  expect(result.errors).toEqual(['Rule 1: "field" cannot be an empty string.']);
 });
 
 test('rejects non-string fields without also reporting them as missing', () => {
@@ -102,7 +102,7 @@ test('rejects non-string fields without also reporting them as missing', () => {
     ])
   );
   expect(result.rules).toBeNull();
-  expect(result.errors).toEqual(['Rule 1: `field` must be a string.']);
+  expect(result.errors).toEqual(['Rule 1: "field" must be a string.']);
 });
 
 test('rejects empty pattern strings', () => {
@@ -118,7 +118,7 @@ test('rejects empty pattern strings', () => {
     ])
   );
   expect(result.rules).toBeNull();
-  expect(result.errors).toContain('Rule 1: `pattern` cannot be an empty string.');
+  expect(result.errors).toContain('Rule 1: "pattern" cannot be an empty string.');
 });
 
 test('reports invalid action and missing field together', () => {
@@ -133,8 +133,8 @@ test('reports invalid action and missing field together', () => {
   );
   expect(result.rules).toBeNull();
   expect(result.errors).toEqual([
-    'Rule 1: `field` is required so the rule only matches the intended event data.',
-    'Rule 1: `action` must be either "drop" or "redact".',
+    'Rule 1: "field" is required so the rule only matches the intended event data.',
+    'Rule 1: "action" must be either "drop" or "redact".',
   ]);
 });
 

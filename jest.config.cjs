@@ -16,6 +16,7 @@ module.exports = {
       },
       transformIgnorePatterns: ['/node_modules/(?!(vue-awesome)/)'],
       testMatch: ['**/test/**/*.test.js?(x)'],
+      setupFiles: ['<rootDir>/test/setupI18n.ts'],
       moduleNameMapper: {
         '^~/(.+)$': '<rootDir>/src/$1',
         '^d3$': '<rootDir>/node_modules/d3/dist/d3.min.js',
@@ -34,6 +35,7 @@ module.exports = {
         '^.+\\.vue$': '@vue/vue2-jest',
       },
       transformIgnorePatterns: ['/node_modules/(?!(vue-awesome)/)'],
+      setupFiles: ['<rootDir>/test/setupI18n.ts'],
       moduleNameMapper: {
         '^~/(.+)$': '<rootDir>/src/$1',
         '^d3$': '<rootDir>/node_modules/d3/dist/d3.min',

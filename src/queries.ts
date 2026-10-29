@@ -148,9 +148,7 @@ export function canonicalEvents(params: DesktopQueryParams | AndroidQueryParams)
         // audible_events was collected from ALL browser events (including
         // background tabs) inside browserEvents(), so background audio
         // correctly counts as active. See #852.
-        (params.include_audible
-          ? `not_afk = period_union(not_afk, audible_events);`
-          : '')
+        (params.include_audible ? `not_afk = period_union(not_afk, audible_events);` : '')
       : '',
     // Filter out window events when the user was afk
     isDesktopParams(params) && params.filter_afk

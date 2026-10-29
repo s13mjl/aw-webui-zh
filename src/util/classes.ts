@@ -350,9 +350,7 @@ export function matchStrings(strs: string[], categories: Category[] | null): Cat
   // If several categories match the event, the one with the highest priority
   // wins; ties are broken by depth (deeper wins), matching the server-side
   // categorize() behaviour for same-depth categories.
-  const matchingCats: [Category, RegExp][] = regexes.filter(c =>
-    strs.some(s => c[1].test(s))
-  );
+  const matchingCats: [Category, RegExp][] = regexes.filter(c => strs.some(s => c[1].test(s)));
   if (matchingCats.length > 0) {
     const matched = matchingCats.map(c => c[0]);
     // Sort by priority (asc), then by depth (asc), so the last element is the
