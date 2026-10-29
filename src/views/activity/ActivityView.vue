@@ -130,7 +130,10 @@ export default {
       let props = {};
 
       if (type === 'custom_vis') {
-        const visname = prompt(this.$t('activityView.promptWatcher'), this.$t('activityView.promptWatcherDefault'));
+        const visname = prompt(
+          this.$t('activityView.promptWatcher'),
+          this.$t('activityView.promptWatcherDefault')
+        );
         if (!visname) return;
 
         const title = prompt(this.$t('activityView.promptTitle'));

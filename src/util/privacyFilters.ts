@@ -48,11 +48,15 @@ function optionalString(
     return undefined;
   }
   if (typeof value !== 'string') {
-    errors.push(i18n.t('privacyFilters.mustBeString', { rule: ruleNumber, field: fieldName }) as string);
+    errors.push(
+      i18n.t('privacyFilters.mustBeString', { rule: ruleNumber, field: fieldName }) as string
+    );
     return undefined;
   }
   if (value.trim() === '') {
-    errors.push(i18n.t('privacyFilters.cannotBeEmpty', { rule: ruleNumber, field: fieldName }) as string);
+    errors.push(
+      i18n.t('privacyFilters.cannotBeEmpty', { rule: ruleNumber, field: fieldName }) as string
+    );
     return undefined;
   }
   return value;

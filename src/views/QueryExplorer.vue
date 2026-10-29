@@ -117,7 +117,8 @@ RETURN = sort_by_duration(merged_events);
       return this.savedQueries.find(query => query.id === this.selected_saved_query_id) || null;
     },
     eventcount_str: function () {
-      if (Array.isArray(this.events)) return this.$t('queryExplorer.numberOfEvents') + this.events.length;
+      if (Array.isArray(this.events))
+        return this.$t('queryExplorer.numberOfEvents') + this.events.length;
       else return '';
     },
   },
@@ -235,9 +236,7 @@ RETURN = sort_by_duration(merged_events);
         return;
       }
 
-      if (
-        !confirm(this.$t('queryExplorer.deletePrompt', { name: this.selectedSavedQuery.name }))
-      ) {
+      if (!confirm(this.$t('queryExplorer.deletePrompt', { name: this.selectedSavedQuery.name }))) {
         return;
       }
 

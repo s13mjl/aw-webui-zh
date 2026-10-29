@@ -307,7 +307,9 @@ export default {
           // (Previously the UI stayed silent on success, which was confusing —
           // see https://github.com/ActivityWatch/activitywatch/issues/394.)
           if (result && typeof result === 'object' && 'message' in result && result.message) {
-            this.import_success = this.$t('buckets.importSuccessDetail', { detail: result.message });
+            this.import_success = this.$t('buckets.importSuccessDetail', {
+              detail: result.message,
+            });
           } else {
             this.import_success = this.$t('buckets.importSuccess');
           }
@@ -315,8 +317,7 @@ export default {
           // Surface the server-provided error message when available so the
           // user can act on it (e.g. duplicate bucket id) instead of only
           // seeing a generic "Import failed" — see issue #394.
-          const detail =
-            err && (err.response?.data?.message || err.message || String(err));
+          const detail = err && (err.response?.data?.message || err.message || String(err));
           this.import_error = detail
             ? this.$t('buckets.importFailedDetail', { detail })
             : this.$t('buckets.importFailed');
@@ -389,8 +390,7 @@ export default {
         });
         this.$root.$emit('bv::hide::modal', 'delete-host-modal');
       } catch (err) {
-        this.delete_host_error =
-          err?.message || this.$t('buckets.deletionFailed');
+        this.delete_host_error = err?.message || this.$t('buckets.deletionFailed');
       } finally {
         this.deleting_host = false;
       }

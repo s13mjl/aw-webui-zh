@@ -163,7 +163,10 @@ export default {
       return [
         {
           value: '',
-          text: this.selectedCategories.length === 0 ? this.$t('workReport.selectCategoryPlaceholder') : this.$t('workReport.addCategoryPlaceholder'),
+          text:
+            this.selectedCategories.length === 0
+              ? this.$t('workReport.selectCategoryPlaceholder')
+              : this.$t('workReport.addCategoryPlaceholder'),
           disabled: true,
         },
         ...this.categoryOptions.filter(opt => !isCoveredBySelected(JSON.parse(opt.value))),
@@ -359,7 +362,12 @@ export default {
     },
 
     exportCSV() {
-      const headers = [this.$t('workReport.csvDate'), this.$t('workReport.csvDuration'), this.$t('workReport.csvSessions'), this.$t('workReport.csvAvgSession')];
+      const headers = [
+        this.$t('workReport.csvDate'),
+        this.$t('workReport.csvDuration'),
+        this.$t('workReport.csvSessions'),
+        this.$t('workReport.csvAvgSession'),
+      ];
       const rows = this.dailyData.map(day => [
         day.date,
         (day.duration / 3600).toFixed(2),
@@ -371,9 +379,9 @@ export default {
         headers.join(','),
         ...rows.map(row => row.join(',')),
         '',
-        `${this.$t('workReport.total')},${(this.totalDuration / 3600).toFixed(2)},${this.totalSessions},${(
-          this.avgSessionLength / 60
-        ).toFixed(1)}`,
+        `${this.$t('workReport.total')},${(this.totalDuration / 3600).toFixed(2)},${
+          this.totalSessions
+        },${(this.avgSessionLength / 60).toFixed(1)}`,
       ].join('\n');
 
       this.downloadFile(csv, 'work_time_report.csv', 'text/csv');

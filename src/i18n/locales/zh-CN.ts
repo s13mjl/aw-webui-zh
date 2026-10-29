@@ -228,7 +228,8 @@ export default {
     intro1:
       '原开发者团队已经走了很远{android}，但仍然需要用户（比如你！）提供反馈，帮助他们把 ActivityWatch 做成一个成功的项目。他们很想听听你的改进想法。',
     introAndroid: '（尤其是在 Android 上！）',
-    intro3: '如果你是开发者，原开发者希望你能编写 watcher、可视化或其他东西，并在论坛上分享给他们！',
+    intro3:
+      '如果你是开发者，原开发者希望你能编写 watcher、可视化或其他东西，并在论坛上分享给他们！',
     thanks: '感谢你使用 ActivityWatch！',
     surveyFill: '填写原开发者的用户调查',
     surveySuffix: '来帮助决定接下来要做什么。',
@@ -681,11 +682,13 @@ export default {
     parent: '父分类',
     priority: '优先级',
     priorityPlaceholder: '0',
-    priorityHint: '数字越大优先级越高。当多个分类匹配同一窗口时，优先级高者优先（同深度分类之间）。',
+    priorityHint:
+      '数字越大优先级越高。当多个分类匹配同一窗口时，优先级高者优先（同深度分类之间）。',
     type: '类型',
     pattern: '模式',
     patternPlaceholder: '输入要匹配的字符串',
-    patternHelp: '每个字段是一个独立的字符串，点"+"添加更多。字段中的 | 会被当作普通字符匹配。模式会同时匹配应用名称、窗口标题和浏览器标签页的标题与 URL，因此可直接用域名分类网页（如 youtube.com、github.com）。',
+    patternHelp:
+      '每个字段是一个独立的字符串，点"+"添加更多。字段中的 | 会被当作普通字符匹配。模式会同时匹配应用名称、窗口标题和浏览器标签页的标题与 URL，因此可直接用域名分类网页（如 youtube.com、github.com）。',
     addPattern: '添加模式',
     score: '分数',
     caseInsensitive: '不区分大小写',

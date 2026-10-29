@@ -1,4 +1,5 @@
 import QueryExplorer from '~/views/QueryExplorer.vue';
+import { i18n } from '~/i18n';
 
 describe('QueryExplorer saveCurrentQuery', () => {
   test('canceling an overwrite confirm aborts without opening the save-as-new prompt', async () => {
@@ -7,6 +8,7 @@ describe('QueryExplorer saveCurrentQuery', () => {
 
     const persistSavedQueries = jest.fn();
     const vm = {
+      $t: (key, values) => i18n.t(key, values),
       enddate: '2026-05-21',
       event_type: 'currentwindow',
       persistSavedQueries,

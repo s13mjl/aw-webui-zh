@@ -111,7 +111,9 @@ export default {
   },
   computed: {
     allCategories: function () {
-      return [{ value: [], text: this.$t('categoryEdit.none') }].concat(this.categoryStore.allCategoriesSelect);
+      return [{ value: [], text: this.$t('categoryEdit.none') }].concat(
+        this.categoryStore.allCategoriesSelect
+      );
     },
     allRuleTypes: function () {
       return [

@@ -5,7 +5,11 @@ import Color from 'color';
 import _ from 'lodash';
 
 import { useCategoryStore } from '~/stores/categories';
-import { getCategoryColorFromString, getContrastTextColor, getContrastSubTextColor } from '~/util/color';
+import {
+  getCategoryColorFromString,
+  getContrastTextColor,
+  getContrastSubTextColor,
+} from '~/util/color';
 import { seconds_to_duration } from '~/util/time';
 import { IEvent } from '~/util/interfaces';
 import { i18n } from '~/i18n';

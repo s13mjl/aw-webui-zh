@@ -170,9 +170,7 @@ export async function queryLong(
   const data = {
     query,
     timeperiods: timeperiods.map(tp =>
-      typeof tp !== 'string'
-        ? `${tp.start.toISOString()}/${tp.end.toISOString()}`
-        : tp
+      typeof tp !== 'string' ? `${tp.start.toISOString()}/${tp.end.toISOString()}` : tp
     ),
   };
   const res = await client.req.post('/0/query/', data, {
@@ -200,9 +198,7 @@ export async function exportBucketLong(
 /**
  * Export all buckets with a custom timeout. See #847.
  */
-export async function exportAllBucketsLong(
-  timeoutMs: number = LONG_TIMEOUT_MS
-): Promise<any> {
+export async function exportAllBucketsLong(timeoutMs: number = LONG_TIMEOUT_MS): Promise<any> {
   const client = getClient();
   const res = await client.req.get('/0/export', {
     timeout: timeoutMs,

@@ -30,11 +30,15 @@ export function buildTooltip(bucket, e) {
   } else if (bucket.type == 'web.tab.current') {
     inner = `
       <tr><th>${i18n.t('tooltip.title')}</th><td>${sanitize(e.data.title)}</td></tr>
-      <tr><th>${i18n.t('tooltip.url')}</th><td><a href=${sanitize(e.data.url)}>${sanitize(e.data.url)}</a></td></tr>
+      <tr><th>${i18n.t('tooltip.url')}</th><td><a href=${sanitize(e.data.url)}>${sanitize(
+      e.data.url
+    )}</a></td></tr>
       `;
   } else if (bucket.type.startsWith('app.editor')) {
     inner = `
-      <tr><th>${i18n.t('tooltip.filename')}</th><td>${sanitize(_.last(e.data.file.split('/')))}</td></tr>
+      <tr><th>${i18n.t('tooltip.filename')}</th><td>${sanitize(
+      _.last(e.data.file.split('/'))
+    )}</td></tr>
       <tr><th>${i18n.t('tooltip.path')}</th><td>${sanitize(e.data.file)}</td></tr>
       <tr><th>${i18n.t('tooltip.language')}</th><td>${sanitize(e.data.language)}</td></tr>
       `;
