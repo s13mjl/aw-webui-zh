@@ -1,17 +1,15 @@
-import 'core-js/stable';
-import 'regenerator-runtime/runtime';
+import { createApp, defineAsyncComponent } from 'vue';
 
-import Vue from 'vue';
+// Installs the FullCalendarVDom global required by @fullcalendar plugins.
+// Must run before any plugin chunk is evaluated (see Calendar.vue).
+import '@fullcalendar/core/vdom';
 
 // Load the Bootstrap CSS
-import BootstrapVue from 'bootstrap-vue';
 import 'bootstrap/dist/css/bootstrap.css';
-import 'bootstrap-vue/dist/bootstrap-vue.css';
-Vue.use(BootstrapVue);
-
-import { Datetime } from 'vue-datetime';
-import 'vue-datetime/dist/vue-datetime.css';
-Vue.component('datetime', Datetime);
+import './style/bootstrap-vue.css';
+import './compat/bootstrap-vue/compat.css';
+import './style/vue-datetime.css';
+import './style/vue-d3-sunburst.css';
 
 // Load the Varela Round font
 import 'typeface-varela-round';
@@ -19,11 +17,8 @@ import 'typeface-varela-round';
 // Load the main style
 import './style/style.scss';
 
-// Loads all the filters
-import './util/filters.js';
-
 // Internationalization
-import { i18n } from './i18n';
+import i18n from './i18n';
 
 // Sets up the routing and the base app (using vue-router)
 import router from './route.js';
@@ -31,52 +26,21 @@ import router from './route.js';
 // Sets up the pinia store
 import pinia from './stores';
 
-// Register Font Awesome icon component
-Vue.component('icon', () => import('vue-awesome/components/Icon.vue'));
+// BootstrapVue-compatible component layer for Vue 3
+import { installBootstrapVue, showModal, hideModal, toggleModal } from './compat/bootstrap-vue';
 
-// General components
-Vue.component('error-boundary', () => import('./components/ErrorBoundary.vue'));
-Vue.component('input-timeinterval', () => import('./components/InputTimeInterval.vue'));
-Vue.component('aw-header', () => import('./components/Header.vue'));
-Vue.component('aw-footer', () => import('./components/Footer.vue'));
-Vue.component('aw-devonly', () => import('./components/DevOnly.vue'));
-Vue.component('aw-selectable-vis', () => import('./components/SelectableVisualization.vue'));
-Vue.component('aw-selectable-eventview', () => import('./components/SelectableEventView.vue'));
-Vue.component('new-release-notification', () => import('./components/NewReleaseNotification.vue'));
-Vue.component('user-satisfaction-poll', () => import('./components/UserSatisfactionPoll.vue'));
-Vue.component('aw-query-options', () => import('./components/QueryOptions.vue'));
-Vue.component('aw-select-categories', () => import('./components/SelectCategories.vue'));
-Vue.component('aw-select-categories-or-pattern', () =>
-  import('./components/SelectCategoriesOrPattern.vue')
-);
+// Font Awesome style icon component (vue-awesome compatible)
+import Icon from './compat/icons/Icon';
+import './compat/icons/icon.css';
 
-// Visualization components
-Vue.component('aw-summary', () => import('./visualizations/Summary.vue'));
-Vue.component('aw-periodusage', () => import('./visualizations/PeriodUsage.vue'));
-Vue.component('aw-eventlist', () => import('./visualizations/EventList.vue'));
-Vue.component('aw-sunburst-categories', () => import('./visualizations/SunburstCategories.vue'));
-Vue.component('aw-top-bucket-data', () => import('./visualizations/TopBucketData.vue'));
-Vue.component('aw-sunburst-clock', () => import('./visualizations/SunburstClock.vue'));
-Vue.component('aw-timeline-inspect', () => import('./visualizations/TimelineInspect.vue'));
-Vue.component('aw-timeline', () => import('./visualizations/TimelineSimple.vue'));
-Vue.component('vis-timeline', () => import('./visualizations/VisTimeline.vue'));
-Vue.component('aw-categorytree', () => import('./visualizations/CategoryTree.vue'));
-Vue.component('aw-timeline-barchart', () => import('./visualizations/TimelineBarChart.vue'));
-Vue.component('aw-calendar', () => import('./visualizations/Calendar.vue'));
-Vue.component('aw-custom-vis', () => import('./visualizations/CustomVisualization.vue'));
-Vue.component('aw-score', () => import('./visualizations/Score.vue'));
+// Datetime picker (vue-datetime compatible)
+import Datetime from './compat/datetime/Datetime.vue';
+
+// Loads all the filters as plain helpers
+import { filters } from './util/filters';
 
 // A mixin to make async method errors propagate
 import asyncErrorCapturedMixin from './mixins/asyncErrorCaptured.js';
-Vue.mixin(asyncErrorCapturedMixin);
-
-// Set the PRODUCTION constant
-// FIXME: Thould follow Vue convention and start with a $.
-Vue.prototype.PRODUCTION = PRODUCTION;
-Vue.prototype.COMMIT_HASH = COMMIT_HASH;
-
-// Set the $isAndroid constant
-Vue.prototype.$isAndroid = process.env.VUE_APP_ON_ANDROID;
 
 // Create an instance of AWClient as this.$aw
 // NOTE: needs to be created before the Vue app is created,
@@ -86,16 +50,70 @@ createClient();
 
 // Setup Vue app
 import App from './App.vue';
-new Vue({
-  el: '#app',
-  router: router,
-  i18n,
-  render: h => h(App),
-  pinia,
-});
 
-// Set the $aw global
-Vue.prototype.$aw = getClient();
+const app = createApp(App);
+
+app.use(router);
+app.use(i18n);
+app.use(pinia);
+
+installBootstrapVue(app);
+
+// Register Font Awesome icon component
+app.component('icon', Icon);
+app.component('datetime', Datetime);
+
+function asyncComponent(loader) {
+  return defineAsyncComponent(loader);
+}
+
+// General components
+app.component('error-boundary', asyncComponent(() => import('./components/ErrorBoundary.vue')));
+app.component('input-timeinterval', asyncComponent(() => import('./components/InputTimeInterval.vue')));
+app.component('aw-header', asyncComponent(() => import('./components/Header.vue')));
+app.component('aw-footer', asyncComponent(() => import('./components/Footer.vue')));
+app.component('aw-devonly', asyncComponent(() => import('./components/DevOnly.vue')));
+app.component('aw-selectable-vis', asyncComponent(() => import('./components/SelectableVisualization.vue')));
+app.component('aw-selectable-eventview', asyncComponent(() => import('./components/SelectableEventView.vue')));
+app.component('new-release-notification', asyncComponent(() => import('./components/NewReleaseNotification.vue')));
+app.component('user-satisfaction-poll', asyncComponent(() => import('./components/UserSatisfactionPoll.vue')));
+app.component('aw-query-options', asyncComponent(() => import('./components/QueryOptions.vue')));
+app.component('aw-select-categories', asyncComponent(() => import('./components/SelectCategories.vue')));
+app.component(
+  'aw-select-categories-or-pattern',
+  asyncComponent(() => import('./components/SelectCategoriesOrPattern.vue'))
+);
+
+// Visualization components
+app.component('aw-summary', asyncComponent(() => import('./visualizations/Summary.vue')));
+app.component('aw-periodusage', asyncComponent(() => import('./visualizations/PeriodUsage.vue')));
+app.component('aw-eventlist', asyncComponent(() => import('./visualizations/EventList.vue')));
+app.component('aw-sunburst-categories', asyncComponent(() => import('./visualizations/SunburstCategories.vue')));
+app.component('aw-top-bucket-data', asyncComponent(() => import('./visualizations/TopBucketData.vue')));
+app.component('aw-sunburst-clock', asyncComponent(() => import('./visualizations/SunburstClock.vue')));
+app.component('aw-timeline-inspect', asyncComponent(() => import('./visualizations/TimelineInspect.vue')));
+app.component('aw-timeline', asyncComponent(() => import('./visualizations/TimelineSimple.vue')));
+app.component('vis-timeline', asyncComponent(() => import('./visualizations/VisTimeline.vue')));
+app.component('aw-categorytree', asyncComponent(() => import('./visualizations/CategoryTree.vue')));
+app.component('aw-timeline-barchart', asyncComponent(() => import('./visualizations/TimelineBarChart.vue')));
+app.component('aw-calendar', asyncComponent(() => import('./visualizations/Calendar.vue')));
+app.component('aw-custom-vis', asyncComponent(() => import('./visualizations/CustomVisualization.vue')));
+app.component('aw-score', asyncComponent(() => import('./visualizations/Score.vue')));
+
+app.mixin(asyncErrorCapturedMixin);
+
+// Set the PRODUCTION constant
+const globalProperties = app.config.globalProperties;
+globalProperties.PRODUCTION = PRODUCTION;
+globalProperties.COMMIT_HASH = COMMIT_HASH;
+globalProperties.$isAndroid = process.env.VUE_APP_ON_ANDROID;
+globalProperties.$filters = filters;
+globalProperties.$aw = getClient();
+globalProperties.$showModal = showModal;
+globalProperties.$hideModal = hideModal;
+globalProperties.$bvModal = { show: showModal, hide: hideModal, toggle: toggleModal };
+
+app.mount('#app');
 
 // Must be run after vue init since it relies on the settings store
 configureClient();

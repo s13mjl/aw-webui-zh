@@ -12,14 +12,15 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
     b-collapse#nav-collapse(is-nav)
       b-navbar-nav
         // If only a single view (the default) is available
-        b-nav-item(v-if="activityViews && activityViews.length === 1", v-for="view in activityViews", :key="view.name", :to="view.pathUrl")
-          div.px-2.px-lg-1
-            icon(name="calendar-day")
-            | {{ $t('nav.activity') }}
+        template(v-if="activityViews && activityViews.length === 1")
+          b-nav-item(v-for="view in activityViews", :key="view.name", :to="view.pathUrl")
+            div.px-2.px-lg-1
+              icon(name="calendar-day")
+              | {{ $t('nav.activity') }}
 
         // If multiple (or no) activity views are available
         b-nav-item-dropdown(v-if="!activityViews || activityViews.length !== 1")
-          template(slot="button-content")
+          template(v-slot:button-content)
             div.d-inline.px-2.px-lg-1
               icon(name="calendar-day")
               | {{ $t('nav.activity') }}
@@ -50,7 +51,7 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
 
       b-navbar-nav.ml-auto
         b-nav-item-dropdown
-          template(slot="button-content")
+          template(v-slot:button-content)
             div.d-inline.px-2.px-lg-1
               icon(name="tools")
               | {{ $t('nav.tools') }}
@@ -97,24 +98,6 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
 
 <script lang="ts">
 // only import the icons you use to reduce bundle size
-import 'vue-awesome/icons/calendar-day';
-import 'vue-awesome/icons/briefcase';
-import 'vue-awesome/icons/calendar-week';
-import 'vue-awesome/icons/stream';
-import 'vue-awesome/icons/database';
-import 'vue-awesome/icons/search';
-import 'vue-awesome/icons/code';
-import 'vue-awesome/icons/chart-line';
-import 'vue-awesome/icons/chart-pie';
-import 'vue-awesome/icons/flag-checkered';
-import 'vue-awesome/icons/stopwatch';
-import 'vue-awesome/icons/cog';
-import 'vue-awesome/icons/tools';
-import 'vue-awesome/icons/history';
-import 'vue-awesome/icons/project-diagram';
-import 'vue-awesome/icons/ellipsis-h';
-import 'vue-awesome/icons/mobile';
-import 'vue-awesome/icons/desktop';
 
 import _ from 'lodash';
 

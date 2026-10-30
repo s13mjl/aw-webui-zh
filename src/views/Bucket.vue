@@ -90,7 +90,7 @@ export default {
       if (i != -1) {
         // This is needed instead of this.events[i] because insides of arrays
         // are not reactive in Vue.
-        this.$set(this.events, i, event);
+        this.events[i] = event;
       } else {
         console.error(':(');
       }

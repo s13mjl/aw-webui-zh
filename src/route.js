@@ -1,5 +1,4 @@
-import Vue from 'vue';
-import VueRouter from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 
 const Home = () => import('./views/Home.vue');
 
@@ -13,10 +12,6 @@ const QueryExplorer = () => import('./views/QueryExplorer.vue');
 const Timeline = () => import('./views/Timeline.vue');
 const Trends = () => import('./views/Trends.vue');
 const Settings = () => import('./views/settings/Settings.vue');
-// CategoryBuilder is no longer a top-level route — it's embedded inside
-// CategorizationSettings. The /settings/category-builder path is now a
-// redirect, so no direct reference here. Keeping the import out avoids
-// pulling a second copy into a separate chunk.
 const Stopwatch = () => import('./views/Stopwatch.vue');
 const WorkReport = () => import('./views/WorkReport.vue');
 const Alerts = () => import('./views/Alerts.vue');
@@ -27,9 +22,8 @@ const Dev = () => import('./views/Dev.vue');
 const Graph = () => import('./views/Graph.vue');
 const NotFound = () => import('./views/NotFound.vue');
 
-Vue.use(VueRouter);
-
-const router = new VueRouter({
+const router = createRouter({
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/',
@@ -41,20 +35,31 @@ const router = new VueRouter({
     {
       path: '/activity/:host/:periodLength?/:date?',
       component: Activity,
-      props: true,
+      // Vue Router 4 exposes unmatched optional params as empty strings, which
+      // would override the component defaults. Normalize them here.
+      props: route => ({
+        host: route.params.host,
+        periodLength: route.params.periodLength || 'day',
+        date: route.params.date || undefined,
+      }),
       children: [
         {
           path: 'view/:view_id?',
           meta: { subview: 'view' },
           name: 'activity-view',
           component: ActivityView,
-          props: true,
+          props: route => ({
+            view_id: route.params.view_id || 'default',
+          }),
         },
         // Unspecified should redirect to summary view is the summary view
         // (needs to be last since otherwise it'll always match first)
         {
           path: '',
-          redirect: 'view/',
+          redirect: to => ({
+            name: 'activity-view',
+            params: { ...to.params },
+          }),
         },
       ],
     },
@@ -85,11 +90,7 @@ const router = new VueRouter({
     { path: '/search', component: Search },
     { path: '/graph', component: Graph },
     { path: '/dev', component: Dev },
-    // NOTE: Will break with Vue 3: https://stackoverflow.com/questions/40193634/vue-router-redirect-on-page-not-found-404/64186073#64186073
-    {
-      path: '*',
-      component: NotFound,
-    },
+    { path: '/:pathMatch(.*)*', component: NotFound },
   ],
 });
 

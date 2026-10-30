@@ -13,7 +13,9 @@ import _ from 'lodash';
 import moment from 'moment';
 import { ChartOptions } from 'chart.js';
 import 'chart.js/auto';
-import { Bar } from 'vue-chartjs/legacy';
+// NOTE: use the Vue 3 entry — the /legacy build is written against Vue 2's
+// render(createElement) convention and crashes under Vue 3.
+import { Bar } from 'vue-chartjs';
 import {
   format_day_of_month,
   format_weekday_short,

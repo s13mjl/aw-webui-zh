@@ -227,9 +227,6 @@ export const useActivityStore = defineStore('activity', {
       const bucketsStore = useBucketsStore();
 
       console.info('Query options: ', query_options);
-      if (this.loaded) {
-        getClient().abort();
-      }
       // Deep-compare query_options so that refreshing with identical options
       // (e.g. clicking the same date twice, or toggling a filter back to its
       // previous value) doesn't trigger a full re-query. The previous
@@ -237,6 +234,14 @@ export const useActivityStore = defineStore('activity', {
       // builds a fresh object literal on every refresh() call. See #991.
       const optionsChanged = !this.query_options || !_.isEqual(this.query_options, query_options);
       if (!this.loaded || optionsChanged || query_options.force) {
+        // Abort in-flight queries only when we are actually going to re-query.
+        // This used to run unconditionally, so a second ensure_loaded call
+        // with identical options would abort the first call's in-flight
+        // queries and then skip re-querying — leaving every visualization
+        // stuck on its loading placeholder until a manual refresh.
+        if (this.loaded) {
+          getClient().abort();
+        }
         this.start_loading(query_options);
         if (!query_options.timeperiod) {
           query_options.timeperiod = dateToTimeperiod(query_options.date, settingsStore.startOfDay);

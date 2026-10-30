@@ -19,7 +19,7 @@ b-modal(v-if="event && event.id", :id="'edit-modal-' + event.id", ref="eventEdit
         datetime(type="datetime" v-model="end")
       tr
         th {{ $t('eventEditor.duration') }}
-        td {{ editedEvent.duration | friendlyduration }}
+        td {{ $filters.friendlyduration(editedEvent.duration) }}
 
     hr
 
@@ -63,12 +63,12 @@ b-modal(v-if="event && event.id", :id="'edit-modal-' + event.id", ref="eventEdit
 
 import moment from 'moment';
 
-import 'vue-awesome/icons/times';
-import 'vue-awesome/icons/save';
-import 'vue-awesome/icons/trash';
 
 export default {
   name: 'EventEditor',
+  // The template root is a v-if <b-modal>, i.e. a fragment root — without the
+  // emits declaration, Vue 3 cannot auto-inherit the save/delete listeners.
+  emits: ['save', 'delete', 'close'],
   props: {
     event: { type: Object },
     bucket_id: { type: String, required: true },

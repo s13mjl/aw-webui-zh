@@ -702,7 +702,7 @@ export default {
     pattern: 'Pattern',
     patternPlaceholder: 'Enter a string to match',
     patternHelp:
-      'Each field is a separate string; click "+" to add more. The | character inside a field is matched literally. Patterns match app names, window titles, and browser tab titles & URLs, so you can categorize web pages directly by domain (e.g. youtube.com, github.com).',
+      'Each field is a separate string; click "+" to add more. The {\'|\'} character inside a field is matched literally. Patterns match app names, window titles, and browser tab titles & URLs, so you can categorize web pages directly by domain (e.g. youtube.com, github.com).',
     addPattern: 'Add pattern',
     score: 'Score',
     caseInsensitive: 'Case insensitive',

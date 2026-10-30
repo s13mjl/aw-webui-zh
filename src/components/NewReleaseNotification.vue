@@ -9,7 +9,7 @@
 
     b-alert(v-if="isFollowUpVisible", variant="success", show)
       | {{ $t('newRelease.disabledPrefix') }}
-      | #[router-link(to="/settings" class="alert-link" @click.native="isFollowUpVisible=false") {{ $t('newRelease.settingsPage') }}].
+      | #[router-link(to="/settings" class="alert-link" @click="isFollowUpVisible=false") {{ $t('newRelease.settingsPage') }}].
       button(type="button", class="close", @click="isFollowUpVisible=false") &times;
 </template>
 

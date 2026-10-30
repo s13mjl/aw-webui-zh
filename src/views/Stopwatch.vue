@@ -66,9 +66,6 @@ import _ from 'lodash';
 import moment from 'moment';
 
 import StopwatchEntry from '../components/StopwatchEntry.vue';
-import 'vue-awesome/icons/play';
-import 'vue-awesome/icons/trash';
-import 'vue-awesome/icons/question-circle';
 
 export default {
   name: 'Stopwatch',
@@ -125,7 +122,7 @@ export default {
       if (i != -1) {
         // This is needed instead of this.events[i] because insides of arrays
         // are not reactive in Vue
-        this.$set(this.events, i, new_event);
+        this.events[i] = new_event;
       } else {
         console.error(':(');
       }

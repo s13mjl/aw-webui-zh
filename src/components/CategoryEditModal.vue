@@ -75,9 +75,6 @@ import { useCategoryStore } from '~/stores/categories';
 import { validateRegex, isRegexBroad } from '~/util/validate';
 import { patternsToRegex, regexToPatterns } from '~/util/classes';
 
-import 'vue-awesome/icons/trash';
-import 'vue-awesome/icons/times';
-import 'vue-awesome/icons/plus';
 
 export default {
   name: 'CategoryEditModal',

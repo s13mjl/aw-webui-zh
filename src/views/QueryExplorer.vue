@@ -59,7 +59,6 @@ div
 </style>
 
 <script lang="ts">
-import 'vue-awesome/icons/trash';
 import moment from 'moment';
 import _ from 'lodash';
 import { useCategoryStore } from '~/stores/categories';

@@ -87,12 +87,10 @@ div
         CategoryBuilder(embedded)
 </template>
 <script lang="ts">
+import { defineAsyncComponent } from 'vue';
 import { mapState, mapGetters } from 'pinia';
 import CategoryEditTree from '~/components/CategoryEditTree.vue';
 import CategoryEditModal from '~/components/CategoryEditModal.vue';
-import 'vue-awesome/icons/undo';
-import 'vue-awesome/icons/angle-double-down';
-import 'vue-awesome/icons/angle-double-up';
 
 import { useCategoryStore } from '~/stores/categories';
 
@@ -103,7 +101,7 @@ export default {
   components: {
     CategoryEditTree,
     CategoryEditModal,
-    CategoryBuilder: () => import('~/views/settings/CategoryBuilder.vue'),
+    CategoryBuilder: defineAsyncComponent(() => import('~/views/settings/CategoryBuilder.vue')),
   },
   data: () => ({
     categoryStore: useCategoryStore(),
@@ -143,7 +141,7 @@ export default {
       });
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('beforeunload', this.beforeUnload);
   },
   methods: {

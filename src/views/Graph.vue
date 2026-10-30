@@ -59,13 +59,10 @@ div
 <style scoped lang="scss"></style>
 
 <script lang="ts">
+import { defineAsyncComponent } from 'vue';
 import _ from 'lodash';
 import moment from 'moment';
 
-import 'vue-awesome/icons/search';
-import 'vue-awesome/icons/spinner';
-import 'vue-awesome/icons/angle-double-down';
-import 'vue-awesome/icons/angle-double-up';
 
 import { canonicalEvents } from '~/queries';
 
@@ -76,7 +73,7 @@ import { getClient } from '~/util/awclient';
 export default {
   name: 'Graph',
   components: {
-    'aw-force-graph': () => import('~/visualizations/ForceGraph.vue'),
+    'aw-force-graph': defineAsyncComponent(() => import('~/visualizations/ForceGraph.vue')),
   },
   data() {
     return {

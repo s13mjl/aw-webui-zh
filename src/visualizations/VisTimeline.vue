@@ -205,7 +205,7 @@ export default {
       this.ensureUpdate();
     });
   },
-  beforeDestroy() {
+  beforeUnmount() {
     const el = this.$el.querySelector('#visualization');
     if (el) {
       el.removeEventListener('wheel', this.onHorizontalWheel, { capture: true });

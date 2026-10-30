@@ -688,7 +688,7 @@ export default {
     pattern: '模式',
     patternPlaceholder: '输入要匹配的字符串',
     patternHelp:
-      '每个字段是一个独立的字符串，点"+"添加更多。字段中的 | 会被当作普通字符匹配。模式会同时匹配应用名称、窗口标题和浏览器标签页的标题与 URL，因此可直接用域名分类网页（如 youtube.com、github.com）。',
+      '每个字段是一个独立的字符串，点"+"添加更多。字段中的 {\'|\'} 会被当作普通字符匹配。模式会同时匹配应用名称、窗口标题和浏览器标签页的标题与 URL，因此可直接用域名分类网页（如 youtube.com、github.com）。',
     addPattern: '添加模式',
     score: '分数',
     caseInsensitive: '不区分大小写',

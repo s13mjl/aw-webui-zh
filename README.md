@@ -81,10 +81,10 @@ aw-server-rust --webpath /path/to/aw-webui/dist
 如果你想基于本地生产数据持续迭代 `aw-webui`（在生产服务器运行时），可以使用开发构建、自动更新并连接到生产数据。在 `aw-webui` 源码目录下，于一个终端窗口运行：
 
 ```bash
-AW_SERVER_URL="'http://localhost:5600'" npx vue-cli-service build --watch --dest=../aw-server/static
+AW_SERVER_URL="'http://localhost:5600'" npx vite build --watch --outDir=../aw-server/static --emptyOutDir
 ```
 
-如果需要在代码中加入 `debugger` 语句或绕过 lint 规则，请在该命令后追加 `--skip-plugins=no-debugger`。
+如果需要在代码中加入 `debugger` 语句，请在构建时使用开发模式（`--mode development`）。
 
 然后在另一个终端（已激活 venv）运行：
 

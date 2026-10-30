@@ -23,7 +23,7 @@ div
 
     div {{ $t('alerts.goalName') }} {{ alert.name }}
     div {{ $t('alerts.category') }} {{ alert.category.join(" > ") }}
-    div {{ $t('alerts.current') }} {{ alertTime(alert.category) | friendlyduration }} / {{ alert.goal }} {{ $t('alerts.minutes') }}
+    div {{ $t('alerts.current') }} {{ $filters.friendlyduration(alertTime(alert.category)) }} / {{ alert.goal }} {{ $t('alerts.minutes') }}
       span(v-if="alertTime(alert.category) >= alert.goal")
         icon.text-success(name="check")
       span(v-else)
@@ -34,7 +34,7 @@ div
     b-form-checkbox.ml-3.mb-0(v-model="autorefresh", @change="toggleAutoRefresh", switch) {{ $t('alerts.autoRefresh') }}
 
   small.text-muted(v-if="last_updated")
-    | {{ $t('alerts.lastUpdated') }} #[time(:datetime="last_updated && last_updated.toISOString && last_updated.toISOString()") {{ last_updated | friendlytime }}]
+    | {{ $t('alerts.lastUpdated') }} #[time(:datetime="last_updated && last_updated.toISOString && last_updated.toISOString()") {{ $filters.friendlytime(last_updated) }}]
 
   hr
 
@@ -62,10 +62,6 @@ import _ from 'lodash';
 import moment from 'moment';
 import { canonicalEvents } from '~/queries';
 
-import 'vue-awesome/icons/plus';
-import 'vue-awesome/icons/check';
-import 'vue-awesome/icons/times';
-import 'vue-awesome/icons/trash';
 
 import { useBucketsStore } from '~/stores/buckets';
 import { useCategoryStore } from '~/stores/categories';

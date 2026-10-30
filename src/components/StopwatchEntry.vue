@@ -5,11 +5,11 @@ div
       span #[b {{event.data.label || $t('stopwatchEntry.noLabel')}}]
       span.text-muted &nbsp;|&nbsp;
       span(v-if="event.data.running")
-        | {{ $t('stopwatchEntry.runningFor') }} #[span(:title="event.timestamp") {{event.data.running ? (now - event.timestamp) / 1000 : event.duration | friendlyduration}}]
-        | &nbsp;{{ $t('stopwatchEntry.startedAt', { time: $options.filters.shorttime(event.timestamp) }) }}
+        | {{ $t('stopwatchEntry.runningFor') }} #[span(:title="event.timestamp") {{ $filters.friendlyduration(event.data.running ? (now - event.timestamp) / 1000 : event.duration) }}]
+        | &nbsp;{{ $t('stopwatchEntry.startedAt', { time: $filters.shorttime(event.timestamp) }) }}
       span(v-else)
-        | {{ $t('stopwatchEntry.started') }} #[span(:title="event.timestamp") {{event.timestamp | friendlytime}}]
-        | &nbsp;({{event.data.running ? (now - event.timestamp) / 1000 : event.duration | friendlyduration}})
+        | {{ $t('stopwatchEntry.started') }} #[span(:title="event.timestamp") {{ $filters.friendlytime(event.timestamp) }}]
+        | &nbsp;({{ $filters.friendlyduration(event.data.running ? (now - event.timestamp) / 1000 : event.duration) }})
     div.stopwatch-entry__actions
       b-button.mx-1(v-if="event.data.running", @click="stop", variant="outline-primary", size="sm")
         icon.ml-0.mr-1(name="stop")
@@ -40,9 +40,6 @@ div
 
 <script lang="ts">
 import moment from 'moment';
-import 'vue-awesome/icons/edit';
-import 'vue-awesome/icons/stop';
-import 'vue-awesome/icons/play';
 
 import EventEditor from './EventEditor.vue';
 

@@ -34,15 +34,15 @@ div
 
 <script lang="ts">
 // Based on https://codepen.io/Brownsugar/pen/NaGPKy
-import 'vue-awesome/icons/sync';
 
-import { Compact } from 'vue-color';
+import Compact from '~/compat/color/Compact.vue';
 
 export default {
   components: {
     picker: Compact,
   },
-  props: { value: { type: String, default: '#000000' } },
+  props: { modelValue: { type: String, default: '#000000' } },
+  emits: ['update:modelValue'],
   data() {
     return {
       colors: {
@@ -53,15 +53,18 @@ export default {
     };
   },
   watch: {
+    modelValue(val) {
+      this.setColor(val);
+    },
     colorValue(val) {
       if (val) {
         this.updateColors(val);
-        this.$emit('input', val);
+        this.$emit('update:modelValue', val);
       }
     },
   },
   mounted() {
-    this.setColor(this.value);
+    this.setColor(this.modelValue);
   },
   methods: {
     setColor(color) {

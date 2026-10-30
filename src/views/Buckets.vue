@@ -25,7 +25,7 @@ div
             time(:class="{'text-success': isRecent(device.last_updated)}",
                  :datetime="device.last_updated",
                  :title="device.last_updated")
-              | {{ device.last_updated | friendlytime }}
+              | {{ $filters.friendlytime(device.last_updated) }}
           div.small.text-muted(v-else)
             | {{ $t('buckets.noEventsYet') }}
       b-dropdown.kebab-dropdown(
@@ -58,7 +58,7 @@ div
         small.text-monospace.bucket-id(:title="data.item.id") {{ data.item.id }}
       template(v-slot:cell(last_updated)="data")
         small(v-if="bucketHasEvents(data.item)", :class="{'text-success': isRecent(data.item.last_updated)}")
-          | {{ data.item.last_updated | friendlytime }}
+          | {{ $filters.friendlytime(data.item.last_updated) }}
         small.text-muted(v-else) {{ $t('buckets.noEvents') }}
       template(v-slot:cell(actions)="data")
         b-button-group(size="sm")
@@ -92,7 +92,7 @@ div
     b {{ $t('buckets.deletePermanent') }}
     hr
     div.float-right
-      b-button.mx-2(@click="$root.$emit('bv::hide::modal','delete-modal')")
+      b-button.mx-2(@click="$hideModal('delete-modal')")
         | {{ $t('common.cancel') }}
       b-button(@click="deleteBucket(delete_bucket_selected)", variant="danger")
         | {{ $t('common.confirm') }}
@@ -116,7 +116,7 @@ div
         | {{ delete_host_error }}
       hr
       div.float-right
-        b-button.mx-2(@click="$root.$emit('bv::hide::modal','delete-host-modal')")
+        b-button.mx-2(@click="$hideModal('delete-host-modal')")
           | {{ $t('common.cancel') }}
         b-button(@click="deleteBucketsForSelectedHost()",
                  :disabled="deleting_host",
@@ -223,14 +223,7 @@ div
 </style>
 
 <script lang="ts">
-import 'vue-awesome/icons/trash';
-import 'vue-awesome/icons/download';
-import 'vue-awesome/icons/folder-open';
-import 'vue-awesome/icons/desktop';
-import 'vue-awesome/icons/mobile';
-import 'vue-awesome/icons/question';
-import 'vue-awesome/icons/exclamation-triangle';
-import 'vue-awesome/icons/ellipsis-v';
+import { defineAsyncComponent } from 'vue';
 
 import _ from 'lodash';
 import Papa from 'papaparse';
@@ -244,8 +237,8 @@ import { exportBucketLong, exportAllBucketsLong, LONG_TIMEOUT_MS } from '~/util/
 export default {
   name: 'Buckets',
   components: {
-    'aw-bucket-merge': () => import('~/components/BucketMerge.vue'),
-    'aw-bucket-validate': () => import('~/components/BucketValidate.vue'),
+    'aw-bucket-merge': defineAsyncComponent(() => import('~/components/BucketMerge.vue')),
+    'aw-bucket-validate': defineAsyncComponent(() => import('~/components/BucketValidate.vue')),
   },
   data() {
     return {
@@ -366,11 +359,11 @@ export default {
     },
     openDeleteBucketModal: function (bucketId: string) {
       this.delete_bucket_selected = bucketId;
-      this.$root.$emit('bv::show::modal', 'delete-modal');
+      this.$showModal('delete-modal');
     },
     deleteBucket: async function (bucketId: string) {
       await this.bucketsStore.deleteBucket({ bucketId });
-      this.$root.$emit('bv::hide::modal', 'delete-modal');
+      this.$hideModal('delete-modal');
     },
     openDeleteHostModal: function (device) {
       this.delete_host_selected = {
@@ -378,7 +371,7 @@ export default {
         bucketCount: device.buckets.length,
         bucketIds: device.buckets.map(b => b.id),
       };
-      this.$root.$emit('bv::show::modal', 'delete-host-modal');
+      this.$showModal('delete-host-modal');
     },
     deleteBucketsForSelectedHost: async function () {
       if (!this.delete_host_selected) return;
@@ -388,7 +381,7 @@ export default {
         await this.bucketsStore.deleteBucketsByHost({
           bucketIds: this.delete_host_selected.bucketIds,
         });
-        this.$root.$emit('bv::hide::modal', 'delete-host-modal');
+        this.$hideModal('delete-host-modal');
       } catch (err) {
         this.delete_host_error = err?.message || this.$t('buckets.deletionFailed');
       } finally {

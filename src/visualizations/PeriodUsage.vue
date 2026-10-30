@@ -33,8 +33,18 @@ export default {
   },
   mounted: function () {
     periodusage.create(this.$el);
-    periodusage.set_status(this.$el, 'Loading...');
+    // If the data already arrived before mounting (queries can complete
+    // first), the prop watcher below will never fire — draw immediately.
+    const hasData = (this.periodusage_arr || []).some(
+      day_events => day_events && day_events.some(e => e.data && e.data.status == 'not-afk')
+    );
+    if (hasData) {
+      periodusage.update(this.$el, this.periodusage_arr, this.onPeriodClicked);
+    } else {
+      periodusage.set_status(this.$el, 'Loading...');
+    }
   },
+  beforeUnmount: function () {},
   methods: {
     onPeriodClicked: function (period) {
       this.$emit('update', period);

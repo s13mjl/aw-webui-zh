@@ -7,15 +7,23 @@ div(v-if="viewMissing")
       | {{ $t('activityView.goDefault') }}
     | .
 div(v-else-if="view")
-  draggable.row(v-model="elements" handle=".handle")
-    // TODO: Handle large/variable sized visualizations better
-    div.col-md-6.col-lg-4.p-3(v-for="el, index in elements", :key="index", :class="{'col-md-12': isVisLarge(el), 'col-lg-12': isVisLarge(el)}")
-      aw-selectable-vis(:id="index" :type="el.type" :props="el.props" :view-id="view.id" @onTypeChange="onTypeChange" @onRemove="onRemove" :editable="editing")
+  draggable.row(
+    v-model="elements"
+    handle=".handle"
+    :item-key="(el) => JSON.stringify([el.type, el.props])"
+  )
+    //- The item slot must render exactly ONE root node per element:
+    //  vuedraggable v4 throws "Item slot must have only one child" otherwise
+    //  (a Pug `//` comment here would compile to a second, comment child).
+    template(#item="{ element: el, index }")
+      div.col-md-6.col-lg-4.p-3(:class="{'col-md-12': isVisLarge(el), 'col-lg-12': isVisLarge(el)}")
+        aw-selectable-vis(:id="index" :type="el.type" :props="el.props" :view-id="view.id" @onTypeChange="onTypeChange" @onRemove="onRemove" :editable="editing")
 
-    div.col-md-6.col-lg-4.p-3(v-if="editing")
-      b-button(@click="addVisualization" variant="outline-dark" block size="lg")
-        icon(name="plus")
-        span {{ $t('activityView.addVisualization') }}
+    template(#footer)
+      div.col-md-6.col-lg-4.p-3(v-if="editing")
+        b-button(@click="addVisualization" variant="outline-dark" block size="lg")
+          icon(name="plus")
+          span {{ $t('activityView.addVisualization') }}
 
   div(v-if="editing").mt-2
     div.d-flex.flex-row-reverse
@@ -55,10 +63,6 @@ div(v-else-if="view")
 </template>
 
 <script lang="ts">
-import 'vue-awesome/icons/save';
-import 'vue-awesome/icons/times';
-import 'vue-awesome/icons/trash';
-import 'vue-awesome/icons/undo';
 
 import draggable from 'vuedraggable';
 
@@ -112,7 +116,7 @@ export default {
       useViewsStore().removeView({ view_id: this.view.id });
       // If we're on an URL that'll be invalid after removing the view, navigate to the main/default view
       if (!this.$route.path.includes('default')) {
-        this.$router.replace('./default');
+        this.$router.replace({ name: 'activity-view', params: { ...this.$route.params, view_id: 'default' } });
       }
     },
     restoreDefaults() {
@@ -120,7 +124,7 @@ export default {
       alert(this.$t('activityView.restoreAlert'));
       // If we're on an URL that might become invalid, navigate to the main/default view
       if (!this.$route.path.includes('default')) {
-        this.$router.replace('./default');
+        this.$router.replace({ name: 'activity-view', params: { ...this.$route.params, view_id: 'default' } });
       }
     },
     addVisualization: function () {

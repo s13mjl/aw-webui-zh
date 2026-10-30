@@ -39,13 +39,13 @@ div
       b-col(md="4")
         b-card.h-100
           small.text-muted {{ $t('trends.activeTime') }}
-          h4.mb-0 {{ totalCurrent | friendlyduration }}
+          h4.mb-0 {{ $filters.friendlyduration(totalCurrent) }}
           div.small.mt-1(:class="deltaClass(totalDelta)")
             | {{ formatDelta(totalCurrent, totalPrevious) }} {{ $t('trends.vsPrevious', { days: periodDays }) }}
       b-col(md="4")
         b-card.h-100
           small.text-muted {{ $t('trends.dailyAverage') }}
-          h4.mb-0 {{ avgPerDay | friendlyduration }}
+          h4.mb-0 {{ $filters.friendlyduration(avgPerDay) }}
           div.small.mt-1(:class="deltaClass(avgDelta)")
             | {{ formatDelta(avgPerDay, avgPerDayPrevious) }} {{ $t('trends.perDay') }}
       b-col(md="4")
@@ -53,7 +53,7 @@ div
           small.text-muted {{ $t('trends.mostActiveDay') }}
           h4.mb-0(v-if="busiestDay") {{ busiestDay.label }}
           h4.mb-0.text-muted(v-else) —
-          div.small.text-muted.mt-1(v-if="busiestDay") {{ busiestDay.duration | friendlyduration }} {{ $t('trends.onThisDay') }}
+          div.small.text-muted.mt-1(v-if="busiestDay") {{ $filters.friendlyduration(busiestDay.duration) }} {{ $t('trends.onThisDay') }}
 
     h5.mt-3 {{ $t('trends.timePerDay') }}
     aw-timeline-barchart(:datasets="datasets" :height="100")
@@ -74,9 +74,9 @@ div
       template(#cell(category)="row")
         | {{ row.item.category.join(' > ') || $t('trends.uncategorized') }}
       template(#cell(current)="row")
-        | {{ row.item.current | friendlyduration }}
+        | {{ $filters.friendlyduration(row.item.current) }}
       template(#cell(previous)="row")
-        | {{ row.item.previous | friendlyduration }}
+        | {{ $filters.friendlyduration(row.item.previous) }}
       template(#cell(delta)="row")
         span(:class="deltaClass(row.item.delta)")
           | {{ formatDelta(row.item.current, row.item.previous) }}

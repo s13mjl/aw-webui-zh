@@ -18,7 +18,13 @@ div.mx-3
 import { getTitleAttr, getColorFromString } from '../util/color';
 import moment from 'moment';
 import _ from 'lodash';
-import FullCalendar from '@fullcalendar/vue';
+// @fullcalendar/core must be evaluated before any plugin import (required by
+// the @fullcalendar/vue3 wrapper; the Vue 2 wrapper did this implicitly).
+// Importing the vdom module first is the documented Vite/ESM workaround:
+// it installs the FullCalendarVDom global that plugins check for.
+import '@fullcalendar/core';
+import '@fullcalendar/core/vdom';
+import FullCalendar from '@fullcalendar/vue3';
 import timeGridPlugin from '@fullcalendar/timegrid';
 
 // TODO: Use canonical timeline query, with flooding and categorization

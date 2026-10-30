@@ -1,5 +1,4 @@
-import Vue from 'vue';
-import VueI18n from 'vue-i18n';
+import { createI18n } from 'vue-i18n';
 import moment from 'moment';
 import 'moment/locale/uk';
 import 'moment/locale/de';
@@ -11,8 +10,6 @@ import uk from './locales/uk';
 import de from './locales/de';
 import ru from './locales/ru';
 import zhCN from './locales/zh-CN';
-
-Vue.use(VueI18n);
 
 export type AppLocale = 'en' | 'uk' | 'de' | 'ru' | 'zh-CN';
 
@@ -64,19 +61,40 @@ const MOMENT_LOCALE: Record<AppLocale, string> = {
 };
 
 const initialLocale = getInitialLocale();
+const isProduction = process.env.NODE_ENV === 'production';
 
-export const i18n = new VueI18n({
+const i18nInstance = createI18n({
+  legacy: true,
   locale: initialLocale,
   fallbackLocale: 'en',
   messages: { en, uk, de, ru, 'zh-CN': zhCN },
-  silentTranslationWarn: process.env.NODE_ENV === 'production',
+  missingWarn: !isProduction,
+  fallbackWarn: !isProduction,
 });
+
+const i18nGlobal: any = i18nInstance.global;
+
+// Small compatibility facade so existing non-component code can keep using
+// `i18n.t()` / `i18n.locale` as it did with vue-i18n v8.
+export const i18n = {
+  t(key: string, ...args: any[]): string {
+    return i18nGlobal.t(key, ...args) as string;
+  },
+  get locale(): string {
+    return i18nGlobal.locale as string;
+  },
+  set locale(value: string) {
+    i18nGlobal.locale = value;
+  },
+};
+
+export default i18nInstance;
 
 moment.locale(MOMENT_LOCALE[initialLocale]);
 
 export function setAppLocale(locale: string): void {
   const next = isAppLocale(locale) ? locale : 'en';
-  i18n.locale = next;
+  i18nInstance.global.locale = next;
   moment.locale(MOMENT_LOCALE[next]);
   document.documentElement.lang = HTML_LANG[next];
   try {

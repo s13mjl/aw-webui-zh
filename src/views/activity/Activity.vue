@@ -1,8 +1,8 @@
 <template lang="pug">
 div
-  h3.mb-0 {{ $t('activity.title') }} #[span.d-sm-inline.d-none {{ $t('activity.for') }} ]
+  h3.mb-0 {{ $t('activity.title') }} #[span.d-sm-inline.d-none {{ $t('activity.for') + ' ' }}]
     span.text-muted.d-sm-inline-block.d-block
-      span(v-if="periodIsBrowseable") {{ timeperiod | friendlyperiod }}
+      span(v-if="periodIsBrowseable") {{ $filters.friendlyperiod(timeperiod) }}
       span(v-else) {{ periodLengthTitle }}
 
   div.mb-3.text-muted(style="font-size: 0.9em;")
@@ -12,7 +12,7 @@ div
         span {{ host }}
       li.list-group-item.pl-0.pr-3.py-0.border-0
         b.mr-1 {{ $t('activity.timeActive') }}
-        span {{ activityStore.active.duration | friendlyduration }}
+        span {{ $filters.friendlyduration(activityStore.active.duration) }}
     ul.list-group.list-group-horizontal-md(v-if="periodLength != 'day'")
       li.list-group-item.pl-0.pr-3.py-0.border-0
         b.mr-1 {{ $t('activity.queryRange') }}
@@ -105,7 +105,7 @@ div
 
     div.ml-auto
       b-button-group(size="sm")
-        b-button.px-2(:pressed.sync="showOptions", variant="outline-dark", :title="$t('activity.filtersTitle')", :aria-label="$t('activity.filtersAria')")
+        b-button.px-2(v-model:pressed="showOptions", variant="outline-dark", :title="$t('activity.filtersTitle')", :aria-label="$t('activity.filtersAria')")
           icon(name="filter")
           span.d-none.d-md-inline
             |  {{ $t('activity.filters') }}
@@ -122,11 +122,11 @@ div
       b-form-checkbox(v-model="filter_afk" size="sm")
         | {{ $t('activity.excludeAfk') }}
         icon#filterAFKHelp(name="question-circle" style="opacity: 0.4")
-        b-tooltip(target="filterAFKHelp" v-b-tooltip.hover :title="$t('activity.filterAfkTooltip')")
+        b-tooltip(target="filterAFKHelp" :title="$t('activity.filterAfkTooltip')")
       b-form-checkbox(v-model="include_audible" :disabled="!filter_afk" size="sm")
         | {{ $t('activity.audibleActive') }}
         icon#includeAudibleHelp(name="question-circle" style="opacity: 0.4")
-        b-tooltip(target="includeAudibleHelp" v-b-tooltip.hover :title="$t('activity.filterAudibleTooltip')")
+        b-tooltip(target="includeAudibleHelp" :title="$t('activity.filterAudibleTooltip')")
 
       b-form-checkbox(v-if="devmode" v-model="include_stopwatch" size="sm")
         // WIP: https://github.com/ActivityWatch/aw-webui/pull/368
@@ -238,22 +238,13 @@ div
 </style>
 
 <script lang="ts">
+import { defineAsyncComponent } from 'vue';
 import { mapState } from 'pinia';
 import moment from 'moment';
 import { get_day_start_with_offset, get_today_with_offset } from '~/util/time';
 import { periodLengthConvertMoment } from '~/util/timeperiod';
 import _ from 'lodash';
 
-import 'vue-awesome/icons/arrow-left';
-import 'vue-awesome/icons/arrow-right';
-import 'vue-awesome/icons/sync';
-import 'vue-awesome/icons/plus';
-import 'vue-awesome/icons/edit';
-import 'vue-awesome/icons/times';
-import 'vue-awesome/icons/save';
-import 'vue-awesome/icons/question-circle';
-import 'vue-awesome/icons/filter';
-import 'vue-awesome/icons/ellipsis-v';
 
 import { useSettingsStore } from '~/stores/settings';
 import { useCategoryStore } from '~/stores/categories';
@@ -264,7 +255,7 @@ import { useViewsStore } from '~/stores/views';
 export default {
   name: 'Activity',
   components: {
-    'aw-uncategorized-notification': () => import('~/components/UncategorizedNotification.vue'),
+    'aw-uncategorized-notification': defineAsyncComponent(() => import('~/components/UncategorizedNotification.vue')),
   },
   props: {
     host: String,
@@ -583,7 +574,7 @@ export default {
     }
   },
 
-  beforeDestroy: async function () {
+  beforeUnmount: async function () {
     // Cancels pending requests and resets store
     await this.activityStore.reset();
   },

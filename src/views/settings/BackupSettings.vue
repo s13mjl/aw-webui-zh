@@ -29,7 +29,6 @@ import { useSettingsStore } from '~/stores/settings';
 import { performBackup } from '~/util/backup';
 import moment from 'moment';
 
-import 'vue-awesome/icons/download';
 
 export default {
   name: 'BackupSettings',
