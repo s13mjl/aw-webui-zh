@@ -172,7 +172,9 @@ export default {
     },
 
     extendByWeek() {
-      this.queryOptions.start = moment(this.queryOptions.start).subtract(1, 'week');
+      this.queryOptions.start = moment(this.queryOptions.start)
+        .subtract(1, 'week')
+        .format('YYYY-MM-DD');
       this.generate();
     },
   },
