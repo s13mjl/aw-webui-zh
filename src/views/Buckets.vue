@@ -17,7 +17,7 @@ div
         icon.mr-2.text-secondary(v-else name="desktop" scale="1.2")
         div
           span.font-weight-bold {{ device.hostname }}
-          b-badge.ml-2(v-if="serverStore.info.hostname == device.hostname" variant="info") {{ $t('buckets.thisDevice') }}
+          b-badge.ml-2(v-if="serverStore.info && serverStore.info.hostname == device.hostname" variant="info") {{ $t('buckets.thisDevice') }}
           div.small.text-muted(v-if="device.identityAmbiguous")
             | {{ $t('common.id') }} {{ device.device_id ? device.device_id : $t('common.unknown') }}
           div.small(v-if="deviceHasEvents(device)")
