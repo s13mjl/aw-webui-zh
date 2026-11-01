@@ -2,23 +2,39 @@
 div
   b-alert(show variant="warning") #[b {{ $t('settings.developer.note') }}] {{ $t('settings.developer.noteBody') }}
 
-  b-form-group(:label="$t('settings.developer.forceDevmode')" label-cols-md=3 :description="$t('settings.developer.forceDevmodeHelp')")
+  div.d-flex.justify-content-between.align-items-center
     div
-      b-form-checkbox.float-right.ml-2(v-model="devmode" switch)
-
-  b-form-group(:label="$t('settings.developer.multidevice')" label-cols-md=3 :description="$t('settings.developer.multideviceHelp')")
+      h5.mb-0#devmode-label {{ $t('settings.developer.forceDevmode') }}
     div
-      b-form-checkbox.float-right.ml-2(v-model="useMultidevice" switch)
+      b-form-checkbox(v-model="devmode" switch aria-labelledby="devmode-label")
+  small.text-muted
+    | {{ $t('settings.developer.forceDevmodeHelp') }}
 
-  b-form-group(:label="$t('settings.developer.requestTimeout')" label-cols-md=3 :description="$t('settings.developer.requestTimeoutHelp')")
+  div.mt-3.d-flex.justify-content-between.align-items-center
     div
-      b-input.float-right.ml-2(v-model="requestTimeout" type="number")
-
-  b-form-group(:label="$t('settings.developer.hideUnsupportedVisualizations')" label-cols-md=3 :description="$t('settings.developer.hideUnsupportedVisualizationsHelp')")
+      h5.mb-0#multidevice-label {{ $t('settings.developer.multidevice') }}
     div
-      b-form-checkbox.float-right.ml-2(v-model="hideUnsupportedVisualizations" switch)
+      b-form-checkbox(v-model="useMultidevice" switch aria-labelledby="multidevice-label")
+  small.text-muted
+    | {{ $t('settings.developer.multideviceHelp') }}
 
-  div
+  div.mt-3.d-sm-flex.justify-content-between
+    div
+      h5.mt-1.mb-2.mb-sm-0#request-timeout-label {{ $t('settings.developer.requestTimeout') }}
+    div
+      b-input(v-model="requestTimeout" type="number" size="sm" aria-labelledby="request-timeout-label")
+  small.text-muted
+    | {{ $t('settings.developer.requestTimeoutHelp') }}
+
+  div.mt-3.d-flex.justify-content-between.align-items-center
+    div.mr-2
+      h5.mb-0#hide-unsupported-label {{ $t('settings.developer.hideUnsupportedVisualizations') }}
+    div
+      b-form-checkbox(v-model="hideUnsupportedVisualizations" switch aria-labelledby="hide-unsupported-label")
+  small.text-muted
+    | {{ $t('settings.developer.hideUnsupportedVisualizationsHelp') }}
+
+  div.mt-3
     | {{ $t('settings.developer.commitHash') }} {{ COMMIT_HASH }}
 </template>
 
