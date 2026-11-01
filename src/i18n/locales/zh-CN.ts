@@ -845,6 +845,8 @@ export default {
     lastEvent: '最后事件：',
     eventCount: '事件数：',
     data: '数据：',
+    notFound: '未找到名为 "{id}" 的存储桶',
+    seeAllBuckets: '查看全部存储桶',
   },
   queryExplorer: {
     docsPrefix: '查看',
