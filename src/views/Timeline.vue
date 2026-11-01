@@ -113,7 +113,7 @@ import { mapState } from 'pinia';
 import { useSettingsStore } from '~/stores/settings';
 import { useBucketsStore } from '~/stores/buckets';
 import { getClient } from '~/util/awclient';
-import { canonicalEvents } from '~/queries';
+import { canonicalEvents, querystr_to_array } from '~/queries';
 import { useCategoryStore } from '~/stores/categories';
 import { matchStrings } from '~/util/classes';
 import { getCategorizationStringsFromEvent } from '~/util/color';
@@ -392,11 +392,7 @@ export default {
           filter_categories: null,
         }) + '\nRETURN = events;';
 
-      const queryArray = queryCode
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s)
-        .map(s => s + ';');
+      const queryArray = querystr_to_array(queryCode);
 
       const start = this.daterange[0].format();
       const end = this.daterange[1].format();
