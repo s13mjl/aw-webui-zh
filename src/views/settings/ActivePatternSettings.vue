@@ -9,7 +9,7 @@ div
         |
         | {{ $t('settings.activePattern.help2') }}
         |
-        span.text-nowrap
+        span
           | {{ $t('settings.activePattern.example') }}&nbsp;
           code(style="background-color: rgba(200, 200, 200, 0.3); padding: 2px 4px; border-radius: 2px;")
             | Zoom Meeting|Google Meet|Microsoft Teams
