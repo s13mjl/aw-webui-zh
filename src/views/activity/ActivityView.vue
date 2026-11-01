@@ -7,10 +7,14 @@ div(v-if="viewMissing")
       | {{ $t('activityView.goDefault') }}
     | .
 div(v-else-if="view")
+  //- Key on the view id as well as the element contents, so that switching
+    views rebuilds the visualizations instead of reusing the instance that sat
+    at the same position in the previous view (which kept its stale local
+    state). vuedraggable v4 takes the key from :item-key rather than :key.
   draggable.row(
     v-model="elements"
     handle=".handle"
-    :item-key="(el) => JSON.stringify([el.type, el.props])"
+    :item-key="(el) => JSON.stringify([view.id, el.type, el.props])"
   )
     //- The item slot must render exactly ONE root node per element:
     //  vuedraggable v4 throws "Item slot must have only one child" otherwise
