@@ -289,6 +289,51 @@ describe('bucket ID escaping', () => {
   });
 });
 
+describe('browser regex escaping in generated query', () => {
+  const params = {
+    bid_window: 'aw-watcher-window_testhost',
+    bid_afk: 'aw-watcher-afk_testhost',
+    filter_afk: true,
+    include_audible: false,
+    categories: [],
+    filter_categories: [],
+  };
+
+  test('arc bucket query emits single-backslash regex (not double-escaped)', () => {
+    // Regression test for #1080: JSON.stringify was doubling backslashes, so
+    // arc(\.exe)?$ became arc(\\.exe)?$ in the query text — aw-server-rust then
+    // treated \\.exe as a literal backslash + any char + exe, so Arc.exe on
+    // Windows never matched.
+    const query = fullDesktopQuery({
+      ...params,
+      bid_browsers: ['aw-watcher-web-arc_testhost'],
+    }).join('\n');
+    expect(query).toContain('window_arc_re =');
+    // After fix: single backslash (\.exe), not double (\\. exe)
+    expect(query).toContain('arc(\\.exe)?$');
+    expect(query).not.toContain('arc(\\\\.exe)?$');
+  });
+
+  test('no browser app regex is emitted with doubled backslashes', () => {
+    // Generic guard for every pattern in browser_appname_regex: whatever the
+    // server receives must keep a single backslash, otherwise patterns such as
+    // arc(\.exe)?$ silently stop matching on Windows.
+    const query = fullDesktopQuery({
+      ...params,
+      bid_browsers: Object.keys(browser_appname_regex).map(
+        name => `aw-watcher-web-${name}_testhost`
+      ),
+    }).join('\n');
+    const emitted = [...query.matchAll(/filter_keyvals_regex\(events, "app", "(.*)"\);/g)];
+    expect(emitted.length).toBeGreaterThan(0);
+    for (const [, pattern] of emitted) {
+      expect(pattern).not.toContain('\\\\');
+    }
+    expect(query).toContain('window_arc_re =');
+    expect(query).toContain('window_chrome_re =');
+  });
+});
+
 describe('querystr_to_array', () => {
   test('splits simple multi-statement query correctly', () => {
     const query = 'events = query_bucket("aw-watcher-window_host"); RETURN = {"events": events};';
