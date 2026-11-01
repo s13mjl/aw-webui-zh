@@ -92,7 +92,7 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
 
 <style lang="scss" scoped>
 .fixed-top-padding {
-  padding-bottom: 3.5em;
+  padding-bottom: var(--aw-navbar-height);
 }
 </style>
 
@@ -111,7 +111,10 @@ export default {
   data() {
     return {
       activityViews: null,
-      fixedTopMenu: this.$isAndroid,
+      // Sticky on every platform: tall pages (the timeline, a long activity
+      // view) otherwise scroll the navigation out of reach.
+      // See https://github.com/ActivityWatch/aw-webui/issues/299
+      fixedTopMenu: true,
     };
   },
   computed: {

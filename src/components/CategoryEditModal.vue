@@ -1,6 +1,6 @@
 <template lang="pug">
 // The category edit modal
-b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetModal" @hidden="hidden" @ok="handleOk" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
+b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetModal" @hidden="hidden" @ok="handleOk" @keydown.enter="handleEnter" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
   div.my-1
     b-input-group.my-1(:prepend="$t('categoryEdit.name')")
       b-form-input(v-model="editing.name")
@@ -199,6 +199,25 @@ export default {
         }
       }
       return true;
+    },
+    handleEnter(event) {
+      // Enter submits the modal, same as pressing OK (#232).
+      // Skipped for elements where Enter already has a meaning of its own,
+      // so we don't swallow their default behavior.
+      const tag = event.target && event.target.tagName;
+      if (tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'A' || tag === 'SELECT') {
+        return;
+      }
+      // Mirrors the validation the OK button goes through
+      if (this.editing.rule.type === 'regex' && !this.validPattern) {
+        return;
+      }
+      event.preventDefault();
+      // Same reset handleOk does before a new attempt, so a stale error
+      // banner from an earlier attempt doesn't linger (#585).
+      this.submitError = null;
+      this.handleSubmit();
+      this.$emit('ok');
     },
     handleOk(event) {
       // Prevent modal from closing

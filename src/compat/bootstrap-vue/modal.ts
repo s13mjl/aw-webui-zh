@@ -1,4 +1,16 @@
-import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch, Teleport, PropType } from 'vue';
+import {
+  defineComponent,
+  h,
+  mergeProps,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useAttrs,
+  watch,
+  Teleport,
+  PropType,
+} from 'vue';
 import { BButton, BButtonClose } from './button';
 
 interface ModalHandle {
@@ -70,8 +82,15 @@ export const BModal = defineComponent({
     visible: { type: Boolean, default: null },
     lazy: { type: Boolean, default: false },
   },
+  // The root vnode is a Teleport, so Vue cannot auto-inherit fallthrough
+  // attrs onto a DOM element. They are merged onto the `.modal` element in
+  // the render function instead, so listeners written on <b-modal> (e.g.
+  // `@keydown.enter`) actually reach the modal — in Vue 2 bootstrap-vue this
+  // required the removed `.native` modifier.
+  inheritAttrs: false,
   emits: ['show', 'shown', 'hide', 'hidden', 'ok', 'cancel', 'update:visible'],
   setup(props, { slots, emit, expose }) {
+    const attrs = useAttrs();
     const modalId = props.id || `modal-${++uidCounter}`;
     const titleId = `${modalId}__BV_title__`;
     const mounted = ref(false);
@@ -148,6 +167,12 @@ export const BModal = defineComponent({
       }
       if (props.visible === true) open();
     });
+    const onKeydown = (event: KeyboardEvent) => {
+      if ((event.key === 'Escape' || event.key === 'Esc') && showClass.value && !props.noCloseOnEsc) {
+        hide();
+      }
+    };
+
     onBeforeUnmount(() => {
       clearTimer();
       modals.delete(modalId);
@@ -158,11 +183,6 @@ export const BModal = defineComponent({
       document.removeEventListener('keydown', onKeydown);
     });
 
-    const onKeydown = (event: KeyboardEvent) => {
-      if ((event.key === 'Escape' || event.key === 'Esc') && showClass.value && !props.noCloseOnEsc) {
-        hide();
-      }
-    };
     watch(showClass, (value) => {
       if (value) document.addEventListener('keydown', onKeydown);
       else document.removeEventListener('keydown', onKeydown);
@@ -207,7 +227,7 @@ export const BModal = defineComponent({
       );
       const modal = h(
         'div',
-        {
+        mergeProps(attrs, {
           id: modalId,
           class: ['modal', { fade: true, show: showClass.value }],
           tabindex: '-1',
@@ -218,7 +238,7 @@ export const BModal = defineComponent({
           onClick: (event: MouseEvent) => {
             if (event.target === event.currentTarget && !props.noCloseOnBackdrop && !props.staticBackdrop) hide();
           },
-        },
+        }),
         [dialog]
       );
       const backdrop = h('div', {
