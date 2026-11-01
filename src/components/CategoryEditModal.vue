@@ -1,6 +1,6 @@
 <template lang="pug">
 // The category edit modal
-b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetModal" @hidden="hidden" @ok="handleOk" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
+b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetModal" @hidden="hidden" @ok="handleOk" :ok-disabled="editing.rule.type === 'regex' && !validPattern" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
   div.my-1
     b-input-group.my-1(:prepend="$t('categoryEdit.name')")
       b-form-input(v-model="editing.name")
