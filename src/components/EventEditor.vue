@@ -62,17 +62,17 @@ b-modal(v-if="event && event.id", :id="'edit-modal-' + event.id", ref="eventEdit
 //  - Search (soon)
 
 import moment from 'moment';
-
+import _ from 'lodash';
 
 export default {
   name: 'EventEditor',
-  // The template root is a v-if <b-modal>, i.e. a fragment root — without the
-  // emits declaration, Vue 3 cannot auto-inherit the save/delete listeners.
-  emits: ['save', 'delete', 'close'],
   props: {
     event: { type: Object },
     bucket_id: { type: String, required: true },
   },
+  // The template root is a v-if <b-modal>, i.e. a fragment root — without the
+  // emits declaration, Vue 3 cannot auto-inherit the save/delete listeners.
+  emits: ['save', 'saved', 'delete', 'close'],
   data() {
     return {
       editedEvent: null,
@@ -109,10 +109,15 @@ export default {
   },
   methods: {
     async save() {
+      // Capture before any async suspension: another selection can change
+      // this.editedEvent or this.bucket_id while replaceEvent is in-flight.
+      const savedEvent = _.cloneDeep(this.editedEvent);
+      const savedBucketId = this.bucket_id;
       // This emit needs to be called first, otherwise it won't occur for some reason
       // FIXME: but what if the replace fails? Then UI will incorrectly think event was replaced?
-      this.$emit('save', this.editedEvent);
-      await this.$aw.replaceEvent(this.bucket_id, this.editedEvent);
+      this.$emit('save', savedEvent);
+      await this.$aw.replaceEvent(savedBucketId, savedEvent);
+      this.$emit('saved', savedEvent, savedBucketId);
     },
     async delete_() {
       // This emit needs to be called first, otherwise it won't occur for some reason

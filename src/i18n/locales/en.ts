@@ -485,8 +485,6 @@ export default {
     mergedByCategories: 'merged by categories',
     mergeNone: 'none',
     emptyBucketsHint: 'Buckets with no events in the queried range will be hidden.',
-    editSavedTitle: 'Heads up',
-    editSavedBody: 'Your edit is saved. Refresh the timeline to see it reflected.',
     syncedFrom: '(synced from {host})',
     devReason: 'Not ready for production, still experimenting',
   },
