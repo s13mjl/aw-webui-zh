@@ -1,4 +1,4 @@
-import { defineComponent, h, PropType, computed } from 'vue';
+import { defineComponent, h, PropType, computed, ref } from 'vue';
 import { coerceModel, looseEqual, looseIndexOf, uid } from './utils';
 
 const stateClass = (state: any): string | null =>
@@ -173,12 +173,17 @@ export const BFormInput = defineComponent({
     plain: { type: Boolean, default: false },
   },
   emits: ['update:modelValue'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
+    const inputEl = ref<HTMLInputElement | null>(null);
     const onInput = (event: Event) => {
       emit('update:modelValue', coerceModel((event.target as HTMLInputElement).value, props.modelModifiers));
     };
+    // bootstrap-vue's b-form-input exposed focus(); template refs rely on it to
+    // autofocus the first field when a modal opens (see QueryExplorer).
+    expose({ focus: () => inputEl.value?.focus() });
     return () =>
       h('input', {
+        ref: inputEl,
         type: props.type,
         class: [
           // Range inputs use Bootstrap's custom-range styling, matching BootstrapVue.

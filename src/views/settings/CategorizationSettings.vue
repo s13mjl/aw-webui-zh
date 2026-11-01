@@ -85,6 +85,21 @@ div
     b-collapse#category-builder-collapse(v-model="builderOpen")
       div.mt-3(v-if="builderMounted")
         CategoryBuilder(embedded)
+
+  b-modal(
+    v-model:visible="showCreateSetModal"
+    :title="$t('settings.categorization.createSetTitle')"
+    :ok-title="$t('settings.categorization.createSetAction')"
+    :cancel-title="$t('common.cancel')"
+    @ok="onCreateSetConfirm"
+    @shown="$refs.newSetNameInput && $refs.newSetNameInput.focus()"
+  )
+    b-form-group(:label="$t('settings.categorization.promptName')")
+      b-form-input(
+        ref="newSetNameInput"
+        v-model="newSetName"
+        :placeholder="$t('settings.categorization.newSetNamePlaceholder')"
+      )
 </template>
 <script lang="ts">
 import { defineAsyncComponent } from 'vue';
@@ -109,6 +124,8 @@ export default {
     activeSetId: 'default',
     builderOpen: false,
     builderMounted: false,
+    showCreateSetModal: false,
+    newSetName: '',
   }),
   computed: {
     ...mapState(useCategoryStore, ['classes_unsaved_changes']),
@@ -210,9 +227,17 @@ export default {
       }
     },
     createSet: function () {
-      const name = prompt(this.$t('settings.categorization.promptName'));
-      if (!name) return;
+      this.newSetName = '';
+      this.showCreateSetModal = true;
+    },
+    onCreateSetConfirm: function (event) {
+      const name = this.newSetName.trim();
+      if (!name) {
+        event.preventDefault();
+        return;
+      }
       if (this.categoryStore.category_sets.find(s => s.id === name)) {
+        event.preventDefault();
         alert(this.$t('settings.categorization.alertExists', { name }));
         return;
       }
