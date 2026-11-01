@@ -14,6 +14,10 @@ div
     div
       b-input.float-right.ml-2(v-model="requestTimeout" type="number")
 
+  b-form-group(:label="$t('settings.developer.hideUnsupportedVisualizations')" label-cols-md=3 :description="$t('settings.developer.hideUnsupportedVisualizationsHelp')")
+    div
+      b-form-checkbox.float-right.ml-2(v-model="hideUnsupportedVisualizations" switch)
+
   div
     | {{ $t('settings.developer.commitHash') }} {{ COMMIT_HASH }}
 </template>
@@ -50,6 +54,14 @@ export default {
       },
       set(requestTimeout) {
         useSettingsStore().update({ requestTimeout });
+      },
+    },
+    hideUnsupportedVisualizations: {
+      get() {
+        return useSettingsStore().hideUnsupportedVisualizations;
+      },
+      set(hideUnsupportedVisualizations) {
+        useSettingsStore().update({ hideUnsupportedVisualizations });
       },
     },
   },
