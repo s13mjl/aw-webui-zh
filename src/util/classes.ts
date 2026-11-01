@@ -318,6 +318,19 @@ export function regexToPatterns(regex: string | undefined): string[] {
   return regex.split('|').filter(s => s !== '');
 }
 
+/**
+ * True if the category has a regex rule that can actually match.
+ *
+ * A blank regex would match every string, so it is treated as "no rule", the
+ * same as aw-core's server-side categorize() does. Without this, views that
+ * classify client-side (Top Applications, Top Window Titles) put everything
+ * into a blank-regex category while server-categorized views (Sunburst,
+ * Timeline, Top Categories) ignore it (#382).
+ */
+export function hasMatchableRegex(c: Category): boolean {
+  return c.rule.type == 'regex' && !!c.rule.regex;
+}
+
 export function matchString(str: string, categories: Category[] | null): Category | null {
   return matchStrings([str], categories);
 }
@@ -338,19 +351,17 @@ export function matchStrings(strs: string[], categories: Category[] | null): Cat
   }
 
   // Compile regexes
-  const regexes: [Category, RegExp][] = categories
-    .filter(c => c.rule.type == 'regex')
-    .map(c => {
-      // No 'm' flag — each field is tested individually, matching server behaviour.
-      const re = RegExp(c.rule.regex, c.rule.ignore_case ? 'i' : '');
-      return [c, re];
-    });
+  const regexes: [Category, RegExp][] = categories.filter(hasMatchableRegex).map(c => {
+    // No 'm' flag — each field is tested individually, matching server behaviour.
+    const re = RegExp(c.rule.regex, c.rule.ignore_case ? 'i' : '');
+    return [c, re];
+  });
 
   // Find the matching category.
   // If several categories match the event, the one with the highest priority
   // wins; ties are broken by depth (deeper wins), matching the server-side
   // categorize() behaviour for same-depth categories.
-  const matchingCats: [Category, RegExp][] = regexes.filter(c => strs.some(s => c[1].test(s)));
+  const matchingCats: [Category, RegExp][] = regexes.filter(c => strs.some(s => s && c[1].test(s)));
   if (matchingCats.length > 0) {
     const matched = matchingCats.map(c => c[0]);
     // Sort by priority (asc), then by depth (asc), so the last element is the
@@ -371,12 +382,10 @@ export function matchStrings(strs: string[], categories: Category[] | null): Cat
 // this is used only in tests
 export function classifyEvents(events: IEvent[], categories: Category[]): IEvent[] {
   // Compile regexes
-  const regexes: [Category, RegExp][] = categories
-    .filter(c => c.rule.type == 'regex')
-    .map(c => {
-      const re = RegExp(c.rule.regex, c.rule.ignore_case ? 'i' : '');
-      return [c, re];
-    });
+  const regexes: [Category, RegExp][] = categories.filter(hasMatchableRegex).map(c => {
+    const re = RegExp(c.rule.regex, c.rule.ignore_case ? 'i' : '');
+    return [c, re];
+  });
 
   // Classify events using compiled regexes.
   // If several categories match the event, the deepest category will be chosen.
