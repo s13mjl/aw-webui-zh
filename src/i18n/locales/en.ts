@@ -510,7 +510,6 @@ export default {
   },
   search: {
     title: 'Search',
-    earlyDev: 'This feature is still in early development.',
     searchBtn: 'Search',
     options: 'Options',
     notFound: "Didn't find what you were looking for?",

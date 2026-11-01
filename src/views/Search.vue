@@ -2,9 +2,6 @@
 div
   h3 {{ $t('search.title') }}
 
-  b-alert(variant="warning" show)
-    | {{ $t('search.earlyDev') }}
-
   b-alert(v-if="error" show variant="danger")
     | {{error}}
 
@@ -71,7 +68,7 @@ export default {
         bid_window: 'aw-watcher-window_' + this.queryOptions.hostname,
         bid_afk: 'aw-watcher-afk_' + this.queryOptions.hostname,
         filter_afk: this.queryOptions.filter_afk,
-        categories: [[['searched'], { type: 'regex', regex: this.pattern }]],
+        categories: [[['searched'], { type: 'regex', regex: this.pattern, ignore_case: true }]],
         filter_categories: [['searched']],
       });
       query += '; RETURN = events;';
