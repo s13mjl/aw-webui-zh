@@ -861,6 +861,8 @@ export default {
     lastEvent: 'Last event:',
     eventCount: 'Event count:',
     data: 'Data:',
+    notFound: 'No bucket named "{id}".',
+    seeAllBuckets: 'See all buckets',
   },
   queryExplorer: {
     docsPrefix: 'See',
