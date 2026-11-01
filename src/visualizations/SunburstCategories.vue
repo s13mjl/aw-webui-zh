@@ -2,7 +2,7 @@
 // We want to use another colorscheme than the default 'schemeAccent',
 // unfortunately it seems like the color-scheme prop is broken.
 // See this issue: https://github.com/David-Desmaisons/Vue.D3.sunburst/issues/11
-sunburst.sunburst-categories(:data="data", :colorScale="colorfunc", :getCategoryForColor="categoryForColor", :colorScheme="null" :showLabels="true")
+sunburst.sunburst-categories(:data="data", :colorScale="colorfunc", :getCategoryForColor="categoryForColor", :colorScheme="null" :showLabels="labelFor", ref="sunburst")
   // Add behaviors
   template(v-slot="{ on, actions }")
     highlightOnHover(v-bind="{ on, actions }")
@@ -21,6 +21,7 @@ sunburst.sunburst-categories(:data="data", :colorScale="colorfunc", :getCategory
 <script lang="ts">
 import { highlightOnHover, sunburst, zoomOnClick } from '~/compat/sunburst';
 import { getColorFromCategory } from '~/util/color';
+import { fitLabel, measureText, sunburstLabelFontPx } from '~/util/sunburstLabels';
 
 import { useCategoryStore } from '~/stores/categories';
 import { useSettingsStore } from '~/stores/settings';
@@ -65,6 +66,22 @@ export default {
     },
   },
   methods: {
+    // Called by the sunburst component (our vendored copy in ~/compat/sunburst)
+    // for each arc with the node and its zoom context.
+    // Truncates the name to the radial space where it stays visible: the ring
+    // itself when child arcs are drawn over the next ring, otherwise the ring
+    // plus the library's maxLabelText overflow (minus its 5px text offset).
+    labelFor: function (node) {
+      const name = node.data.name;
+      const chart = this.$refs.sunburst;
+      if (!chart || !chart.scaleY) return name;
+      const { scaleY, maxLabelText } = chart;
+      const overflow = node.children ? 0 : maxLabelText;
+      const maxWidth = scaleY(node.y1) - scaleY(node.y0) + overflow - 6;
+      const fontPx = sunburstLabelFontPx(node.context.relativeDepth);
+      const fontFamily = getComputedStyle(chart.$el).fontFamily;
+      return fitLabel(name, maxWidth, s => measureText(s, fontPx, fontFamily));
+    },
     categoryForColor: function (d) {
       const category = d.parent ? d.parent.concat([d.name]) : [d.name];
       return category.join(SEP);
