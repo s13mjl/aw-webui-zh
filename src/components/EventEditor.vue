@@ -72,7 +72,7 @@ export default {
   },
   // The template root is a v-if <b-modal>, i.e. a fragment root — without the
   // emits declaration, Vue 3 cannot auto-inherit the save/delete listeners.
-  emits: ['save', 'saved', 'delete', 'close'],
+  emits: ['save', 'saved', 'delete', 'deleted', 'close'],
   data() {
     return {
       editedEvent: null,
@@ -122,8 +122,11 @@ export default {
     async delete_() {
       // This emit needs to be called first, otherwise it won't occur for some reason
       // FIXME: but what if the replace fails? Then UI will incorrectly think event was deleted?
-      this.$emit('delete', this.event);
-      await this.$aw.deleteEvent(this.bucket_id, this.event.id);
+      const deletedEvent = _.cloneDeep(this.event);
+      const deletedBucketId = this.bucket_id;
+      this.$emit('delete', deletedEvent);
+      await this.$aw.deleteEvent(deletedBucketId, deletedEvent.id);
+      this.$emit('deleted', deletedEvent, deletedBucketId);
     },
     async getEvent() {
       if (this.bucket_id && this.event && this.event.id) {
