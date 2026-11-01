@@ -221,6 +221,9 @@ export default {
       requestTimeout: 'Request timeout',
       requestTimeoutHelp:
         'The maximum amount of time a server request can take before timing out. Setting this to a high value can be useful for large queries. Note that you need to reload the web UI for it to apply.',
+      hideUnsupportedVisualizations: 'Hide unsupported visualizations',
+      hideUnsupportedVisualizationsHelp:
+        'Hide visualizations that lack required data instead of showing a warning. Disabled by default.',
       commitHash: 'Web UI commit hash:',
     },
   },

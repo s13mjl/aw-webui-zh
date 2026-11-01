@@ -65,6 +65,9 @@ interface State {
   useMultidevice: boolean;
   requestTimeout: number;
 
+  // Whether to hide visualizations that lack required data (default: off)
+  hideUnsupportedVisualizations: boolean;
+
   // Auto-export all buckets as JSON for backup. See #406.
   autoBackupEnabled: boolean;
   autoBackupIntervalHours: number;
@@ -117,6 +120,7 @@ export const useSettingsStore = defineStore('settings', {
     devmode: typeof PRODUCTION === 'undefined' ? true : !PRODUCTION,
     useMultidevice: false,
     requestTimeout: 30,
+    hideUnsupportedVisualizations: false,
 
     // Auto-export backup (disabled by default, weekly). See #406.
     autoBackupEnabled: false,

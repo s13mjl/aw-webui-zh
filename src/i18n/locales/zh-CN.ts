@@ -217,6 +217,8 @@ export default {
       requestTimeout: '请求超时时间',
       requestTimeoutHelp:
         '服务器请求超时前允许等待的最长时间。较高的值可用于大型查询。注意：需要重新加载 Web UI 后才会生效。',
+      hideUnsupportedVisualizations: '隐藏不支持的可视化',
+      hideUnsupportedVisualizationsHelp: '隐藏缺少必要数据的可视化，不再显示警告。默认关闭。',
       commitHash: 'Web UI 提交哈希：',
     },
   },
