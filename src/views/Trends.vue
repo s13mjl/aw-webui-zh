@@ -65,6 +65,7 @@ div
       v-else
       small
       hover
+      responsive
       :items="categoryTrends"
       :empty-text="$t('common.noRecords')"
       :fields="categoryFields"
@@ -156,9 +157,14 @@ export default {
     categoryFields(): { key: string; label: string; class?: string; sortable: boolean }[] {
       return [
         { key: 'category', label: 'Category', sortable: true },
-        { key: 'current', label: this.$t('alerts.current'), class: 'text-right', sortable: true },
-        { key: 'previous', label: 'Previous', class: 'text-right', sortable: true },
-        { key: 'delta', label: 'Change', class: 'text-right', sortable: true },
+        {
+          key: 'current',
+          label: this.$t('alerts.current'),
+          class: 'text-right text-nowrap',
+          sortable: true,
+        },
+        { key: 'previous', label: 'Previous', class: 'text-right text-nowrap', sortable: true },
+        { key: 'delta', label: 'Change', class: 'text-right text-nowrap', sortable: true },
         { key: 'absDelta', label: '', class: 'd-none', sortable: true },
       ];
     },
