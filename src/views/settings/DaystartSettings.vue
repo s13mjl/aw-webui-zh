@@ -12,7 +12,7 @@ div
     div
       h5.mt-1.mb-2.mb-sm-0 {{ $t('settings.daystart.startOfWeek') }}
     div
-      b-form-select(:text="startOfWeek", size="sm" v-model="startOfWeek" variant="outline-dark" :options="[$t('settings.daystart.saturday'), $t('settings.daystart.sunday'), $t('settings.daystart.monday')]")
+      b-form-select(size="sm" v-model="startOfWeek" variant="outline-dark" :options="startOfWeekOptions")
   small.text-muted
     | {{ $t('settings.daystart.startOfWeekHelp') }}
 </template>
@@ -27,6 +27,17 @@ export default {
     };
   },
   computed: {
+    // Canonical weekday values with translated labels. timeperiod.ts compares
+    // startOfWeek against 'Sunday'/'Monday'/'Saturday', so the picker must not
+    // persist the translated text itself (it did before, which silently broke
+    // the week alignment on non-English locales).
+    startOfWeekOptions() {
+      return [
+        { value: 'Saturday', text: this.$t('settings.daystart.saturday') as string },
+        { value: 'Sunday', text: this.$t('settings.daystart.sunday') as string },
+        { value: 'Monday', text: this.$t('settings.daystart.monday') as string },
+      ];
+    },
     startOfDay: {
       get: function () {
         return this.settingsStore.startOfDay;
@@ -38,7 +49,10 @@ export default {
     },
     startOfWeek: {
       get: function () {
-        return this.settingsStore.startOfWeek;
+        const stored = this.settingsStore.startOfWeek;
+        // Older saves stored the translated label; show the matching option.
+        const byLabel = this.startOfWeekOptions.find(o => o.text === stored);
+        return byLabel ? byLabel.value : stored;
       },
       set: function (value) {
         console.log('Set start of week to ' + value);
