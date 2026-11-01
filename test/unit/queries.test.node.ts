@@ -53,7 +53,7 @@
  *             (Flatpak app ID retained: 'one.ablaze.floorp')
  */
 
-import { browser_appname_regex, editorActivityQuery } from '~/queries';
+import { browser_appname_regex, browserOnlyQuery, editorActivityQuery } from '~/queries';
 
 // Convert ActivityWatch (?i) patterns to JS RegExp with i flag for testing.
 // AW server uses Python-style (?i) inline flag; JS uses RegExp 'i' flag instead.
@@ -236,5 +236,34 @@ describe('bucket ID escaping', () => {
   test('escapes backslashes before quotes so escaping cannot be bypassed', () => {
     const query = editorActivityQuery(['aw-watcher-window_a\\"b']).join('\n');
     expect(query).toContain(String.raw`query_bucket("aw-watcher-window_a\\\"b")`);
+  });
+});
+
+describe('browserOnlyQuery', () => {
+  test('returns a non-empty query array', () => {
+    const q = browserOnlyQuery(['aw-watcher-web-firefox']);
+    expect(q.length).toBeGreaterThan(0);
+  });
+
+  test('queries all provided browser buckets', () => {
+    const buckets = ['aw-watcher-web-firefox', 'aw-watcher-web-chrome'];
+    const joined = browserOnlyQuery(buckets).join('\n');
+    expect(joined).toContain('"aw-watcher-web-firefox"');
+    expect(joined).toContain('"aw-watcher-web-chrome"');
+  });
+
+  test('returns browser domains, urls, and titles in RETURN', () => {
+    const joined = browserOnlyQuery(['aw-watcher-web-firefox']).join('\n');
+    expect(joined).toContain('"domains"');
+    expect(joined).toContain('"urls"');
+    expect(joined).toContain('"titles"');
+    expect(joined).toContain('"duration"');
+  });
+
+  test('no inline or block comments in generated query', () => {
+    const joined = browserOnlyQuery(['aw-watcher-web-firefox']).join('\n');
+    const stripped = joined.replace(/"[^"]*"/g, '""');
+    expect(stripped).not.toMatch(/\/\//);
+    expect(stripped).not.toMatch(/\/\*/);
   });
 });
