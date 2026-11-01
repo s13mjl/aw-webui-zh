@@ -67,6 +67,13 @@ export default {
     minutesShort: 'm',
     secondsShort: 's',
     secondsAgo: '{count}s ago',
+    // Unit abbreviations for the compact relative timestamps in the bucket table
+    unitYear: 'y',
+    unitMonth: 'mo',
+    unitDay: 'd',
+    unitHour: 'h',
+    unitMinute: 'min',
+    unitSecond: 's',
   },
   durations: {
     quarterHour: '¼h',

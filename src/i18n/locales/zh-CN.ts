@@ -67,6 +67,13 @@ export default {
     minutesShort: '分',
     secondsShort: '秒',
     secondsAgo: '{count} 秒前',
+    // 存储桶表格中紧凑相对时间使用的单位
+    unitYear: '年',
+    unitMonth: '个月',
+    unitDay: '天',
+    unitHour: '小时',
+    unitMinute: '分钟',
+    unitSecond: '秒',
   },
   durations: {
     quarterHour: '15 分钟',

@@ -41,6 +41,47 @@ export function friendlydate(timestamp: string | Moment) {
   return sinceNow.humanize(true);
 }
 
+// Unit abbreviations for the compact timestamps below. They are looked up in
+// the locale files (units.unit*) so narrow table columns can stay localized —
+// en keeps the ASCII letters upstream chose, zh-CN gets 年/个月/天/小时/分钟/秒.
+function compactUnitLabel(key: string, fallback: string): string {
+  const label = i18n.t(`units.${key}`) as string;
+  return label && !label.startsWith('units.') ? label : fallback;
+}
+
+// Narrow, localized labels on desktop; unit-only ages where table space is tight.
+export function compact_relative_time(
+  timestamp: string,
+  locale: string,
+  unitOnly = false,
+  now = new Date()
+) {
+  const seconds = (new Date(timestamp).getTime() - now.getTime()) / 1000;
+  const units: [Intl.RelativeTimeFormatUnit, string, string, number][] = [
+    ['year', 'unitYear', 'y', 365 * 86400],
+    ['month', 'unitMonth', 'mo', 30 * 86400],
+    ['day', 'unitDay', 'd', 86400],
+    ['hour', 'unitHour', 'h', 3600],
+    ['minute', 'unitMinute', 'min', 60],
+    ['second', 'unitSecond', 's', 1],
+  ];
+  const [unit, labelKey, labelFallback, divisor] =
+    units.find(([, , , size]) => Math.abs(seconds) >= size) || units[5];
+  const label = compactUnitLabel(labelKey, labelFallback);
+  const value = Math.trunc(seconds / divisor);
+  if (unitOnly) {
+    return `${value > 0 ? '+' : ''}${Math.abs(value)}${label}`;
+  }
+  if (locale.split('-')[0] === 'en') {
+    const age = `${Math.abs(value)}${label}`;
+    return value > 0 ? `in ${age}` : `${age} ago`;
+  }
+  return new Intl.RelativeTimeFormat(locale, { numeric: 'always', style: 'narrow' }).format(
+    value === 0 ? -0 : value,
+    unit
+  );
+}
+
 export function get_day_start_with_offset(dateParam: Moment | string, offset?: string) {
   if (!offset) {
     offset = getStartOfDayOffset();
