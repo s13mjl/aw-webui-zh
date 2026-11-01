@@ -505,6 +505,10 @@ export default {
     ariaLabel: 'What are you working on?',
     aboutAria: 'About the stopwatch',
     loading: 'Loading...',
+    retry: 'Retry',
+    showMoreRunning: 'Show more running timers',
+    showMoreHistory: 'Show more history',
+    loadError: 'Unable to load stopwatch timers. Please retry.',
   },
   search: {
     title: 'Search',

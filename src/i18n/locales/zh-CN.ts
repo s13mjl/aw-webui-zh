@@ -492,6 +492,10 @@ export default {
     ariaLabel: '你在做什么？',
     aboutAria: '关于秒表',
     loading: '加载中...',
+    retry: '重试',
+    showMoreRunning: '显示更多运行中的计时器',
+    showMoreHistory: '显示更多历史记录',
+    loadError: '无法加载秒表计时器，请重试',
   },
   search: {
     title: '搜索',
