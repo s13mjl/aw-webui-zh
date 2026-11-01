@@ -415,6 +415,7 @@ export default {
     allCategories: '全部',
     topApps: '常用应用',
     topTitles: '常用窗口标题',
+    topBundleIds: '常用 Bundle ID',
     topDomains: '常用浏览器域名',
     topUrls: '常用浏览器 URL',
     topBrowserTitles: '常用浏览器标题',

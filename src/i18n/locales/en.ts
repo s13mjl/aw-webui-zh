@@ -426,6 +426,7 @@ export default {
     allCategories: 'All',
     topApps: 'Top Applications',
     topTitles: 'Top Window Titles',
+    topBundleIds: 'Bundle IDs',
     topDomains: 'Top Browser Domains',
     topUrls: 'Top Browser URLs',
     topBrowserTitles: 'Top Browser Titles',
