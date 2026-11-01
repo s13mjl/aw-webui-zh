@@ -64,6 +64,24 @@ div(v-else-if="view")
     br
     br
     | {{ $t('activityView.removeViewHint') }} #[b {{ $t('activityView.restoreDefaults') }}] {{ $t('activityView.removeViewRestoreHint') }}
+
+  b-modal(
+    v-model:visible="showCustomVisModal"
+    :title="$t('activityView.customVisTitle')"
+    :ok-title="$t('activityView.customVisOk')"
+    :cancel-title="$t('common.cancel')"
+    @ok="onCustomVisConfirm"
+  )
+    b-form-group(:label="$t('activityView.customVisWatcher')")
+      b-form-input(
+        v-model="customVisWatcherName"
+        :placeholder="$t('activityView.promptWatcherDefault')"
+      )
+    b-form-group(:label="$t('activityView.customVisTitleLabel')")
+      b-form-input(
+        v-model="customVisTitle"
+        :placeholder="$t('activityView.customVisTitlePlaceholder')"
+      )
 </template>
 
 <script lang="ts">
@@ -81,7 +99,13 @@ export default {
     view_id: { type: String, default: 'default' },
   },
   data() {
-    return { editing: false };
+    return {
+      editing: false,
+      showCustomVisModal: false,
+      customVisWatcherName: 'aw-watcher-',
+      customVisTitle: '',
+      pendingCustomVisId: null as number | null,
+    };
   },
   computed: {
     views: function () {
@@ -135,25 +159,32 @@ export default {
       useViewsStore().addVisualization({ view_id: this.view.id, type: 'top_apps' });
     },
     async onTypeChange(id, type) {
-      let props = {};
-
       if (type === 'custom_vis') {
-        const visname = prompt(
-          this.$t('activityView.promptWatcher'),
-          this.$t('activityView.promptWatcherDefault')
-        );
-        if (!visname) return;
-
-        const title = prompt(this.$t('activityView.promptTitle'));
-        if (!title) return;
-
-        props = {
-          visname,
-          title,
-        };
+        // Show modal to collect watcher name and visualization title
+        this.pendingCustomVisId = id;
+        this.customVisWatcherName = 'aw-watcher-';
+        this.customVisTitle = '';
+        this.showCustomVisModal = true;
+        return;
       }
 
-      await useViewsStore().editView({ view_id: this.view.id, el_id: id, type, props });
+      await useViewsStore().editView({ view_id: this.view.id, el_id: id, type, props: {} });
+    },
+    async onCustomVisConfirm(event) {
+      if (!this.customVisWatcherName.trim() || !this.customVisTitle.trim()) {
+        event.preventDefault();
+        return;
+      }
+      const props = {
+        visname: this.customVisWatcherName,
+        title: this.customVisTitle,
+      };
+      await useViewsStore().editView({
+        view_id: this.view.id,
+        el_id: this.pendingCustomVisId,
+        type: 'custom_vis',
+        props,
+      });
     },
     async onRemove(id) {
       await useViewsStore().removeVisualization({ view_id: this.view.id, el_id: id });

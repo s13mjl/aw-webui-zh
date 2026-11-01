@@ -48,6 +48,36 @@ div
   hr
 
   aw-selectable-eventview(:events="events", :event_type="event_type")
+
+  b-modal(
+    v-model:visible="showSaveQueryModal"
+    :title="$t('queryExplorer.saveModalTitle')"
+    :ok-title="$t('common.save')"
+    :cancel-title="$t('common.cancel')"
+    @ok="onSaveQueryConfirm"
+    @shown="$refs.saveQueryNameInput && $refs.saveQueryNameInput.focus()"
+  )
+    b-form-group(:label="$t('queryExplorer.namePrompt')")
+      b-form-input(
+        ref="saveQueryNameInput"
+        v-model="saveQueryName"
+        :placeholder="$t('queryExplorer.queryNamePlaceholder')"
+      )
+
+  b-modal(
+    v-model:visible="showRenameQueryModal"
+    :title="$t('queryExplorer.renameModalTitle')"
+    :ok-title="$t('queryExplorer.rename')"
+    :cancel-title="$t('common.cancel')"
+    @ok="onRenameQueryConfirm"
+    @shown="$refs.renameQueryNameInput && $refs.renameQueryNameInput.focus()"
+  )
+    b-form-group(:label="$t('queryExplorer.renamePrompt')")
+      b-form-input(
+        ref="renameQueryNameInput"
+        v-model="renameQueryName"
+        :placeholder="$t('queryExplorer.queryNamePlaceholder')"
+      )
 </template>
 
 <style scoped lang="scss">
@@ -107,6 +137,10 @@ RETURN = sort_by_duration(merged_events);
       selected_saved_query_id: '',
       startdate: today.format('YYYY-MM-DD'),
       enddate: tomorrow.format('YYYY-MM-DD'),
+      showSaveQueryModal: false,
+      saveQueryName: '',
+      showRenameQueryModal: false,
+      renameQueryName: '',
     };
   },
   computed: {
@@ -178,15 +212,16 @@ RETURN = sort_by_duration(merged_events);
         return;
       }
 
-      const defaultName = getDefaultSavedQueryName(this.query_code);
-      const name = prompt(this.$t('queryExplorer.namePrompt'), defaultName);
-      if (name === null) {
-        return;
-      }
+      // No existing query — open modal to get a name
+      this.saveQueryName = getDefaultSavedQueryName(this.query_code);
+      this.showSaveQueryModal = true;
+    },
+    onSaveQueryConfirm: async function (event) {
+      event.preventDefault();
 
-      const trimmedName = name.trim();
+      const trimmedName = this.saveQueryName.trim();
       if (_.isEmpty(trimmedName)) {
-        alert(this.$t('queryExplorer.emptyNameAlert'));
+        this.saved_query_error = this.$t('queryExplorer.emptyNameAlert');
         return;
       }
 
@@ -206,6 +241,7 @@ RETURN = sort_by_duration(merged_events);
       const didPersist = await this.persistSavedQueries([...this.savedQueries, newQuery]);
       if (didPersist) {
         this.selected_saved_query_id = newId;
+        this.showSaveQueryModal = false;
       }
     },
     renameSelectedQuery: async function () {
@@ -213,23 +249,31 @@ RETURN = sort_by_duration(merged_events);
         return;
       }
 
-      const name = prompt(this.$t('queryExplorer.renamePrompt'), this.selectedSavedQuery.name);
-      if (name === null) {
+      this.renameQueryName = this.selectedSavedQuery.name;
+      this.showRenameQueryModal = true;
+    },
+    onRenameQueryConfirm: async function (event) {
+      event.preventDefault();
+
+      if (!this.selectedSavedQuery) {
         return;
       }
 
-      const trimmedName = name.trim();
+      const trimmedName = this.renameQueryName.trim();
       if (_.isEmpty(trimmedName)) {
-        alert(this.$t('queryExplorer.emptyNameAlert'));
+        this.saved_query_error = this.$t('queryExplorer.emptyNameAlert');
         return;
       }
 
       const selectedQueryId = this.selectedSavedQuery.id;
-      await this.persistSavedQueries(
+      const didPersist = await this.persistSavedQueries(
         this.savedQueries.map(savedQuery =>
           savedQuery.id === selectedQueryId ? { ...savedQuery, name: trimmedName } : savedQuery
         )
       );
+      if (didPersist) {
+        this.showRenameQueryModal = false;
+      }
     },
     deleteSelectedQuery: async function () {
       if (!this.selectedSavedQuery) {
