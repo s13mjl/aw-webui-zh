@@ -262,8 +262,18 @@ function browsersWithBuckets(browserbuckets: string[]): [string, string][] {
 // Used with filter_keyvals_regex in addition to the exact names in browser_appnames.
 // The full set of historical app names these patterns replace is documented in the unit tests.
 // See: test/unit/queries.test.node.ts, https://github.com/ActivityWatch/aw-webui/issues/749
+//
+// The chrome pattern also covers browsers that run the Chrome Web Store build of the
+// browser extension: they announce their own process name in the window bucket but report
+// their events into the chrome bucket, so those names have to be matched here as well.
+// Helium is not a Chromium fork itself, but it can run the Chrome Web Store extension
+// build, which reports the "Helium" app name into the chrome bucket the same way (#898).
+// Such alternatives are $-anchored so names like "Heliumburger" don't match.
+// NOTE: upstream additionally strips these alternatives from the chrome pattern when a
+// dedicated bucket for that browser participates (chromeAppnameRegex(excludeForks),
+// upstream #949); that machinery does not exist here yet.
 export const browser_appname_regex: Record<string, string> = {
-  chrome: '(?i)^(google[-_ ]?chrome|chrome|chromium)',
+  chrome: '(?i)^(google[-_ ]?chrome|chrome|chromium|helium(\\.exe)?$)',
   firefox: '(?i)(firefox|librewolf|waterfox|nightly)',
   opera: '(?i)(opera)',
   brave: '(?i)(brave)',

@@ -14,6 +14,8 @@
  *             'Google-chrome-beta', 'Google-chrome-unstable'
  *             (Flatpak app IDs retained as exact: 'com.google.Chrome', 'com.google.ChromeDev',
  *              'org.chromium.Chromium')
+ *             Helium running the Chrome Web Store extension build (#898):
+ *             'Helium', 'helium.exe'
  *
  *   Firefox:  'Firefox', 'Firefox.exe', 'firefox', 'firefox.exe',
  *             'Firefox Developer Edition', 'firefoxdeveloperedition',
@@ -53,7 +55,7 @@
  *             (Flatpak app ID retained: 'one.ablaze.floorp')
  */
 
-import { browser_appname_regex, editorActivityQuery } from '~/queries';
+import { browser_appname_regex, editorActivityQuery, fullDesktopQuery } from '~/queries';
 
 // Convert ActivityWatch (?i) patterns to JS RegExp with i flag for testing.
 // AW server uses Python-style (?i) inline flag; JS uses RegExp 'i' flag instead.
@@ -81,6 +83,9 @@ describe('browser_appname_regex', () => {
       'chromium.exe',
       'Google-chrome-beta',
       'Google-chrome-unstable',
+      // Helium running the Chrome Web Store extension build (#898)
+      'Helium',
+      'helium.exe',
     ];
     for (const name of knownNames) {
       expect(re.test(name)).toBe(true);
@@ -93,6 +98,8 @@ describe('browser_appname_regex', () => {
     expect(re.test('com.google.Chrome')).toBe(false);
     expect(re.test('Slack')).toBe(false);
     expect(re.test('Electron')).toBe(false);
+    // The fork alternatives are anchored, so names merely starting with them don't match
+    expect(re.test('Heliumburger')).toBe(false);
   });
 
   test('firefox pattern matches all known Firefox/LibreWolf/Waterfox app names', () => {
@@ -229,6 +236,27 @@ describe('browser_appname_regex', () => {
     for (const name of knownNames) {
       expect(re.test(name)).toBe(true);
     }
+  });
+});
+
+describe('chrome fork matching in generated query', () => {
+  const params = {
+    bid_window: 'aw-watcher-window_testhost',
+    bid_afk: 'aw-watcher-afk_testhost',
+    bid_browsers: [] as string[],
+    filter_afk: true,
+    categories: [],
+    filter_categories: [],
+  };
+
+  test('chrome bucket also matches the Helium app name (#898)', () => {
+    const query = fullDesktopQuery({
+      ...params,
+      bid_browsers: ['aw-watcher-web-chrome_testhost'],
+    }).join('\n');
+    // The pattern is embedded with JSON.stringify, so the backslash is doubled in the AQL source
+    expect(query).toContain('helium(\\\\.exe)?$');
+    expect(query).toContain('window_chrome_re = filter_keyvals_regex(events, "app",');
   });
 });
 
