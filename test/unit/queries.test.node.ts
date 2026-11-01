@@ -53,7 +53,7 @@
  *             (Flatpak app ID retained: 'one.ablaze.floorp')
  */
 
-import { browser_appname_regex, editorActivityQuery } from '~/queries';
+import { browser_appname_regex, editorActivityQuery, querystr_to_array } from '~/queries';
 
 // Convert ActivityWatch (?i) patterns to JS RegExp with i flag for testing.
 // AW server uses Python-style (?i) inline flag; JS uses RegExp 'i' flag instead.
@@ -236,5 +236,39 @@ describe('bucket ID escaping', () => {
   test('escapes backslashes before quotes so escaping cannot be bypassed', () => {
     const query = editorActivityQuery(['aw-watcher-window_a\\"b']).join('\n');
     expect(query).toContain(String.raw`query_bucket("aw-watcher-window_a\\\"b")`);
+  });
+});
+
+describe('querystr_to_array', () => {
+  test('splits simple multi-statement query correctly', () => {
+    const query = 'events = query_bucket("aw-watcher-window_host"); RETURN = {"events": events};';
+    const result = querystr_to_array(query);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toBe('events = query_bucket("aw-watcher-window_host");');
+    expect(result[1]).toBe('RETURN = {"events": events};');
+  });
+
+  test('does not split on semicolons inside string literals (category regex case)', () => {
+    // A category rule with a semicolon in the regex — the naive .split(';') would shred this.
+    const query = 'events = categorize(events, [["Work", {"type": "regex", "regex": "foo;bar"}]]);';
+    const result = querystr_to_array(query);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(
+      'events = categorize(events, [["Work", {"type": "regex", "regex": "foo;bar"}]]);'
+    );
+  });
+
+  test('handles escaped double-quotes inside string literals', () => {
+    const query = 'x = "say \\"hello;world\\""; RETURN = x;';
+    const result = querystr_to_array(query);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toBe('x = "say \\"hello;world\\"";');
+    expect(result[1]).toBe('RETURN = x;');
+  });
+
+  test('filters out empty statements from whitespace-only segments', () => {
+    const query = '\n  events = query_bucket("bucket");\n  RETURN = events;\n';
+    const result = querystr_to_array(query);
+    expect(result).toHaveLength(2);
   });
 });

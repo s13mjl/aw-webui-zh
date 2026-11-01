@@ -81,7 +81,7 @@ import moment from 'moment';
 import Papa from 'papaparse';
 
 
-import { canonicalEvents } from '~/queries';
+import { canonicalEvents, querystr_to_array } from '~/queries';
 import { buildBarchartDataset } from '~/util/datasets';
 
 import { useActivityStore } from '~/stores/activity';
@@ -137,7 +137,7 @@ export default {
       });
       query += '; RETURN = events;';
 
-      const query_array = query.split(';').map(s => s.trim() + ';');
+      const query_array = querystr_to_array(query);
       const start = moment(this.queryOptions.start).format();
       const end = moment(this.queryOptions.stop).format();
       const timeperiods = [start + '/' + end];
