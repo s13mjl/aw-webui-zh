@@ -19,7 +19,12 @@ import { useSettingsStore } from '~/stores/settings';
 import { useBucketsStore } from '~/stores/buckets';
 import { useCategoryStore } from '~/stores/categories';
 
-import { getClient, queryLong } from '~/util/awclient';
+import { getClient } from '~/util/awclient';
+import {
+  FullDesktopQueryResult,
+  mergeFullDesktopResults,
+  periodsForFullDesktopQuery,
+} from '~/util/desktopQuerySplit';
 
 function timeperiodStrsAroundTimeperiod(timeperiod: TimePeriod): string[] {
   return timeperiodsAroundTimeperiod(timeperiod).map(timeperiodToStr);
@@ -41,6 +46,32 @@ function scoreCategories(events: IEvent[]): IEvent[] {
     e.data['$score'] = categoryStore.get_category_score(e.data['$category']);
     return e;
   });
+}
+
+/**
+ * One day at a time, same reason as query_category_time_by_period.
+ * Axios timeout is per request (default 30s). Measured 2026-08-28 on a
+ * 31 MB / 4-month aw-server: July as one TIMEINTERVAL 0.95s vs max daily
+ * 0.098s; 31-day sequential wall 0.99s. See desktopQuerySplit.ts.
+ */
+async function queryDesktopPeriods(
+  periods: string[],
+  query: string[],
+  name: string
+): Promise<FullDesktopQueryResult> {
+  const client = getClient();
+  const signal = client.controller.signal;
+  const results: FullDesktopQueryResult[] = [];
+  for (const period of periods) {
+    if (signal.aborted) {
+      throw signal['reason'] || 'unknown reason';
+    }
+    const data = await client.query([period], query, { name, verbose: true });
+    if (data && data[0]) {
+      results.push(data[0]);
+    }
+  }
+  return mergeFullDesktopResults(results);
 }
 
 export interface QueryOptions {
@@ -335,7 +366,7 @@ export const useActivityStore = defineStore('activity', {
       { timeperiod, filter_categories, filter_afk, always_active_pattern }: QueryOptions,
       hosts: string[]
     ) {
-      const periods = [timeperiodToStr(timeperiod)];
+      const periods = periodsForFullDesktopQuery(timeperiod);
       const categories = useCategoryStore().classes_for_query;
 
       const q = queries.multideviceQuery({
@@ -346,8 +377,8 @@ export const useActivityStore = defineStore('activity', {
         host_params: {},
         always_active_pattern,
       });
-      const data = await getClient().query(periods, q, { name: 'multidevice', verbose: true });
-      this.query_window_completed(data[0].window);
+      const merged = await queryDesktopPeriods(periods, q, 'multidevice');
+      this.query_window_completed(merged.window || {});
     },
 
     async query_desktop_full({
@@ -358,7 +389,7 @@ export const useActivityStore = defineStore('activity', {
       include_stopwatch,
       always_active_pattern,
     }: QueryOptions) {
-      const periods = [timeperiodToStr(timeperiod)];
+      const periods = periodsForFullDesktopQuery(timeperiod);
       const categories = useCategoryStore().classes_for_query;
 
       const q = queries.fullDesktopQuery({
@@ -375,13 +406,13 @@ export const useActivityStore = defineStore('activity', {
         include_audible,
         always_active_pattern,
       });
-      // Use extended timeout — a full-period desktop query can span
-      // weeks/months and exceed the default requestTimeout. See #1099.
-      const data = await queryLong(periods, q);
-      this.query_window_completed(data[0].window);
-      this.query_browser_completed(data[0].browser);
+      // Queried one day at a time, so no single request needs the extended
+      // timeout that #1099 added for whole-period desktop queries.
+      const merged = await queryDesktopPeriods(periods, q, 'fullDesktopQuery');
+      this.query_window_completed(merged.window || {});
+      this.query_browser_completed(merged.browser || {});
       if (include_stopwatch) {
-        this.query_stopwatch_completed(data[0].stopwatch);
+        this.query_stopwatch_completed(merged.stopwatch || {});
       }
     },
 
