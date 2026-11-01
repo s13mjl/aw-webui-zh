@@ -218,14 +218,22 @@ export default {
       }
 
       // Save the category.
-      // Filter out any null/undefined entries from the name array as a defensive
-      // measure — even with the checkFormValidity guard above, a stale parent
-      // value or future code change could otherwise sneak a null into the array
-      // and break the query engine.
-      const raw_name = this.editing.parent.concat(this.editing.name);
-      const clean_name = raw_name.filter(
-        part => part !== null && part !== undefined && String(part).trim() !== ''
-      );
+      // Guard against null/undefined/empty segments (e.g. when parent is "None"
+      // and subname was never touched, or when a corrupted class was loaded).
+      // Without this, [].concat(null) or [null].concat(x) writes `null` into
+      // classes[].name, which the query engine then tries to resolve as the
+      // variable `null` and throws QueryInterpretException, breaking all
+      // charts that call categorize(). See #1355 / upstream PR #902.
+      const isValid = s => s !== null && s !== undefined && String(s).trim() !== '';
+      // parent 可能被损坏成非数组（此时按「无父级」处理，而不是让 .concat 抛 TypeError）
+      const parent = Array.isArray(this.editing.parent) ? this.editing.parent.filter(isValid) : [];
+      // The leaf name must be valid on its own — do NOT let a blank name
+      // silently collapse a child into its parent's path.
+      // checkFormValidity 已拦下这种情况并显示错误横幅，这里只是最后一道防线。
+      if (!isValid(this.editing.name)) {
+        return;
+      }
+      const clean_name = parent.concat(this.editing.name);
 
       // Build the rule. For regex rules, derive rule.regex from the patterns
       // list (each pattern escaped, joined with '|') so '|' inside a pattern
