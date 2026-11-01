@@ -495,7 +495,6 @@ export default {
   },
   search: {
     title: '搜索',
-    earlyDev: '此功能仍在早期开发阶段。',
     searchBtn: '搜索',
     options: '选项',
     notFound: '没有找到想要的内容？',
