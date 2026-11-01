@@ -242,7 +242,7 @@ import { defineAsyncComponent } from 'vue';
 import { mapState } from 'pinia';
 import moment from 'moment';
 import { get_day_start_with_offset, get_today_with_offset } from '~/util/time';
-import { periodLengthConvertMoment } from '~/util/timeperiod';
+import { periodStartDate } from '~/util/timeperiod';
 import _ from 'lodash';
 
 
@@ -480,8 +480,13 @@ export default {
       const settingsStore = useSettingsStore();
 
       if (this.periodIsBrowseable) {
+        // The URL date isn't necessarily aligned to the period (e.g. /week with no
+        // date falls back to today), so snap it to the start of the week/month/year.
         return {
-          start: get_day_start_with_offset(this._date, settingsStore.startOfDay),
+          start: get_day_start_with_offset(
+            periodStartDate(this._date, this.periodLength),
+            settingsStore.startOfDay
+          ),
           length: [1, this.periodLength],
         };
       }
@@ -668,7 +673,9 @@ export default {
     },
 
     previousPeriod: function () {
-      return moment(this._date)
+      // Step from the period start the view shows, not the (possibly mid-period) URL date.
+      const base = this.periodIsBrowseable ? moment(this.timeperiod.start) : moment(this._date);
+      return base
         .subtract(
           this.timeperiod.length[0],
           this.timeperiod.length[1] as moment.unitOfTime.DurationConstructor
@@ -676,7 +683,9 @@ export default {
         .format('YYYY-MM-DD');
     },
     nextPeriod: function () {
-      return moment(this._date)
+      // Step from the period start the view shows, not the (possibly mid-period) URL date.
+      const base = this.periodIsBrowseable ? moment(this.timeperiod.start) : moment(this._date);
+      return base
         .add(
           this.timeperiod.length[0],
           this.timeperiod.length[1] as moment.unitOfTime.DurationConstructor
@@ -703,13 +712,12 @@ export default {
       let anchorDate = momentJsDate;
       const today = moment(get_today_with_offset(this.settingsStore.startOfDay));
       if (this.periodIsBrowseable) {
-        const sourceUnit = periodLengthConvertMoment(this.periodLength);
-        const sourceStart = momentJsDate.clone().startOf(sourceUnit);
-        // moment.add() rejects "isoWeek" as a DurationConstructor (even
-        // though startOf() accepts it). Cast — runtime handles both spellings.
+        const sourceStart = moment(
+          periodStartDate(momentJsDate.format('YYYY-MM-DD'), this.periodLength)
+        );
         const sourceEnd = sourceStart
           .clone()
-          .add(1, sourceUnit as moment.unitOfTime.DurationConstructor);
+          .add(1, this.periodLength as moment.unitOfTime.DurationConstructor);
         if (today.isSameOrAfter(sourceStart) && today.isBefore(sourceEnd)) {
           anchorDate = today;
         }
@@ -726,8 +734,7 @@ export default {
       } else if (periodLength === 'last7d' || periodLength === 'last30d') {
         new_date = anchorDate.format('YYYY-MM-DD');
       } else {
-        const new_period_length_moment = periodLengthConvertMoment(periodLength);
-        new_date = anchorDate.clone().startOf(new_period_length_moment).format('YYYY-MM-DD');
+        new_date = periodStartDate(anchorDate.format('YYYY-MM-DD'), periodLength);
       }
       const path = `/activity/${this.host}/${periodLength}/${new_date}/${this.subview}/${this.currentViewId}`;
       // Leaving a custom range behind also means dropping its end date.
