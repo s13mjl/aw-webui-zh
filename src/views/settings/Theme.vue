@@ -23,7 +23,7 @@ div
 <script lang="ts">
 import { mapState } from 'pinia';
 import { useSettingsStore } from '~/stores/settings';
-import { detectPreferredTheme } from '~/util/theme';
+import { DARK_THEME_HREF, detectPreferredTheme } from '~/util/theme';
 
 export default {
   name: 'Theme',
@@ -54,7 +54,7 @@ export default {
         // Apply newly set theme
         // Create Dark Theme Element
         const themeLink = document.createElement('link');
-        themeLink.href = '/dark.css';
+        themeLink.href = DARK_THEME_HREF;
         themeLink.rel = 'stylesheet';
 
         // Remove existing theme link if present

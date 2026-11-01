@@ -15,7 +15,7 @@ div#wrapper(v-if="loaded")
 <script lang="ts">
 import { useSettingsStore } from '~/stores/settings';
 import { useServerStore } from '~/stores/server';
-import { detectPreferredTheme } from '~/util/theme';
+import { DARK_THEME_HREF, detectPreferredTheme } from '~/util/theme';
 import { autoBackupIfNeeded } from '~/util/backup';
 // if vite is used, you can import css file as module
 //import darkCssUrl from '../static/dark.css?url';
@@ -51,7 +51,7 @@ export default {
         // Method 1: Create <link> Element
         // Create Dark Theme Element
         const themeLink = document.createElement('link');
-        themeLink.href = '/dark.css'; // darkCssUrl
+        themeLink.href = DARK_THEME_HREF; // darkCssUrl
         themeLink.rel = 'stylesheet';
         // Append Dark Theme Element
         document.querySelector('head').appendChild(themeLink);
