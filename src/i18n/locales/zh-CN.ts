@@ -476,8 +476,6 @@ export default {
     mergedByCategories: '已按分类合并',
     mergeNone: '无',
     emptyBucketsHint: '查询范围内没有事件的存储桶将被隐藏。',
-    editSavedTitle: '提示',
-    editSavedBody: '修改已保存。刷新时间线以查看效果。',
     syncedFrom: '（同步自 {host}）',
     devReason: '尚未准备好用于生产环境，仍在试验中',
   },

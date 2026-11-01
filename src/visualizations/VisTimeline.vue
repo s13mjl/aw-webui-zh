@@ -6,7 +6,7 @@
       i {{ $t('timeline.emptyBucketsHint') }}
 
     div(v-if="editingEvent")
-      EventEditor(:event="editingEvent" :bucket_id="editingEventBucket")
+      EventEditor(:event="editingEvent" :bucket_id="editingEventBucket" @saved="onEventSaved")
 </template>
 
 <style lang="scss">
@@ -78,7 +78,6 @@ import { Timeline } from 'vis-timeline/esnext';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import EventEditor from '~/components/EventEditor.vue';
 
-let isAlertWarningShown = false;
 const PIXELS_PER_WHEEL_LINE = 40;
 const PIXELS_PER_WHEEL_PAGE = 800;
 
@@ -105,6 +104,9 @@ export default {
     swimlane: { type: String },
     updateTimelineWindow: { type: Boolean },
   },
+  // Declared for Vue 3: without it the parent's @event-saved listener would
+  // also be attached to the root element as a fallthrough attribute.
+  emits: ['event-saved'],
   data() {
     return {
       timeline: null,
@@ -130,6 +132,8 @@ export default {
       },
       editingEvent: null,
       editingEventBucket: null,
+      eventOverrides: {} as Record<string, IEvent>,
+      pendingWindowRestore: null as { start: Date; end: Date } | null,
 
       updateHasRun: false,
     };
@@ -166,7 +170,8 @@ export default {
           console.log(`Filtered ${bucket.events.length - events.length} events`);
         }
         events.sort((a, b) => a.timestamp.valueOf() - b.timestamp.valueOf());
-        _.each(events, e => {
+        _.each(events, sourceEvent => {
+          const e = this.displayEvent(bucket.id, sourceEvent);
           data.push({
             bucketId: bucket.id,
             title: getTitleAttr(bucket, e),
@@ -190,6 +195,7 @@ export default {
         return;
       }
 
+      this.eventOverrides = {};
       this.update();
     },
     events() {
@@ -197,6 +203,7 @@ export default {
         return;
       }
 
+      this.eventOverrides = {};
       this.update();
     },
   },
@@ -250,6 +257,22 @@ export default {
     openEditor: function () {
       this.$bvModal.show('edit-modal-' + this.editingEvent.id);
     },
+    displayEvent: function (bucketId: string, event: IEvent): IEvent {
+      return this.eventOverrides[`${bucketId}\0${event.id}`] || event;
+    },
+    onEventSaved: function (event: IEvent, bucketId?: string) {
+      const bucket = bucketId || this.editingEventBucket;
+      const key = `${bucket}\0${event.id}`;
+      // Vue 3 dropped $set; the Proxy-based reactivity tracks new keys.
+      this.eventOverrides[key] = event;
+      this.editingEvent = event;
+      if (this.timeline) {
+        const w = this.timeline.getWindow();
+        this.pendingWindowRestore = { start: w.start, end: w.end };
+      }
+      this.update();
+      this.$emit('event-saved', event);
+    },
     onSelect: async function (properties) {
       if (properties.items.length == 0) {
         return;
@@ -278,22 +301,6 @@ export default {
           console.log('Editing event', event, ', in bucket', bucketId);
           this.openEditor();
         });
-        if (!isAlertWarningShown) {
-          // Show a one-time inline toast instead of a blocking alert(),
-          // which fired on top of the editor and rudely interrupted the
-          // edit flow. Persist the dismissal via localStorage so the user
-          // doesn't see it every session.
-          if (!this.editRefreshHintDismissed()) {
-            this.$bvToast.toast(this.$t('timeline.editSavedBody'), {
-              title: this.$t('timeline.editSavedTitle'),
-              variant: 'info',
-              autoHideDelay: 6000,
-              solid: true,
-            });
-            this.markEditRefreshHintDismissed();
-          }
-          isAlertWarningShown = true;
-        }
       } else {
         alert('selected multiple items: ' + JSON.stringify(properties.items));
       }
@@ -303,20 +310,6 @@ export default {
       // labels directly via formatTimelineBucketLabelHtml so it can pass
       // the multi-host hint.
       return formatTimelineBucketLabelHtml(bucketId);
-    },
-    editRefreshHintDismissed(): boolean {
-      try {
-        return localStorage.getItem('aw.timeline.editRefreshHintDismissed') === '1';
-      } catch (e) {
-        return false;
-      }
-    },
-    markEditRefreshHintDismissed(): void {
-      try {
-        localStorage.setItem('aw.timeline.editRefreshHintDismissed', '1');
-      } catch (e) {
-        /* localStorage disabled — fine, fall back to the in-memory flag */
-      }
     },
     ensureUpdate() {
       // Will only run update() if data available and never ran before
@@ -472,6 +465,12 @@ export default {
         this.timeline.setData({ groups: [], items: [] });
         this.items = [];
         this.groups = [];
+      }
+      if (this.pendingWindowRestore) {
+        this.timeline.setWindow(this.pendingWindowRestore.start, this.pendingWindowRestore.end, {
+          animation: false,
+        });
+        this.pendingWindowRestore = null;
       }
     },
   },
