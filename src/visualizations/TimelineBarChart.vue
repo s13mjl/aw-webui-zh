@@ -1,7 +1,7 @@
 <template lang="pug">
 div(v-if="datasets && datasets.length > 0")
   // Height set here to avoid elements jumping when loading Activity view
-  bar(:chart-data="chartData" :chart-options="chartOptions" :height="330")
+  bar(:chart-data="chartData" :chart-options="chartOptions" :height="height")
 div.small(v-else-if="datasets === null", style="font-size: 16pt; color: #aaa;")
   | {{ $t('timelineBarChart.noData') }}
 div.small(v-else, style="font-size: 16pt; color: #aaa;")
@@ -17,7 +17,7 @@ import 'chart.js/auto';
 // render(createElement) convention and crashes under Vue 3.
 import { Bar } from 'vue-chartjs';
 import {
-  format_day_of_month,
+  format_date_short,
   format_weekday_short,
   get_hour_offset,
   get_short_month_labels,
@@ -63,6 +63,10 @@ export default {
       type: Array,
       default: () => [1, 'day'],
     },
+    height: {
+      type: Number,
+      default: 330,
+    },
     // Only the single-day hourly activity view should trim overlapping stacks.
     // Other callers (Trends, Report, multi-day Activity) reuse the default
     // `[1, 'day']` timeperiod but pass per-day values, which must not be clamped.
@@ -101,12 +105,11 @@ export default {
           return format_weekday_short(date);
         });
       } else if (resolution.startsWith('month')) {
-        // FIXME: Needs access to the timeperiod start to know which month
         // How many days are in the given month?
         const date = new Date(start);
         const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
         return _.range(1, daysInMonth + 1).map(d =>
-          format_day_of_month(new Date(date.getFullYear(), date.getMonth(), d, 12))
+          format_date_short(new Date(date.getFullYear(), date.getMonth(), d, 12))
         );
       } else if (resolution == 'year') {
         return get_short_month_labels();
@@ -128,8 +131,6 @@ export default {
           display: true,
           text: this.$t('timelineBarChart.timeline'),
         },
-        responsive: true,
-        maintainAspectRatio: false,
       };
     },
     chartOptions(): ChartOptions {
@@ -139,6 +140,8 @@ export default {
       const isHourly = resolution.startsWith('day') && count == 1;
       const isDaily = resolution.startsWith('day') && count > 1 && count <= 62;
       return {
+        responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           tooltip: {
             mode: 'point',
@@ -172,6 +175,8 @@ export default {
             // activity can never legitimately exceed 1h. Using suggestedMax
             // lets Chart.js extend the axis past 1h (e.g. to 2h) when data
             // contains overlapping events, which is misleading — see #851.
+            // Upstream #1059 only special-cases the single-day chart here; our
+            // isHourly/isDaily split already leaves multi-day axes auto-scaled.
             max: isHourly ? 1 : isDaily ? 24 : undefined,
             ticks: {
               callback: hourToTick,

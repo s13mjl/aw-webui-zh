@@ -455,7 +455,16 @@ export default {
     },
     _date: function () {
       const offset = this.settingsStore.startOfDay;
-      return this.date || get_today_with_offset(offset);
+      const baseDate = this.date || get_today_with_offset(offset);
+      if (['week', 'month', 'year'].includes(this.periodLength)) {
+        // The URL date can be any day inside the period (old bookmarks, or
+        // switching period length from a mid-week day). Snap it to the start
+        // of the period, otherwise the window starts mid-week/month/year.
+        // periodStartDate honours the configured start of week (and is what
+        // timeperiod/prev/next use, so snapping is idempotent downstream).
+        return periodStartDate(baseDate, this.periodLength);
+      }
+      return baseDate;
     },
     subview: function () {
       return this.$route.meta.subview;
