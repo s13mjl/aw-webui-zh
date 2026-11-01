@@ -14,6 +14,10 @@
  *             'Google-chrome-beta', 'Google-chrome-unstable'
  *             (Flatpak app IDs retained as exact: 'com.google.Chrome', 'com.google.ChromeDev',
  *              'org.chromium.Chromium')
+ *             Ungoogled Chromium, which also runs the Chrome Web Store extension
+ *             build but whose process name does not start with 'chromium':
+ *             'ungoogled-chromium', 'ungoogled_chromium', 'Ungoogled Chromium',
+ *             'ungoogled-chromium-bin'
  *
  *   Firefox:  'Firefox', 'Firefox.exe', 'firefox', 'firefox.exe',
  *             'Firefox Developer Edition', 'firefoxdeveloperedition',
@@ -55,7 +59,12 @@
  *             (Flatpak app ID retained: 'one.ablaze.floorp')
  */
 
-import { browser_appname_regex, editorActivityQuery, querystr_to_array } from '~/queries';
+import {
+  browser_appname_regex,
+  editorActivityQuery,
+  fullDesktopQuery,
+  querystr_to_array,
+} from '~/queries';
 
 // Convert ActivityWatch (?i) patterns to JS RegExp with i flag for testing.
 // AW server uses Python-style (?i) inline flag; JS uses RegExp 'i' flag instead.
@@ -89,6 +98,12 @@ describe('browser_appname_regex', () => {
       'Arc.exe',
       'Dia',
       'Dia.exe',
+      // Ungoogled Chromium via the Chrome Web Store extension build; its process
+      // name does not start with 'chromium' so the plain chromium alternative misses it.
+      'ungoogled-chromium',
+      'ungoogled_chromium',
+      'Ungoogled Chromium',
+      'ungoogled-chromium-bin',
     ];
     for (const name of knownNames) {
       expect(re.test(name)).toBe(true);
@@ -240,6 +255,29 @@ describe('browser_appname_regex', () => {
     const knownNames = ['Floorp', 'floorp.exe', 'Floorp.exe', 'floorp'];
     for (const name of knownNames) {
       expect(re.test(name)).toBe(true);
+    }
+  });
+});
+
+describe('chrome pattern in generated query', () => {
+  test('chrome bucket regex embedded in AQL matches ungoogled-chromium (#1124)', () => {
+    const query = fullDesktopQuery({
+      bid_window: 'aw-watcher-window_testhost',
+      bid_afk: 'aw-watcher-afk_testhost',
+      bid_browsers: ['aw-watcher-web-chrome_testhost'],
+      filter_afk: true,
+      categories: [],
+      filter_categories: [],
+    }).join('\n');
+    // Deliberately not asserting the exact AQL line: arc/dia alternatives contain
+    // backslashes, and whether JSON.stringify double-escapes them is decided by a
+    // separate fix (#1084). Assert the alternatives actually reached the pattern.
+    const emitted = query.match(
+      /window_chrome_re = filter_keyvals_regex\(events, "app", "(.*)"\);/
+    );
+    expect(emitted).not.toBeNull();
+    for (const alt of ['google[-_ ]?chrome', 'chromium', 'ungoogled[-_ ]?chromium', 'arc', 'dia']) {
+      expect(emitted[1]).toContain(alt);
     }
   });
 });

@@ -288,13 +288,20 @@ function browsersWithBuckets(browserbuckets: string[]): [string, string][] {
 // Used with filter_keyvals_regex in addition to the exact names in browser_appnames.
 // The full set of historical app names these patterns replace is documented in the unit tests.
 // See: test/unit/queries.test.node.ts, https://github.com/ActivityWatch/aw-webui/issues/749
+//
+// Ungoogled Chromium runs the Chrome Web Store build of the browser extension like the other
+// Chromium forks, so its events land in the chrome bucket too. Its process names
+// ("ungoogled-chromium", "ungoogled_chromium", "Ungoogled Chromium") do not start with
+// "chromium", so the plain chromium alternative below misses them. It has no dedicated bucket
+// of its own, so it belongs with the prefix-matched alternatives rather than an anchored one.
 export const browser_appname_regex: Record<string, string> = {
   // Chromium forks (Arc, Dia) run the chrome build of the extension, which announces itself
   // as chrome unless the user overrides the browser name in the extension settings. So by
   // default their events land in the chrome bucket and their app names have to be matched
   // here (#927, ActivityWatch/activitywatch#1094). The standalone arc key below only covers
   // setups where Arc was picked explicitly in the settings, which changes the bucket name.
-  chrome: '(?i)^(google[-_ ]?chrome|chrome|chromium|arc(\\.exe)?$|dia(\\.exe)?$)',
+  chrome:
+    '(?i)^(google[-_ ]?chrome|chrome|chromium|arc(\\.exe)?$|dia(\\.exe)?$|ungoogled[-_ ]?chromium)',
   firefox: '(?i)(firefox|librewolf|waterfox|nightly)',
   opera: '(?i)(opera)',
   brave: '(?i)(brave)',
