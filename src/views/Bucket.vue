@@ -25,7 +25,7 @@ div
       tr
         th {{ $t('bucket.eventCount') }}
         td {{ eventcount }}
-      tr
+      tr(v-if="bucket.data && Object.keys(bucket.data).length > 0")
         th {{ $t('bucket.data') }}
         td {{ bucket.data }}
 
