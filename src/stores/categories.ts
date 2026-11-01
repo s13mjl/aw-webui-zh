@@ -12,6 +12,7 @@ import {
   Category,
   CategorySet,
   Rule,
+  hasMatchableRegex,
 } from '~/util/classes';
 import { i18n } from '~/i18n';
 import { getColorFromCategory } from '~/util/color';
@@ -111,7 +112,11 @@ export const useCategoryStore = defineStore('categories', {
       return sorted
         .filter(c => c.rule.type !== null)
         .map(c => {
-          return [c.name, c.rule];
+          // Blank regexes never match (see hasMatchableRegex). Send them as
+          // 'none' so every server treats them the same way.
+          const rule: Rule =
+            c.rule.type === 'regex' && !hasMatchableRegex(c) ? { type: 'none' } : c.rule;
+          return [c.name, rule];
         });
     },
     all_categories(): string[][] {
