@@ -12,7 +12,7 @@ div
       div
         b {{ $t('categoryBuilder.options') }}
       div
-        small {{ $t('common.hostname') }} {{ queryOptions.hostname }}
+        small {{ $t('common.hostname') }} {{ queryOptions.hostname || $t('categoryBuilder.hostnameNotSelected') }}
       div
         small {{ $t('categoryBuilder.range') }} {{ queryOptions.start }} - {{ queryOptions.stop }}
     div.flex-grow-0
@@ -20,7 +20,7 @@ div
         span(v-if="!show_options") {{ $t('categoryBuilder.showOptions') }}
         span(v-else) {{ $t('categoryBuilder.hideOptions') }}
 
-  div(v-show="show_options")
+  div(v-if="show_options")
     hr
     h4 {{ $t('categoryBuilder.options') }}
     aw-query-options(v-model="queryOptions")
@@ -31,11 +31,16 @@ div
   div(v-if="loading")
     b-spinner.mr-2(small)
     span.text-muted {{ $t('common.loading') }}
-  div(v-else-if="!queryOptions.hostname")
+  div(v-else-if="hostnameEmptyKind === 'no-hosts'")
     p.text-muted.mb-0
       | {{ $t('categoryBuilder.noHost') }}
       | #[a(href="https://docs.activitywatch.net/en/latest/watchers.html") {{ $t('categoryBuilder.noHostLink') }}]
       | {{ $t('categoryBuilder.noHostSuffix') }}
+  div(v-else-if="hostnameEmptyKind === 'hostname-unselected'")
+    p.text-muted.mb-0
+      | {{ $t('categoryBuilder.selectHost') }}
+      | #[b {{ $t('categoryBuilder.showOptions') }}]
+      | {{ $t('categoryBuilder.selectHostSuffix') }}
   div(v-else)
     div(v-if="words_by_duration.length == 0")
       | {{ $t('categoryBuilder.noWords') }}
@@ -114,6 +119,7 @@ import { getClient } from '~/util/awclient';
 import CategoryEditModal from '~/components/CategoryEditModal.vue';
 import { isRegexBroad, validateRegex } from '~/util/validate';
 import { findCommonPhrases } from '~/util/categorization';
+import { categoryBuilderHostnameEmptyKind, selectSoleKnownHostname } from '~/util/hostnames';
 
 export default {
   name: 'CategoryBuilder',
@@ -138,6 +144,7 @@ export default {
       // Options
       show_options: false,
       queryOptions: {
+        hostname: '',
         start: moment().subtract(1, 'day'),
         stop: moment().add(1, 'day'),
       },
@@ -188,6 +195,9 @@ export default {
     broad_pattern: function () {
       return isRegexBroad(this.append.word);
     },
+    hostnameEmptyKind: function () {
+      return categoryBuilderHostnameEmptyKind(useBucketsStore().hosts, this.queryOptions.hostname);
+    },
   },
   watch: {
     queryOptions: {
@@ -199,10 +209,16 @@ export default {
   },
   async mounted() {
     // Make sure we don't have stale unsaved changes in categoryStore
-    await useBucketsStore().ensureLoaded();
+    const bucketsStore = useBucketsStore();
+    await bucketsStore.ensureLoaded();
     await this.categoryStore.load();
-    // Called by watch
-    //await this.fetchWords();
+    const sole = selectSoleKnownHostname(bucketsStore.hosts);
+    if (sole && !this.queryOptions.hostname) {
+      this.queryOptions.hostname = sole;
+      // Deep watch on queryOptions calls fetchWords.
+    } else {
+      await this.fetchWords();
+    }
   },
   methods: {
     async fetchWords() {
@@ -211,17 +227,18 @@ export default {
       // after every requery.
       this.visible_count = this.page_size;
       if (!this.queryOptions.hostname) {
-        // Try to resolve hostname from loaded buckets
-        // Don't ever return the "unknown" hostname
-        const hosts = useBucketsStore().hosts;
-        if (hosts && hosts.length > 0) {
-          this.queryOptions.hostname = _.filter(hosts, host => host !== 'unknown')[0];
-        }
-        // If still no valid hostname, bail out and wait for QueryOptions to provide one
-        if (!this.queryOptions.hostname) {
-          this.loading = false;
+        // Auto-select only when there is exactly one real hostname. Several
+        // known hosts (or only "unknown") stay unset so the empty-state copy
+        // can point at Show options / the hostname picker instead of
+        // silently querying the first device.
+        const sole = selectSoleKnownHostname(useBucketsStore().hosts);
+        if (sole) {
+          this.queryOptions.hostname = sole;
+          // Deep watch re-enters fetchWords with hostname set.
           return;
         }
+        this.loading = false;
+        return;
       }
       await this.categoryStore.load();
       const awclient = getClient();

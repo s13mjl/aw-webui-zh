@@ -630,6 +630,10 @@ export default {
     noHost: 'No host with window/AFK buckets is available. Install',
     noHostLink: 'a watcher',
     noHostSuffix: 'to start collecting data.',
+    selectHost: 'Select a hostname under',
+    selectHostSuffix:
+      'to load uncategorized words. The hostname picker is hidden until you open options.',
+    hostnameNotSelected: '(not selected)',
     noWords: "No words with significant duration. You're good to go!",
     newRule: 'New rule',
     appendRule: 'Append rule',
