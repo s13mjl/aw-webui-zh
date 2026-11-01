@@ -56,7 +56,7 @@ div
           div.small.text-muted.mt-1(v-if="busiestDay") {{ $filters.friendlyduration(busiestDay.duration) }} {{ $t('trends.onThisDay') }}
 
     h5.mt-3 {{ $t('trends.timePerDay') }}
-    aw-timeline-barchart(:datasets="datasets" :height="100")
+    aw-timeline-barchart(:datasets="datasets" :height="100" :timeperiod_start="currentStart.toISOString()" :timeperiod_length="[periodDays, 'days']")
 
     h5.mt-4 {{ $t('trends.topChanges') }}
     p.small.text-muted(v-if="categoryTrends.length === 0")
