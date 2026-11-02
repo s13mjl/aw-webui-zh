@@ -82,6 +82,49 @@ describe('SunburstCategories', () => {
     wrapper.unmount();
   });
 
+  test('hovering a node populates the info panel instead of crashing', async () => {
+    const wrapper = mount(SunburstCategories, {
+      attachTo: document.body,
+      global: {
+        mocks: {
+          $filters: { friendlyduration: seconds => `${seconds}s` },
+        },
+      },
+      props: {
+        data: {
+          name: 'All',
+          children: [
+            {
+              name: 'Work',
+              children: [{ name: 'Code', size: 3600, parent: ['Work'] }],
+            },
+          ],
+        },
+      },
+    });
+
+    await wrapper.vm.$nextTick();
+
+    const groups = wrapper
+      .findAll('svg.root g')
+      .filter(
+        w =>
+          w.element.__data__ && w.element.__data__.data && w.element.__data__.data.name === 'Code'
+      );
+    expect(groups.length).toBeGreaterThan(0);
+
+    // d3 v6+ handlers receive (event, datum); if the compat layer still uses
+    // the datum-first signature this stores the DOM event as the node and the
+    // info panel throws on `nodes.mouseOver.data.parent`.
+    await groups[0].trigger('mouseover');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.info .name').text()).toBe('Code');
+    expect(wrapper.find('.info .parent').text()).toBe('Work');
+
+    wrapper.unmount();
+  });
+
   describe('root ("All") color', () => {
     const rootColor = theme => {
       useSettingsStore().theme = theme;

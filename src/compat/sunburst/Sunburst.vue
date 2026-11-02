@@ -440,6 +440,13 @@ export default {
       }
 
       if (!onlyRedraw) {
+        // The previous nodes belong to the old hierarchy; keeping them around
+        // leaves the component zoomed into a node that no longer exists.
+        this.graphNodes.zoomed = null;
+        this.graphNodes.mouseOver = null;
+        this.graphNodes.clicked = null;
+        this.graphNodes.highlighted = null;
+
         this.root = hierarchy(data)
           .sum(d => d.size)
           .sort((a, b) => b.value - a.value);
@@ -506,17 +513,20 @@ export default {
       }
 
       mergedGroups
-        .on("mouseover", function(node) {
+        // d3 v6+ passes (event, datum); the old datum-first signature made
+        // these handlers receive the DOM event as the node, which broke the
+        // mouse-over info panel (nodes.mouseOver.data.parent) and zooming.
+        .on("mouseover", function(event, node) {
           mouseOver({ node });
           select(this).attr("clip-path", null);
         })
-        .on("mouseleave", function(d) {
+        .on("mouseleave", function(event, d) {
           if (!self.showLabels || self.maxLabelText === null) {
             return;
           }
           select(this).attr("clip-path", `url(#clip-${d.depth})`);
         })
-        .on("click", click);
+        .on("click", (event, node) => click(node));
 
       newGroups
         .append("path")
