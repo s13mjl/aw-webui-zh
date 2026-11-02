@@ -142,6 +142,10 @@ interface State {
 
   query_options?: QueryOptions;
 
+  // Incremented for every load attempt (and on reset) so that a failing
+  // superseded load can't clear the guard set by a newer one.
+  loadId: number;
+
   // Can't this be handled in bucketStore?
   buckets: {
     loaded: boolean;
@@ -208,6 +212,8 @@ export const useActivityStore = defineStore('activity', {
 
     query_options: null,
 
+    loadId: 0,
+
     buckets: {
       loaded: false,
       afk: [],
@@ -255,8 +261,6 @@ export const useActivityStore = defineStore('activity', {
       const settingsStore = useSettingsStore();
       await settingsStore.ensureLoaded();
 
-      const bucketsStore = useBucketsStore();
-
       console.info('Query options: ', query_options);
       // Deep-compare query_options so that refreshing with identical options
       // (e.g. clicking the same date twice, or toggling a filter back to its
@@ -273,72 +277,92 @@ export const useActivityStore = defineStore('activity', {
         if (this.loaded) {
           getClient().abort();
         }
+        const loadId = ++this.loadId;
         this.start_loading(query_options);
         if (!query_options.timeperiod) {
           query_options.timeperiod = dateToTimeperiod(query_options.date, settingsStore.startOfDay);
         }
 
-        await bucketsStore.ensureLoaded();
-        await this.get_buckets(query_options);
-
-        // TODO: These queries can actually run in parallel, but since server won't process them in parallel anyway we won't.
-        this.set_available();
-
-        if (this.window.available) {
-          console.info(
-            settingsStore.useMultidevice ? 'Querying multiple devices' : 'Querying a single device'
-          );
-          if (settingsStore.useMultidevice) {
-            const hostnames = bucketsStore.hosts.filter(
-              // require that the host has window buckets,
-              // and that the host is not a fakedata host,
-              // unless we're explicitly querying fakedata
-              host =>
-                host &&
-                bucketsStore.bucketsWindow(host).length > 0 &&
-                (!host.startsWith('fakedata') || query_options.host.startsWith('fakedata'))
-            );
-            console.info('Including hosts in multiquery: ', hostnames);
-            await this.query_multidevice_full(query_options, hostnames);
-          } else {
-            await this.query_desktop_full(query_options);
+        try {
+          await this.run_queries(query_options);
+        } catch (e) {
+          // start_loading cleared the data, so a failed load must not leave
+          // the store marked as loaded: later refreshes with identical
+          // options would be skipped and every visualization would sit on
+          // its loading placeholder forever. Don't touch the guard when a
+          // newer load has superseded this one (e.g. after abort()).
+          if (this.loadId === loadId) {
+            this.loaded = false;
           }
-        } else if (this.android.available) {
-          await this.query_android(query_options);
-        } else {
-          console.log(
-            'Cannot query windows as we are missing either an afk/window bucket pair or an android bucket'
-          );
-          this.query_window_completed();
-          this.query_category_time_by_period_completed();
-        }
-
-        if (query_options.skip_active_history) {
-          await this.query_active_history_completed();
-        } else if (this.active.available) {
-          await this.query_active_history(query_options);
-        } else if (this.android.available) {
-          await this.query_active_history_android(query_options);
-        } else {
-          console.log('Cannot call query_active_history as we do not have an afk bucket');
-          await this.query_active_history_completed();
-        }
-
-        if (this.editor.available) {
-          await this.query_editor(query_options);
-        } else {
-          console.log('Cannot call query_editor as we do not have any editor buckets');
-          await this.query_editor_completed();
-        }
-
-        // Perform this last, as it takes the longest
-        if (this.window.available || this.android.available) {
-          await this.query_category_time_by_period(query_options);
+          throw e;
         }
       } else {
         console.warn(
           'ensure_loaded called twice with same query_options but without query_options.force = true, skipping...'
         );
+      }
+    },
+
+    async run_queries(query_options: QueryOptions) {
+      const bucketsStore = useBucketsStore();
+      const settingsStore = useSettingsStore();
+
+      await bucketsStore.ensureLoaded();
+      await this.get_buckets(query_options);
+
+      // TODO: These queries can actually run in parallel, but since server won't process them in parallel anyway we won't.
+      this.set_available();
+
+      if (this.window.available) {
+        console.info(
+          settingsStore.useMultidevice ? 'Querying multiple devices' : 'Querying a single device'
+        );
+        if (settingsStore.useMultidevice) {
+          const hostnames = bucketsStore.hosts.filter(
+            // require that the host has window buckets,
+            // and that the host is not a fakedata host,
+            // unless we're explicitly querying fakedata
+            host =>
+              host &&
+              bucketsStore.bucketsWindow(host).length > 0 &&
+              (!host.startsWith('fakedata') || query_options.host.startsWith('fakedata'))
+          );
+          console.info('Including hosts in multiquery: ', hostnames);
+          await this.query_multidevice_full(query_options, hostnames);
+        } else {
+          await this.query_desktop_full(query_options);
+        }
+      } else if (this.android.available) {
+        await this.query_android(query_options);
+      } else {
+        console.log(
+          'Cannot query windows as we are missing either an afk/window bucket pair or an android bucket'
+        );
+        this.query_window_completed();
+        this.query_category_time_by_period_completed();
+      }
+
+      if (query_options.skip_active_history) {
+        await this.query_active_history_completed();
+      } else if (this.active.available) {
+        await this.query_active_history(query_options);
+      } else if (this.android.available) {
+        await this.query_active_history_android(query_options);
+      } else {
+        console.log('Cannot call query_active_history as we do not have an afk bucket');
+        await this.query_active_history_completed();
+      }
+
+      if (this.editor.available) {
+        await this.query_editor(query_options);
+      } else {
+        console.log('Cannot call query_editor as we do not have any editor buckets');
+        await this.query_editor_completed();
+      }
+
+      // Perform this last, as it takes the longest
+      if (this.window.available || this.android.available) {
+        await this.query_category_time_by_period(query_options);
       }
     },
 
@@ -355,6 +379,11 @@ export const useActivityStore = defineStore('activity', {
     },
 
     async reset() {
+      // Invalidate any in-flight load, and clear the guard: the data below is
+      // wiped, so the next ensure_loaded (e.g. when the activity view is
+      // mounted again) must re-query instead of skipping on identical options.
+      this.loadId += 1;
+      this.loaded = false;
       getClient().abort();
       this.query_window_completed({});
       this.query_browser_completed({});
