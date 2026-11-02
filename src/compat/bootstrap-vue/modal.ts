@@ -147,6 +147,31 @@ export const BModal = defineComponent({
     };
 
     const toggle = () => (mounted.value && showClass.value ? hide() : open());
+
+    // A press started inside the dialog and released on the overlay produces a
+    // `click` whose target is the common ancestor — the `.modal` element itself
+    // — so a plain target check would dismiss the modal while the user was only
+    // selecting text or dragging a slider inside it. BootstrapVue guards this by
+    // watching the mouseup that matches the dialog's mousedown; do the same.
+    const modalEl = ref<HTMLElement | null>(null);
+    let ignoreBackdropClick = false;
+    const onDialogMousedown = () => {
+      const modal = modalEl.value;
+      if (!modal) return;
+      const onMouseup = (event: MouseEvent) => {
+        modal.removeEventListener('mouseup', onMouseup);
+        if (event.target === modal) ignoreBackdropClick = true;
+      };
+      modal.addEventListener('mouseup', onMouseup);
+    };
+    const hideOnBackdrop = () => {
+      if (ignoreBackdropClick) {
+        ignoreBackdropClick = false;
+        return;
+      }
+      if (props.noCloseOnBackdrop || props.staticBackdrop) return;
+      hide();
+    };
     const onOk = () => {
       const event = makeModalEvent('ok');
       emit('ok', event);
@@ -222,6 +247,7 @@ export const BModal = defineComponent({
         {
           class: ['modal-dialog', { 'modal-dialog-centered': props.centered, 'modal-dialog-scrollable': props.scrollable }],
           role: 'document',
+          onMousedown: onDialogMousedown,
         },
         [content]
       );
@@ -235,17 +261,16 @@ export const BModal = defineComponent({
           'aria-modal': 'true',
           'aria-labelledby': titleId,
           style: { display: 'block' },
+          ref: modalEl,
           onClick: (event: MouseEvent) => {
-            if (event.target === event.currentTarget && !props.noCloseOnBackdrop && !props.staticBackdrop) hide();
+            if (event.target === event.currentTarget) hideOnBackdrop();
           },
         }),
         [dialog]
       );
       const backdrop = h('div', {
         class: ['modal-backdrop', { fade: true, show: showClass.value }],
-        onClick: () => {
-          if (!props.noCloseOnBackdrop && !props.staticBackdrop) hide();
-        },
+        onClick: hideOnBackdrop,
       });
       return h(Teleport, { to: 'body' }, [backdrop, modal]);
     };
