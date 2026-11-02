@@ -120,4 +120,26 @@ describe('Bucket view', () => {
     expect(wrapper.find('.alert').text()).toContain('No bucket named "does-not-exist".');
     expect(wrapper.find('table').exists()).toBe(false);
   });
+
+  test('hides the Data row when the bucket has no data', async () => {
+    mockCountEvents.mockResolvedValue(1);
+
+    // knownBucket has no `data` field at all (undefined must not throw in Object.keys)
+    const withoutData = mountBucket('aw-watcher-window_host');
+    await flush();
+    expect(withoutData.find('table').exists()).toBe(true);
+    expect(withoutData.text()).not.toContain('Data:');
+
+    const emptyData = { ...knownBucket, id: 'aw-watcher-empty_host', data: {} };
+    mockState.buckets = [...mockState.buckets, emptyData];
+    const withEmptyData = mountBucket('aw-watcher-empty_host');
+    await flush();
+    expect(withEmptyData.text()).not.toContain('Data:');
+
+    const withData = { ...knownBucket, id: 'aw-watcher-full_host', data: { client: 'c' } };
+    mockState.buckets = [...mockState.buckets, withData];
+    const withRealData = mountBucket('aw-watcher-full_host');
+    await flush();
+    expect(withRealData.text()).toContain('Data:');
+  });
 });
