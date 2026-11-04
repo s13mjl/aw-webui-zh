@@ -30,7 +30,7 @@
     "ajv": "^8.12.0",
     "ajv-keywords": "^5.1.0",
     "aw-client": "^0.3.7",
-    "bootstrap": "^4.6.1",
+    "bootstrap": "^5.3.8",
     "chart.js": "^3.9.1",
     "clamp": "^1.0.1",
     "color": "^4.2.3",
