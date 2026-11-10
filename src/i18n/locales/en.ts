@@ -37,6 +37,7 @@ export default {
     donate: 'Donate',
   },
   common: {
+    uncategorized: 'Uncategorized',
     loading: 'Loading...',
     requestFailed: 'Request failed.',
     save: 'Save',
@@ -85,6 +86,20 @@ export default {
     hour12: '12h',
     hour24: '24h',
     hour48: '48h',
+  },
+  categoryNames: {
+    work: 'Work',
+    programming: 'Programming',
+    image: 'Image',
+    video: 'Video',
+    audio: 'Audio',
+    media: 'Media',
+    games: 'Games',
+    socialMedia: 'Social Media',
+    music: 'Music',
+    comms: 'Comms',
+    im: 'IM',
+    email: 'Email',
   },
   notFound: {
     title: 'Oops, this page was not found!',

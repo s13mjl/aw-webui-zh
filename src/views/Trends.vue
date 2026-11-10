@@ -89,7 +89,7 @@ div
       :sort-desc="true"
     )
       template(#cell(category)="row")
-        | {{ row.item.category.join(' > ') || $t('trends.uncategorized') }}
+        | {{ categoryPathLabel(row.item.category) || $t('trends.uncategorized') }}
       template(#cell(current)="row")
         | {{ $filters.friendlyduration(row.item.current) }}
       template(#cell(previous)="row")
@@ -119,6 +119,7 @@ import { getClient, queryLong } from '~/util/awclient';
 import { useBucketsStore } from '~/stores/buckets';
 import { useCategoryStore } from '~/stores/categories';
 import { useSettingsStore } from '~/stores/settings';
+import { categoryPathLabel } from '~/util/categoryLabels';
 
 interface CategoryTotals {
   [key: string]: number;
@@ -348,6 +349,7 @@ export default {
   },
 
   methods: {
+    categoryPathLabel,
     setPeriod(days: number) {
       this.periodDays = days;
       this.refresh();
