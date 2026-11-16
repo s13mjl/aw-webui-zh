@@ -432,7 +432,7 @@ export default {
       if (this.periodLength === 'custom') {
         return { path, query: { ...this.$route.query, end: this.shiftCustomEnd(-1) } };
       }
-      return path;
+      return { path, query: this.$route.query };
     },
     nextLink: function () {
       // A disabled b-button still renders a router-link, so make the target a
@@ -444,7 +444,7 @@ export default {
       if (this.periodLength === 'custom') {
         return { path, query: { ...this.$route.query, end: this.shiftCustomEnd(1) } };
       }
-      return path;
+      return { path, query: this.$route.query };
     },
     nextDisabled: function () {
       if (this.periodLength === 'custom') {

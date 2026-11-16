@@ -775,6 +775,13 @@ export default {
     quickDurations: '快捷时长',
     startDate: '开始日期',
     endDate: '结束日期（可选）',
+    shift: '前后平移',
+    shiftRange: '按日期平移范围',
+    shiftBackWeek: '-1 周',
+    shiftBackDay: '-1 天',
+    today: '今天',
+    shiftForwardDay: '+1 天',
+    shiftForwardWeek: '+1 周',
   },
   queryOptions: {
     hostname: '主机名',

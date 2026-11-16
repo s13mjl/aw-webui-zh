@@ -790,6 +790,13 @@ export default {
     quickDurations: 'Quick durations',
     startDate: 'Start date',
     endDate: 'End date (optional)',
+    shift: 'Shift',
+    shiftRange: 'Shift date range',
+    shiftBackWeek: '-1w',
+    shiftBackDay: '-1d',
+    today: 'Today',
+    shiftForwardDay: '+1d',
+    shiftForwardWeek: '+1w',
   },
   queryOptions: {
     hostname: 'Hostname',

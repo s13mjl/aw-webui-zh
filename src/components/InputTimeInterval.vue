@@ -50,6 +50,15 @@ div
           @click="applyRange"
         ) {{ $t('inputTime.apply') }}
 
+      template(v-if="mode == 'range'")
+        label.col-form-label.col-form-label-sm.mb-0 {{ $t('inputTime.shift') }}
+        div.btn-group(role="group" :aria-label="$t('inputTime.shiftRange')")
+          b-button(size="sm" variant="light" @click="shiftDays(-7)") {{ $t('inputTime.shiftBackWeek') }}
+          b-button(size="sm" variant="light" @click="shiftDays(-1)") {{ $t('inputTime.shiftBackDay') }}
+          b-button(size="sm" variant="light" @click="setToday()") {{ $t('inputTime.today') }}
+          b-button(size="sm" variant="light" @click="shiftDays(1)") {{ $t('inputTime.shiftForwardDay') }}
+          b-button(size="sm" variant="light" @click="shiftDays(7)") {{ $t('inputTime.shiftForwardWeek') }}
+
     div.text-right.d-none.d-md-block(v-if="showUpdate")
       b-button.px-2(@click="refresh()", variant="outline-dark", size="sm")
         icon.mr-1(name="sync")
@@ -209,6 +218,24 @@ export default {
     },
     applyLastDuration() {
       this.mode = 'last_duration';
+      this.valueChanged();
+    },
+    setToday() {
+      const today = moment().format('YYYY-MM-DD');
+      this.start = today;
+      this.end = today;
+      this.mode = 'range';
+      this.duration = 0;
+      this.valueChanged();
+    },
+    shiftDays(days: number) {
+      if (!this.start) return;
+      const newStart = moment(this.start).add(days, 'days').format('YYYY-MM-DD');
+      const newEnd = this.end ? moment(this.end).add(days, 'days').format('YYYY-MM-DD') : null;
+      this.start = newStart;
+      this.end = newEnd;
+      this.mode = 'range';
+      this.duration = 0;
       this.valueChanged();
     },
   },
