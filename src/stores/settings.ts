@@ -5,7 +5,7 @@ import { Category, CategorySet, defaultCategories, cleanCategory } from '~/util/
 import { SavedQuery } from '~/util/savedQueries';
 import { View, defaultViews } from '~/stores/views';
 import type { PrivacyFilterRule } from '~/util/privacyFilters';
-import { isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 import { AppLocale, i18n, isAppLocale, setAppLocale } from '~/i18n';
 
 function jsonEq(a: any, b: any) {
@@ -236,12 +236,18 @@ export const useSettingsStore = defineStore('settings', {
         await this.save();
       }
     },
-    async save() {
+    // 省略 keys 时保留全量保存/迁移行为；传入 [] 表示本次不保存任何键。
+    async save(explicitKeys?: string[]) {
       // Important check, to avoid saving settings before they are loaded (potentially overwriting them with defaults)
       if (!this.loaded) {
         console.error('Settings not loaded, not saving');
         return;
       }
+      // 在等待网络前先捕获本次保存的意图：另一个保存操作的 reload 可能在本保存
+      // 仍在进行时替换共享状态，快照可避免过期会话覆盖别处已确认的设置。
+      const settings = cloneDeep(this.$state);
+      const keys = explicitKeys?.slice();
+
       // We want to avoid saving to localStorage to not accidentally mess up pre-migration data
       // For example, if the user is using several browsers, and opened in their non-main browser on first run after upgrade.
       const saveToLocalStorage = false;
@@ -254,13 +260,16 @@ export const useSettingsStore = defineStore('settings', {
       const server_settings = await client.get_settings();
 
       // Save settings
-      for (const key of Object.keys(this.$state)) {
+      for (const key of Object.keys(settings)) {
+        // 指定了 keys 时，只保存调用方显式更新的键，避免过期会话覆盖无关设置。
+        if (keys && !keys.includes(key)) continue;
+
         // Skip keys starting with underscore, as they are local to the vuex store.
         if (key.startsWith('_')) {
           continue;
         }
 
-        const value = this.$state[key];
+        const value = settings[key];
 
         // Save to localStorage
         // NOTE: we always save the theme and landingpage to localStorage, since they are used before the settings are loaded
@@ -296,7 +305,8 @@ export const useSettingsStore = defineStore('settings', {
       console.log('Updating state', new_state);
       await this.ensureLoaded();
       this.$patch(new_state);
-      await this.save();
+      // 仅持久化本次显式更新的键，避免把整份本地状态回写到服务端。
+      await this.save(Object.keys(new_state));
     },
   },
 });
