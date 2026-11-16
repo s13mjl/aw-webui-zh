@@ -61,6 +61,7 @@ export default {
     optional: '（可选）',
     unknown: '未知',
     saveExport: '保存导出',
+    requestFailed: '请求失败',
   },
   units: {
     hoursShort: '小时',
