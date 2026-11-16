@@ -78,6 +78,7 @@ export default {
       aggregated: [] as AggregatedEvent[],
       loading: false,
       error: '',
+      loadGeneration: 0,
     };
   },
   computed: {
@@ -158,16 +159,29 @@ export default {
       }
     },
     async loadEvents() {
-      if (!this.selectedBucketId || !this.timeRange) return;
-      this.loading = true;
+      // 同一个 bucket 可能有重叠的日期/刷新请求，也可能 A -> B -> A 再次被选中，
+      // 仅比较 bucket 无法判断异步结果属于哪一次加载，用递增代数标记归属。
+      const generation = ++this.loadGeneration;
+      const bucketId = this.selectedBucketId;
+      const range = this.timeRange;
       this.error = '';
       this.aggregated = [];
+      this.events = [];
+      this.fieldOptions = [];
+      if (!bucketId || !range) {
+        this.loading = false;
+        return;
+      }
+      this.loading = true;
       try {
-        this.events = await getClient().getEvents(this.selectedBucketId, {
-          start: this.timeRange.start,
-          end: this.timeRange.end,
+        const events = await getClient().getEvents(bucketId, {
+          start: range.start,
+          end: range.end,
           limit: -1,
         });
+        // 已被更新的加载取代，丢弃本次结果。
+        if (generation !== this.loadGeneration) return;
+        this.events = events;
         this.fieldOptions = this.extractFields(this.events);
         if (!this.selectedField && this.fieldOptions.length > 0) {
           this.selectedField = this.fieldOptions[0];
@@ -176,12 +190,15 @@ export default {
         }
         this.aggregate();
       } catch (err) {
+        // 被取代的加载不得覆盖较新加载的结果或发布错误。
+        if (generation !== this.loadGeneration) return;
         console.error(err);
         this.events = [];
         this.fieldOptions = [];
         this.error = err?.message || this.$t('topBucketData.loadFailed');
       } finally {
-        this.loading = false;
+        // 被取代的加载不得关闭较新加载仍在进行的加载状态。
+        if (generation === this.loadGeneration) this.loading = false;
       }
     },
     extractFields(events: any[]): string[] {
