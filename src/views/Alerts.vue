@@ -24,7 +24,7 @@ div
     div {{ $t('alerts.goalName') }} {{ alert.name }}
     div {{ $t('alerts.category') }} {{ alert.category.join(" > ") }}
     div {{ $t('alerts.current') }} {{ $filters.friendlyduration(alertTime(alert.category)) }} / {{ alert.goal }} {{ $t('alerts.minutes') }}
-      span(v-if="alertTime(alert.category) >= alert.goal")
+      span(v-if="alertTime(alert.category) >= alert.goal * 60")
         icon.text-success(name="check")
       span(v-else)
         icon.text-muted(name="times")
@@ -77,7 +77,7 @@ export default {
       alerts: [],
       editing_alert: {},
 
-      alert_times: {},
+      alert_times: [],
 
       error: '',
 
@@ -102,11 +102,12 @@ export default {
     alertTime: function () {
       return cat => {
         let time = 0;
-        _.map(Object.entries(this.alert_times), ([c, t]) => {
-          if (c.startsWith(cat.join(','))) {
-            if (typeof t === 'number') time += t;
+        // 按分类段逐级匹配，避免 "Work" 误命中 "Workout" 等同前缀分类。
+        for (const { category, duration } of this.alert_times) {
+          if (cat.every((segment, index) => category[index] === segment)) {
+            time += duration;
           }
-        });
+        }
         return time;
       };
     },
@@ -181,14 +182,13 @@ export default {
         this.status = null;
       }
 
-      const grouped = _.groupBy(this.events, e => e.data.$category);
-      const sumCats = Object.fromEntries(
-        _.map(Object.entries(grouped), entry => {
-          const [group, events] = entry;
-          return [group.split(','), _.sumBy(events, 'duration')];
-        })
-      );
-      this.alert_times = sumCats;
+      // 用 JSON 作为分组键，保留分类段的边界（名称中可含逗号）。
+      const categorized = this.events.filter(e => Array.isArray(e.data.$category));
+      const grouped = _.groupBy(categorized, e => JSON.stringify(e.data.$category));
+      this.alert_times = Object.values(grouped).map(events => ({
+        category: events[0].data.$category,
+        duration: _.sumBy(events, 'duration'),
+      }));
 
       this.last_updated = new Date();
     },
