@@ -1,5 +1,16 @@
 import QueryExplorer from '~/views/QueryExplorer.vue';
 import { i18n } from '~/i18n';
+import { buildSavedQuery } from '~/util/savedQueries';
+
+const saveQueryDraft = () =>
+  buildSavedQuery({
+    id: '',
+    name: '',
+    query_code: 'RETURN = [];',
+    startdate: '2026-05-20',
+    enddate: '2026-05-21',
+    event_type: 'currentwindow',
+  });
 
 describe('QueryExplorer saveCurrentQuery', () => {
   test('canceling an overwrite confirm aborts without opening the save-as-new prompt', async () => {
@@ -70,6 +81,8 @@ describe('QueryExplorer saveCurrentQuery', () => {
       event_type: 'currentwindow',
       persistSavedQueries: jest.fn().mockReturnValue(persistence),
       query_code: 'RETURN = [];',
+      saveQueryDraft: saveQueryDraft(),
+      saved_query_pending: false,
       saveQueryName: 'Daily Coding Time',
       savedQueries: [],
       selected_saved_query_id: '',
@@ -96,6 +109,8 @@ describe('QueryExplorer saveCurrentQuery', () => {
       event_type: 'currentwindow',
       persistSavedQueries: jest.fn().mockResolvedValue(true),
       query_code: 'RETURN = [];',
+      saveQueryDraft: saveQueryDraft(),
+      saved_query_pending: false,
       saveQueryName: 'Daily Coding Time',
       savedQueries: [],
       selected_saved_query_id: '',
@@ -135,6 +150,8 @@ describe('QueryExplorer saveCurrentQuery', () => {
     const vm = {
       persistSavedQueries: jest.fn().mockReturnValue(persistence),
       renameQueryName: 'Coding Time',
+      renameQueryTarget: { ...selectedSavedQuery },
+      saved_query_pending: false,
       savedQueries: [selectedSavedQuery],
       selectedSavedQuery,
       showRenameQueryModal: true,
@@ -157,6 +174,8 @@ describe('QueryExplorer saveCurrentQuery', () => {
     const vm = {
       persistSavedQueries: jest.fn().mockResolvedValue(true),
       renameQueryName: 'Coding Time',
+      renameQueryTarget: { ...selectedSavedQuery },
+      saved_query_pending: false,
       savedQueries: [selectedSavedQuery],
       selectedSavedQuery,
       showRenameQueryModal: true,
