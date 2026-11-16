@@ -45,9 +45,14 @@ export default {
       type: Boolean,
       default: false,
     },
+    // 父组件保留稳定的 name/color 回调时，改变此值仍可触发重绘。
+    dataKey: {
+      type: String,
+      default: null,
+    },
   },
   data: function () {
-    return { limit_: this.limit };
+    return { limit_: this.limit, updateQueued: false };
   },
   computed: {
     visible_more() {
@@ -56,10 +61,25 @@ export default {
   },
   watch: {
     fields: function () {
-      this.update();
+      this.scheduleUpdate();
     },
     limit_: function () {
-      this.update();
+      this.scheduleUpdate();
+    },
+    dataKey: function () {
+      this.scheduleUpdate();
+    },
+    namefunc: function () {
+      this.scheduleUpdate();
+    },
+    colorfunc: function () {
+      this.scheduleUpdate();
+    },
+    hoverfunc: function () {
+      this.scheduleUpdate();
+    },
+    linkfunc: function () {
+      this.scheduleUpdate();
     },
   },
   mounted: function () {
@@ -68,6 +88,15 @@ export default {
     this.update();
   },
   methods: {
+    // 同一 tick 内多个字段变化合并为一次重绘。
+    scheduleUpdate: function () {
+      if (this.updateQueued) return;
+      this.updateQueued = true;
+      this.$nextTick(() => {
+        this.updateQueued = false;
+        this.update();
+      });
+    },
     update: function () {
       const el = this.$el.children[0];
       if (this.fields) {
