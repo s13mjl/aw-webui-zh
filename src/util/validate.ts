@@ -1,7 +1,9 @@
 export function validateRegex(re: string) {
   // validates if pattern is a valid regex
   // returns true if regex is valid
-  if (re === '') return false;
+  // 运行时可能传入非字符串（undefined/null），需先防护再交给 RegExp，
+  // 否则会抛出 TypeError（同步上游 #1276）。
+  if (typeof re !== 'string' || re === '') return false;
   try {
     new RegExp(re);
   } catch (e) {
