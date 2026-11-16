@@ -64,6 +64,21 @@ async function flush() {
   for (let i = 0; i < 3; i++) await new Promise(resolve => setTimeout(resolve, 0));
 }
 
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+const listedEvents = () => [
+  { id: 11, timestamp: '2026-10-01T12:00:00Z', duration: 5, data: { title: 'a' } },
+  { id: 12, timestamp: '2026-10-01T12:01:00Z', duration: 5, data: { title: 'b' } },
+];
+
 describe('Bucket view', () => {
   beforeEach(() => {
     mockState.buckets = [knownBucket];
@@ -141,5 +156,83 @@ describe('Bucket view', () => {
     const withRealData = mountBucket('aw-watcher-full_host');
     await flush();
     expect(withRealData.text()).toContain('Data:');
+  });
+
+  const originalWarn = console.warn;
+  afterEach(() => {
+    console.warn = originalWarn;
+  });
+
+  test('a confirmed deletion removes its row, resets and refreshes the total', async () => {
+    const all = listedEvents();
+    mockGetBucketWithEvents.mockResolvedValue({ ...knownBucket, events: all });
+    mockCountEvents.mockResolvedValue(2);
+    const wrapper = mountBucket('aw-watcher-window_host');
+    await flush();
+    expect(wrapper.vm.events.map(e => e.id)).toEqual([11, 12]);
+
+    mockGetBucketWithEvents.mockResolvedValueOnce({ ...knownBucket, events: [all[1]] });
+    mockCountEvents.mockResolvedValueOnce(1);
+    await wrapper.vm.removeEvent(all[0], 'aw-watcher-window_host');
+    await flush();
+
+    expect(wrapper.vm.events.map(e => e.id)).toEqual([12]);
+    expect(wrapper.vm.eventcount).toBe(1);
+  });
+
+  test('a late confirmed deletion from another bucket is ignored', async () => {
+    const all = listedEvents();
+    mockGetBucketWithEvents.mockResolvedValue({ ...knownBucket, events: all });
+    mockCountEvents.mockResolvedValue(2);
+    const wrapper = mountBucket('aw-watcher-window_host');
+    await flush();
+
+    await wrapper.vm.removeEvent(all[0], 'another-bucket');
+    expect(wrapper.vm.events.map(e => e.id)).toEqual([11, 12]);
+    expect(wrapper.vm.eventcount).toBe(2);
+  });
+
+  test('a pre-delete load cannot restore a confirmed-deleted row', async () => {
+    const all = listedEvents();
+    mockGetBucketWithEvents.mockResolvedValue({ ...knownBucket, events: all });
+    mockCountEvents.mockResolvedValue(2);
+    const wrapper = mountBucket('aw-watcher-window_host');
+    await flush();
+
+    const stale = deferred();
+    mockGetBucketWithEvents.mockReturnValueOnce(stale.promise);
+    const loading = wrapper.vm.getEvents('aw-watcher-window_host');
+
+    mockGetBucketWithEvents.mockResolvedValueOnce({ ...knownBucket, events: [all[1]] });
+    mockCountEvents.mockResolvedValueOnce(1);
+    await wrapper.vm.removeEvent(all[0], 'aw-watcher-window_host');
+    await flush();
+
+    stale.resolve({ ...knownBucket, events: all });
+    await loading;
+    await flush();
+    expect(wrapper.vm.events.map(e => e.id)).toEqual([12]);
+    expect(wrapper.vm.eventcount).toBe(1);
+  });
+
+  test('a failed refresh keeps the local removal and invalidates the total', async () => {
+    console.warn = jest.fn();
+    const all = listedEvents();
+    mockGetBucketWithEvents.mockResolvedValue({ ...knownBucket, events: all });
+    mockCountEvents.mockResolvedValue(2);
+    const wrapper = mountBucket('aw-watcher-window_host');
+    await flush();
+
+    mockGetBucketWithEvents.mockRejectedValueOnce(new Error('offline'));
+    mockCountEvents.mockRejectedValueOnce(new Error('offline'));
+    await wrapper.vm.removeEvent(all[0], 'aw-watcher-window_host');
+    await flush();
+
+    expect(wrapper.vm.events.map(e => e.id)).toEqual([12]);
+    expect(wrapper.vm.eventcount).toBe('?');
+    expect(console.warn).toHaveBeenCalledWith(
+      '[bucket] Failed to refresh after deletion:',
+      expect.any(Error)
+    );
   });
 });

@@ -33,7 +33,7 @@ div
 
     vis-timeline(:buckets="[bucket_with_events]", :showRowLabels="false")
 
-    aw-eventlist(:bucket_id="id", @save="updateEvent", :events="events" editable=true)
+    aw-eventlist(:bucket_id="id", @save="updateEvent", @deleted="removeEvent", :events="events" editable=true)
 </template>
 
 <script lang="ts">
@@ -51,6 +51,10 @@ export default {
 
       events: [],
       eventcount: '?',
+      // Supersede in-flight loads so a stale snapshot cannot restore a
+      // confirmed-deleted row or an already-obsolete total.
+      eventsRequestId: 0,
+      countRequestId: 0,
       loaded: false,
       daterange: null,
       maxDuration: 31 * 24 * 60 * 60,
@@ -72,6 +76,9 @@ export default {
   },
   watch: {
     daterange: async function () {
+      // Rows from the previous range must not survive a failed load for the
+      // new dates; clear first so only a complete refresh repopulates them.
+      this.events = [];
       await this.getEvents(this.id);
     },
   },
@@ -88,20 +95,42 @@ export default {
   },
   methods: {
     getEvents: async function (bucket_id) {
+      const requestId = ++this.eventsRequestId;
       const bucket = await this.bucketsStore.getBucketWithEvents({
         id: bucket_id,
         start: this.daterange[0].format(),
         end: this.daterange[1].format(),
       });
+      if (requestId !== this.eventsRequestId) return;
       this.events = bucket.events;
     },
     getEventCount: async function (bucket_id) {
+      const requestId = ++this.countRequestId;
       const count = await getClient().countEvents(bucket_id);
+      if (requestId !== this.countRequestId) return;
       // aw-client already unwraps the response body, except that 0.3.x returns the
       // raw response when the body is falsy (a count of 0).
       this.eventcount = typeof count === 'number' ? count : count.data;
     },
+    removeEvent: async function (event, bucketId) {
+      // A confirmed deletion only concerns its owning bucket, even if the view
+      // has since navigated elsewhere (late confirmation).
+      if (bucketId !== this.id) return;
+      this.events = this.events.filter(e => e.id !== event.id);
+      // A pre-delete count response may already include this deletion; only a
+      // fresh authoritative count is trustworthy.
+      this.eventcount = '?';
+      // Supersede pre-delete loads, then refresh the current range and total.
+      // Keep the local removal if refreshing fails — the server already committed it.
+      await Promise.all([
+        this.daterange ? this.getEvents(bucketId) : null,
+        this.getEventCount(bucketId),
+      ]).catch(e => console.warn('[bucket] Failed to refresh after deletion:', e));
+    },
     updateEvent: function (event) {
+      // A refresh started before this save may carry old data; supersede it so
+      // it cannot replace the confirmed edit.
+      this.eventsRequestId++;
       const i = this.events.findIndex(e => e.id == event.id);
       if (i != -1) {
         // This is needed instead of this.events[i] because insides of arrays
