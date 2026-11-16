@@ -62,6 +62,7 @@ export default {
     optional: '(optional)',
     unknown: 'unknown',
     saveExport: 'Save export',
+    requestFailed: 'The request failed.',
   },
   units: {
     hoursShort: 'h',

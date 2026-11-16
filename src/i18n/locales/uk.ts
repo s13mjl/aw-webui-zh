@@ -55,6 +55,7 @@ export default {
     languageRu: 'Русский',
     languageZhCN: '简体中文',
     rangeTo: 'до',
+    requestFailed: 'Запит не вдався.',
   },
   notFound: {
     title: 'Ой, цю сторінку не знайдено!',

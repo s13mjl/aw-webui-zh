@@ -54,6 +54,7 @@ export default {
     languageRu: 'Русский',
     languageZhCN: '简体中文',
     rangeTo: 'до',
+    requestFailed: 'Запрос не удался.',
   },
   notFound: {
     title: 'Ой, эта страница не найдена!',

@@ -55,6 +55,7 @@ export default {
     languageRu: 'Русский',
     languageZhCN: '简体中文',
     rangeTo: 'bis',
+    requestFailed: 'Anfrage fehlgeschlagen.',
   },
   notFound: {
     title: 'Hoppla, diese Seite wurde nicht gefunden!',
