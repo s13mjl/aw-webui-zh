@@ -103,6 +103,7 @@ export default {
       events: [],
       label: '',
       now: moment(),
+      clockInterval: null,
     };
   },
   computed: {
@@ -117,6 +118,10 @@ export default {
     },
   },
   mounted: async function () {
+    // 在任何 await 之前启动时钟，确保即使初始加载尚未完成就离开视图，
+    // beforeUnmount 也能清除定时器。
+    this.clockInterval = setInterval(() => (this.now = moment()), 1000);
+
     // TODO: List all possible timer buckets
     //this.getBuckets();
 
@@ -124,8 +129,9 @@ export default {
     await this.$aw.ensureBucket(this.bucket_id, 'general.stopwatch', 'unknown');
 
     await this.getEvents();
-
-    setInterval(() => (this.now = moment()), 1000);
+  },
+  beforeUnmount: function () {
+    clearInterval(this.clockInterval);
   },
   methods: {
     startTimer: async function (label) {

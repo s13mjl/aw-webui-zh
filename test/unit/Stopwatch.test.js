@@ -320,3 +320,31 @@ describe('Stopwatch editor completion', () => {
     );
   });
 });
+
+describe('Stopwatch 时钟', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test('视图销毁时清除时钟定时器', async () => {
+    const handle = 4242;
+    jest.spyOn(global, 'setInterval').mockImplementation(() => handle);
+    const clear = jest.spyOn(global, 'clearInterval').mockImplementation(() => undefined);
+    const { wrapper } = mountStopwatch();
+    await flush();
+    expect(setInterval).toHaveBeenCalledTimes(1);
+    expect(wrapper.vm.clockInterval).toBe(handle);
+    wrapper.unmount();
+    expect(clear).toHaveBeenCalledWith(handle);
+  });
+
+  test('初始加载完成前销毁也不会遗留时钟', async () => {
+    const handle = 4343;
+    jest.spyOn(global, 'setInterval').mockImplementation(() => handle);
+    const clear = jest.spyOn(global, 'clearInterval').mockImplementation(() => undefined);
+    const { wrapper } = mountStopwatch();
+    wrapper.unmount();
+    await flush();
+    const started = setInterval.mock.calls.length;
+    const cleared = clear.mock.calls.filter(([h]) => h === handle).length;
+    expect(cleared).toBe(started);
+  });
+});
