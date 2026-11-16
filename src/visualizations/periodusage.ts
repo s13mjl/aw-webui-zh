@@ -57,6 +57,8 @@ function update(svg_elem: SVGElement, usage_arr, onPeriodClicked) {
   const width = 100 / usage_arr.length - padding;
   const center_elem = Math.floor(usage_arr.length / 2);
 
+  // 同步上游 #1277：先记录今日标签位置，等所有柱子画完再绘制，避免被覆盖。
+  let todayLabelX: number | null = null;
   _.each(usage_arr, (events, i: number) => {
     const usage_time = get_usage_time(events);
     const height = 85 * (usage_time / longest_usage);
@@ -81,11 +83,8 @@ function update(svg_elem: SVGElement, usage_arr, onPeriodClicked) {
         .attr('style', 'stroke: #888; stroke-width: 2px;')
         .attr('stroke-dasharray', '4, 2');
 
-      svg
-        .append('text')
-        .attr('x', x + 1.5 * width + '%')
-        .attr('y', '30')
-        .text('Today');
+      // 保持原位置：今日柱子右侧。
+      todayLabelX = x + 1.5 * width;
     }
 
     const rect = svg
@@ -114,6 +113,18 @@ function update(svg_elem: SVGElement, usage_arr, onPeriodClicked) {
       });
     rect.append('title').text(date + '\n' + seconds_to_duration(usage_time));
   });
+
+  // 在所有柱子之后绘制，确保没有柱子覆盖它。
+  if (todayLabelX !== null) {
+    svg
+      .append('text')
+      .attr('x', todayLabelX + '%')
+      .attr('text-anchor', 'start')
+      // 可能与相邻柱子重叠，让点击和悬停仍能到达柱子。
+      .attr('pointer-events', 'none')
+      .attr('y', '30')
+      .text('Today');
+  }
 }
 
 export default {
