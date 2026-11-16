@@ -247,7 +247,9 @@ export function saveCategories(sets: CategorySet[], activeIds: string[]) {
   const effectiveClasses = mergeCategorySets(sets.filter(s => activeIds.includes(s.id))).map(
     cleanCategory
   );
-  settingsStore.update({
+  // 返回 update 的 promise，让 category store 的 save() 能等待真正写入完成，
+  // 从而只确认已保存的快照（同步上游 #1228）。
+  return settingsStore.update({
     category_sets: cleanSets,
     active_set_ids: activeIds,
     classes: effectiveClasses,
