@@ -164,7 +164,10 @@ export function getTitleAttr(bucket: { type?: string }, e: IEvent) {
   }
 }
 
-export function getCategorizationStringFromEvent(bucket: IBucket, e: IEvent): string | null {
+export function getCategorizationStringFromEvent(
+  bucket: Pick<IBucket, 'type'>,
+  e: IEvent
+): string | null {
   if (bucket.type == 'currentwindow') {
     // using linebreak and "m" regex flag to make `$` and `^` work
     return e.data.app + '\n' + e.data.title;
@@ -187,7 +190,10 @@ export function getCategorizationStringFromEvent(bucket: IBucket, e: IEvent): st
  * is tested independently — matching the server-side categorize() behaviour.
  * See #646.
  */
-export function getCategorizationStringsFromEvent(bucket: IBucket, e: IEvent): string[] | null {
+export function getCategorizationStringsFromEvent(
+  bucket: Pick<IBucket, 'type'>,
+  e: IEvent
+): string[] | null {
   if (bucket.type == 'currentwindow') {
     return [e.data.app, e.data.title].filter(s => s != null);
   } else if (bucket.type == 'web.tab.current') {
@@ -201,7 +207,7 @@ export function getCategorizationStringsFromEvent(bucket: IBucket, e: IEvent): s
   return null;
 }
 
-export function getCategoryColorFromEvent(bucket: IBucket, e: IEvent) {
+export function getCategoryColorFromEvent(bucket: Pick<IBucket, 'type'>, e: IEvent) {
   const categorizationStrings = getCategorizationStringsFromEvent(bucket, e);
   if (categorizationStrings !== null) {
     // Test each field individually against the category rules, matching
