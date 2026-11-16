@@ -1,12 +1,12 @@
 <template lang="pug">
 div(style="font-size: 0.9em")
-  template(v-for="cat in category_hierarchy", :key="cat.name_pretty")
+  template(v-for="cat in category_hierarchy", :key="JSON.stringify(cat.name)")
     div.px-1.category-row(v-if="parents_expanded(cat)" @click="toggle(cat)", :class="{'clickable': cat.children.length > 0}")
       div.category-label(:style="'padding-left: ' + (1.4 * cat.depth) + 'em'")
 
         // icon
         span(v-if="cat.children.length > 0", style="opacity: 0.8")
-          b(v-if="!expanded.has(cat.name_pretty)")
+          b(v-if="!is_expanded(cat.name)")
             icon.mr-1(name="regular/plus-square", scale="0.8")
           b(v-else)
             icon.mr-1(name="regular/minus-square", scale="0.8")
@@ -101,9 +101,12 @@ export default {
       const events: IEvent[] = JSON.parse(JSON.stringify(this.events)) as IEvent[];
 
       const hier = build_category_hierarchy(
-        _.map(events, e => {
-          return { name: e.data['$category'], rule: { type: 'none' } };
-        })
+        _.uniqBy(
+          _.map(events, e => {
+            return { name: e.data['$category'], rule: { type: 'none' } };
+          }),
+          c => JSON.stringify(c.name)
+        )
       );
 
       let cats = flatten_category_hierarchy(hier).map(c => {
@@ -133,11 +136,15 @@ export default {
     get_category: function (cat_arr) {
       return _.find(this.category_hierarchy, c => _.isEqual(c.name, cat_arr));
     },
+    is_expanded: function (cat_arr) {
+      return this.expanded.has(JSON.stringify(cat_arr));
+    },
     toggle: function (cat) {
-      if (this.expanded.has(cat.name_pretty)) {
-        this.expanded.delete(cat.name_pretty);
+      const key = JSON.stringify(cat.name);
+      if (this.expanded.has(key)) {
+        this.expanded.delete(key);
       } else {
-        this.expanded.add(cat.name_pretty);
+        this.expanded.add(key);
       }
       // needed to trigger update, since Set isn't reactive in Vue 2
       this.expanded = new Set(this.expanded);
@@ -151,7 +158,7 @@ export default {
         // Check grandparents recursively
         this.parents_expanded(this.get_category(cat.parent)) &&
         // Check parent
-        this.expanded.has(cat.parent.join('>'))
+        this.is_expanded(cat.parent)
       );
     },
   },
