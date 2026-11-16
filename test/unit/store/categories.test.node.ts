@@ -275,3 +275,44 @@ describe('categories store: append rule', () => {
     expect(matchString('editor', store.classes)?.name).toEqual(['Work']);
   });
 });
+
+// 同步上游 #1232：枚举分类路径时按完整数组去重，不能依赖固定分隔符 join。
+describe('categories store: complete path enumeration', () => {
+  const literal = ['Work>>>>Code'];
+  const nested = ['Work', 'Code'];
+  const keys = (paths: string[][]) => paths.map(p => JSON.stringify(p)).sort();
+
+  const loadNames = (names: string[][]) => {
+    const store = useCategoryStore(createPinia());
+    store.load(names.map(name => ({ name, rule: { type: 'none' as const } })));
+    return store;
+  };
+
+  test.each([false, true])('保留含分隔符的平铺路径与嵌套路径（reverse=%s）', reverse => {
+    const store = loadNames(reverse ? [nested, literal] : [literal, nested]);
+    const expected = [literal, ['Work'], nested];
+    expect(keys(store.all_categories)).toEqual(keys(expected));
+    expect(keys(store.category_select(false).map(o => o.value))).toEqual(keys(expected));
+    expect(keys(store.allCategoriesSelect.map(o => o.value))).toEqual(keys(expected));
+  });
+
+  test('去重完整数组与前缀且保留首次出现顺序', () => {
+    const store = loadNames([]);
+    store.classes = [nested, nested, ['Work'], ['Work', 'Mail']].map(name => ({
+      name,
+      rule: { type: 'none' as const },
+    }));
+    expect(store.all_categories).toEqual([['Work'], nested, ['Work', 'Mail']]);
+  });
+
+  test('含分隔符与 Unicode 的名称保留精确分段边界', () => {
+    const store = loadNames([]);
+    expect(store.all_categories).toEqual([]);
+    expect(store.category_select(false)).toEqual([]);
+    const names = [['å>>>>東京'], ['å', '東京'], ['é'], ['e\u0301'], ['quote"', '\\']];
+    store.classes = names.map(name => ({ name, rule: { type: 'none' as const } }));
+    expect(keys(store.all_categories)).toEqual(
+      keys([['å>>>>東京'], ['å'], ['å', '東京'], ['é'], ['e\u0301'], ['quote"'], ['quote"', '\\']])
+    );
+  });
+});
