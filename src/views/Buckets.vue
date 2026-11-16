@@ -131,7 +131,8 @@ div
         | {{ import_error }}
       b-alert(v-if="import_success" show variant="success" dismissible)
         | {{ import_success }}
-      b-form-file(v-model="import_file"
+      b-form-file(:value="import_file"
+                  @input="onImportFile"
                   :placeholder="$t('buckets.importPlaceholder')"
                   :drop-placeholder="$t('buckets.importDrop')"
                   :browse-text="$t('common.browseFiles')")
@@ -235,6 +236,17 @@ import { useBucketsStore } from '~/stores/buckets';
 import { downloadFile } from '~/util/export';
 import { exportBucketLong, exportAllBucketsLong, LONG_TIMEOUT_MS } from '~/util/awclient';
 
+// Kept outside component methods on purpose: the global asyncErrorCapturedMixin
+// wraps every async method so its rejection is swallowed and reported to the
+// ErrorBoundary. A wrapped import would never reject in onImportFile's catch,
+// so a failed import would still show a success alert.
+async function importBuckets(aw, importFile) {
+  const formData = new FormData();
+  formData.append('buckets.json', importFile);
+  const headers = { 'Content-Type': 'multipart/form-data' };
+  return aw.req.post('/0/import', formData, { headers });
+}
+
 export default {
   name: 'Buckets',
   components: {
@@ -248,6 +260,9 @@ export default {
       serverStore: useServerStore(),
 
       import_file: null,
+      // A selection owns its outcome: a late result from a previous file must
+      // not overwrite the success/error state of the current selection.
+      import_request_id: 0,
       import_error: null,
       import_success: null,
       delete_bucket_selected: null,
@@ -288,18 +303,26 @@ export default {
       return this.$t('buckets.deleteHostTitle');
     },
   },
-  watch: {
-    import_file: async function (_new_value, _old_value) {
-      if (this.import_file != null) {
-        // Clear previous messages so the user sees the result of this attempt
-        this.import_error = null;
-        this.import_success = null;
-        try {
-          const result = await this.importBuckets(this.import_file);
-          // importBuckets may return a result payload from the server; if it
-          // does, surface it. Otherwise show a generic success message.
-          // (Previously the UI stayed silent on success, which was confusing —
-          // see https://github.com/ActivityWatch/activitywatch/issues/394.)
+  mounted: async function () {
+    await this.bucketsStore.loadBuckets();
+  },
+  methods: {
+    async onImportFile(importFile) {
+      // BFormFile emits null again when our completed selection resets it.
+      // Preserve that outcome, but handle user selection/clear events now.
+      if (importFile === this.import_file) return;
+      const requestId = ++this.import_request_id;
+      this.import_file = importFile;
+      // Clear previous messages so the user sees the result of this attempt
+      this.import_error = null;
+      this.import_success = null;
+      if (importFile == null) return;
+
+      try {
+        const result = await importBuckets(this.$aw, importFile);
+        if (requestId === this.import_request_id) {
+          // importBuckets may return a payload with a server message; otherwise
+          // show a generic success message (see issue #394).
           if (result && typeof result === 'object' && 'message' in result && result.message) {
             this.import_success = this.$t('buckets.importSuccessDetail', {
               detail: result.message,
@@ -307,24 +330,26 @@ export default {
           } else {
             this.import_success = this.$t('buckets.importSuccess');
           }
-        } catch (err) {
-          // Surface the server-provided error message when available so the
-          // user can act on it (e.g. duplicate bucket id) instead of only
-          // seeing a generic "Import failed" — see issue #394.
+        }
+      } catch (err) {
+        if (requestId === this.import_request_id) {
+          // Surface server-provided details so the user can act on them (#394).
           const detail = err && (err.response?.data?.message || err.message || String(err));
           this.import_error = detail
             ? this.$t('buckets.importFailedDetail', { detail })
             : this.$t('buckets.importFailed');
         }
+      }
+      // Submitted imports still reconcile the catalogue even when another
+      // selection owns the UI; refresh errors keep reaching ErrorBoundary.
+      try {
         await this.bucketsStore.loadBuckets();
-        this.import_file = null;
+      } finally {
+        if (requestId === this.import_request_id) {
+          this.import_file = null;
+        }
       }
     },
-  },
-  mounted: async function () {
-    await this.bucketsStore.loadBuckets();
-  },
-  methods: {
     isRecent: function (date) {
       return moment().diff(date) / 1000 < 120;
     },
@@ -389,13 +414,6 @@ export default {
         this.deleting_host = false;
       }
     },
-    importBuckets: async function (importFile) {
-      const formData = new FormData();
-      formData.append('buckets.json', importFile);
-      const headers = { 'Content-Type': 'multipart/form-data' };
-      return this.$aw.req.post('/0/import', formData, { headers });
-    },
-
     async export_bucket_json(bucketId: string) {
       // Use extended timeout — buckets with many events can exceed the
       // default requestTimeout when serialized. See #847.
