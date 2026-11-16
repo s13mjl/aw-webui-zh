@@ -6,14 +6,6 @@ function getId(): string {
   return `icon-${++idCounter}`;
 }
 
-function escapeHTML(value: string): string {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 export default defineComponent({
   name: 'fa-icon',
   props: {

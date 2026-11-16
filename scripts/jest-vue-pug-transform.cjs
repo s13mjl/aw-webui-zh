@@ -7,7 +7,7 @@ module.exports = {
   process(src, filename, options) {
     let source = src;
     try {
-      const { parse, compileScript } = require('@vue/compiler-sfc');
+      const { parse } = require('@vue/compiler-sfc');
       const { descriptor } = parse(source, { filename });
       const template = descriptor.template;
       if (template && (template.lang === 'pug' || template.lang === 'jade')) {

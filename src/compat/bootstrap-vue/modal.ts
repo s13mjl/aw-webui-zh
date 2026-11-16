@@ -9,7 +9,6 @@ import {
   useAttrs,
   watch,
   Teleport,
-  PropType,
 } from 'vue';
 import { BButton, BButtonClose } from './button';
 
