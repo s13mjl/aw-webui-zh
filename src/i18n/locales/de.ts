@@ -36,6 +36,7 @@ export default {
   },
   common: {
     loading: 'Laden…',
+    requestFailed: 'Anfrage fehlgeschlagen.',
     save: 'Speichern',
     cancel: 'Abbrechen',
     confirm: 'Bestätigen',
