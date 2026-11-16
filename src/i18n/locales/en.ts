@@ -902,6 +902,7 @@ export default {
     queryNamePlaceholder: 'Query name',
     deletePrompt: 'Delete saved query "{name}"? This cannot be undone.',
     categoriesMissing: '__CATEGORIES__ was used in query but no categories have been defined yet.',
+    requestError: 'The query request failed.',
   },
   calendar: {
     bucket: 'Bucket:',

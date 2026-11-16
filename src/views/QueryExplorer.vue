@@ -133,6 +133,8 @@ RETURN = sort_by_duration(merged_events);
       today: today.format(),
       tomorrow: tomorrow.format(),
       error: '',
+      // 指向当前最新一次查询；旧的异步结果据此判断是否已被新提交取代。
+      query_request: null,
       saved_query_error: '',
       selected_saved_query_id: '',
       startdate: today.format('YYYY-MM-DD'),
@@ -292,6 +294,9 @@ RETURN = sort_by_duration(merged_events);
       }
     },
     query: async function () {
+      // 即使本地校验失败，也要让本次提交作废此前仍在等待的请求。
+      const request = {};
+      this.query_request = request;
       let query = this.query_code;
 
       // replace magic string `__CATEGORIES__` in query text with latest category rule
@@ -312,10 +317,16 @@ RETURN = sort_by_duration(merged_events);
 
       try {
         const data = await this.$aw.query(timeperiods, query);
+        if (this.query_request !== request) return;
         this.events = data[0];
         this.error = '';
       } catch (e) {
-        this.error = e.response.data.message;
+        if (this.query_request !== request) return;
+        this.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          (typeof e === 'string' ? e : '') ||
+          this.$t('queryExplorer.requestError');
       }
     },
   },

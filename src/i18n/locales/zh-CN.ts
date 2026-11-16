@@ -887,6 +887,7 @@ export default {
     queryNamePlaceholder: '查询名称',
     deletePrompt: '删除已保存的查询 "{name}"？此操作不可撤销。',
     categoriesMissing: '查询中使用了 __CATEGORIES__，但尚未定义任何分类。',
+    requestError: '查询请求失败。',
   },
   calendar: {
     bucket: '存储桶：',
