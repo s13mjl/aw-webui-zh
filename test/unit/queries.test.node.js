@@ -47,3 +47,21 @@ test('generate fullDesktopQuery', () => {
   expect(query).toMatchSnapshot();
   expectBracketsClosed(query);
 });
+
+test('browserSearchQuery 无浏览器存储桶时返回空数组', () => {
+  expect(queries.browserSearchQuery([], 'github\\.com')).toEqual([]);
+});
+
+test('browserSearchQuery 同时按 url 与 title 搜索并忽略大小写', () => {
+  const query = queries
+    .browserSearchQuery(['aw-watcher-web-firefox_testhost'], 'github\\.com')
+    .join('\n');
+
+  expectBracketsClosed(query);
+  expect(query).toContain('query_bucket("aw-watcher-web-firefox_testhost")');
+  expect(query).toContain('split_url_events');
+  expect(query).toContain('"url"');
+  expect(query).toContain('"title"');
+  expect(query).toContain('RETURN = browser_results');
+  expect(query).toContain('(?i)github\\.com');
+});
