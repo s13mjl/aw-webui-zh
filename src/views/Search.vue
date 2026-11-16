@@ -53,6 +53,9 @@ export default {
 
       status: null,
       error: '',
+      // Every submission owns a sequence; stale completions must not overwrite
+      // results (or loading/error state) produced by a newer submission.
+      searchSequence: 0,
 
       // Options
       show_options: false,
@@ -62,24 +65,35 @@ export default {
       },
     };
   },
+  beforeUnmount() {
+    // Invalidate any pending search when this view goes away.
+    this.searchSequence++;
+  },
   methods: {
     search: async function () {
-      let query = canonicalEvents({
-        bid_window: 'aw-watcher-window_' + this.queryOptions.hostname,
-        bid_afk: 'aw-watcher-afk_' + this.queryOptions.hostname,
-        filter_afk: this.queryOptions.filter_afk,
-        categories: [[['searched'], { type: 'regex', regex: this.pattern, ignore_case: true }]],
-        filter_categories: [['searched']],
-      });
-      query += '; RETURN = events;';
+      const sequence = ++this.searchSequence;
+      // Capture the submission's inputs up front so a form edit during the
+      // request cannot leak into an older submission's result ownership.
+      const pattern = this.pattern;
+      const { hostname, start, stop, filter_afk } = this.queryOptions;
+      this.status = 'searching';
+      this.error = '';
 
-      const query_array = querystr_to_array(query);
-      const timeperiods = [
-        moment(this.queryOptions.start).format() + '/' + moment(this.queryOptions.stop).format(),
-      ];
       try {
-        this.status = 'searching';
+        let query = canonicalEvents({
+          bid_window: 'aw-watcher-window_' + hostname,
+          bid_afk: 'aw-watcher-afk_' + hostname,
+          filter_afk,
+          categories: [[['searched'], { type: 'regex', regex: pattern, ignore_case: true }]],
+          filter_categories: [['searched']],
+        });
+        query += '; RETURN = events;';
+
+        const query_array = querystr_to_array(query);
+        const timeperiods = [moment(start).format() + '/' + moment(stop).format()];
         const data = await this.$aw.query(timeperiods, query_array);
+        // A newer submission (or unmount) superseded this one: discard it.
+        if (sequence !== this.searchSequence) return;
         // Every hit carries the synthetic `searched` category the query uses
         // for filtering; it is not a real category, so drop it from results.
         const events = (data[0] || []).map(e => ({ ...e, data: _.omit(e.data, '$category') }));
@@ -87,9 +101,11 @@ export default {
         this.error = '';
       } catch (e) {
         console.error(e);
-        this.error = e.response.data.message;
+        if (sequence === this.searchSequence) {
+          this.error = e.response?.data?.message ?? String(e);
+        }
       } finally {
-        this.status = null;
+        if (sequence === this.searchSequence) this.status = null;
       }
     },
     extendByWeek() {
