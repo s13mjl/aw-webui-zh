@@ -21,6 +21,61 @@ test('correctly flatten hierarchy', () => {
   expect(result).toHaveLength(3);
 });
 
+// 同步上游 #1220：按数组结构而非 join('>') 识别父子，避免显示名相撞时层级丢失。
+describe('结构化分类层级', () => {
+  const category = (name: string[]): Category => ({ name, rule: { type: 'none' } });
+
+  test.each([
+    [['Work>Code'], ['Work', 'Code', 'Review']],
+    [
+      ['Work', 'Code'],
+      ['Work>Code', 'Review'],
+    ],
+    [
+      ['A>B', 'C'],
+      ['A', 'B>C', 'Child'],
+    ],
+    [
+      ['A', 'B>C'],
+      ['A>B', 'C', 'Child'],
+    ],
+  ])('显示名相撞时仍创建缺失父级：%j / %j', (flat, nested) => {
+    const input = [category(flat), category(nested)];
+    const before = JSON.parse(JSON.stringify(input));
+    const result = classes.createMissingParents(input);
+    for (let depth = 1; depth < nested.length; depth++) {
+      expect(
+        result.filter(c => JSON.stringify(c.name) === JSON.stringify(nested.slice(0, depth)))
+      ).toHaveLength(1);
+    }
+    const flattened = classes.flatten_category_hierarchy(classes.build_category_hierarchy(input));
+    expect(flattened.map(c => c.name)).toEqual(expect.arrayContaining([flat, nested]));
+    expect(input).toEqual(before);
+  });
+
+  test('保留显式父级且共享的隐式父级只添加一次', () => {
+    const parent: Category = {
+      ...category(['Work', 'Code']),
+      id: 10,
+      data: { color: '#336699' },
+    };
+    const input = [
+      category(['Work>Code']),
+      parent,
+      category(['Work', 'Code', 'Review']),
+      category(['Work', 'Code', 'Test']),
+    ];
+    const before = JSON.parse(JSON.stringify(input));
+    const result = classes.build_category_hierarchy(input);
+    const work = result.find(c => c.subname === 'Work');
+    expect(work.children).toHaveLength(1);
+    expect(work.children[0]).toMatchObject(parent);
+    expect(work.children[0].children.map(c => c.subname)).toEqual(['Review', 'Test']);
+    expect(classes.flatten_category_hierarchy(result)).toHaveLength(5);
+    expect(input).toEqual(before);
+  });
+});
+
 test('matches string to category', () => {
   const cat = classes.matchString('subsubtest', testClasses);
   expect(cat).toEqual(testClasses[1]);
