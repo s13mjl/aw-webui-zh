@@ -371,6 +371,9 @@ export default {
     filterAfk: 'AFK filtern',
     mergeByApp: 'Nach App zusammenführen',
     noEvents: 'Keine Ereignisse entsprechen den Kriterien. Zeitleiste nicht aktualisiert.',
+    categoryError:
+      'Kategorisierte Zeitleiste nicht verfügbar. Rohe Bucket-Ereignisse werden weiterhin angezeigt.',
+    categoryRow: 'Kategorisiert',
     scrollHint: 'Scrollen zum Zoomen, Wischen zum Schwenken, Pfeiltasten zur Navigation',
     loading: 'Laden…',
   },

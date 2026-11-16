@@ -54,7 +54,7 @@ interface Rule {
 
 type Category = [string[], Rule];
 
-interface BaseQueryParams {
+export interface BaseQueryParams {
   include_audible?: boolean;
   categories: Category[];
   filter_categories: string[][];
@@ -129,6 +129,10 @@ export function canonicalEvents(params: DesktopQueryParams): string {
     : '';
   const always_active_pattern_str = params.always_active_pattern;
   const cat_filter_str = JSON.stringify(params.filter_categories);
+  // An empty category filter means "do not filter"; legacy callers may pass `true`.
+  const has_cat_filter = Array.isArray(params.filter_categories)
+    ? params.filter_categories.length > 0
+    : !!params.filter_categories;
 
   return [
     // Fetch window/app events
@@ -160,9 +164,7 @@ export function canonicalEvents(params: DesktopQueryParams): string {
     // Categorize
     params.categories ? `events = categorize(events, ${categories_str});` : '',
     // Filter out selected categories
-    params.filter_categories
-      ? `events = filter_keyvals(events, "$category", ${cat_filter_str});`
-      : '',
+    has_cat_filter ? `events = filter_keyvals(events, "$category", ${cat_filter_str});` : '',
     // "Return" events by setting variable named with return_variable if set
     params.return_variable_suffix
       ? `events_${params.return_variable_suffix} = events;
