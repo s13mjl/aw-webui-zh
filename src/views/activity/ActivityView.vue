@@ -6,42 +6,39 @@ div(v-if="viewMissing")
     router-link(:to="{ name: 'activity-view', params: {...$route.params, view_id: 'default'} }")
       | {{ $t('activityView.goDefault') }}
     | .
-div(v-else-if="view")
-  //- Key on the view id as well as the element contents, so that switching
-    views rebuilds the visualizations instead of reusing the instance that sat
-    at the same position in the previous view (which kept its stale local
-    state). vuedraggable v4 takes the key from :item-key rather than :key.
-  draggable.row(
-    v-model="elements"
-    handle=".handle"
-    :item-key="(el) => JSON.stringify([view.id, el.type, el.props])"
-  )
+div(v-else-if="view || editing")
+  b-alert.mt-3(:show="saveError !== ''" variant="danger")
+    | {{ saveError }}
+  //- 删除最后一个视图后草稿为空，仍保留 Save/Cancel 以便确认或撤销。
+  //- 用元素自身身份做键，使重排/删除保留各图表的本地选择；替换或丢弃草稿时
+  //- 通过 layoutRevision 重建。vuedraggable v4 从 :item-key 取键。
+  draggable.row(v-if="view" v-model="elements" handle=".handle" :disabled="saving" :item-key="(el) => view.id + '-' + layoutRevision + '-' + elementKey(el)")
     //- The item slot must render exactly ONE root node per element:
     //  vuedraggable v4 throws "Item slot must have only one child" otherwise
     //  (a Pug `//` comment here would compile to a second, comment child).
     template(#item="{ element: el, index }")
       div.col-md-6.col-lg-4.p-3(:class="{'col-md-12': isVisLarge(el), 'col-lg-12': isVisLarge(el)}")
-        aw-selectable-vis(:id="index" :type="el.type" :props="el.props" :view-id="view.id" @onTypeChange="onTypeChange" @onRemove="onRemove" :editable="editing")
+        aw-selectable-vis(:id="index" :type="el.type" :props="el.props" :view-id="view.id" @onTypeChange="onTypeChange" @onRemove="onRemove" :editable="editing && !saving" :disabled="saving")
 
     template(#footer)
       div.col-md-6.col-lg-4.p-3(v-if="editing")
-        b-button(@click="addVisualization" variant="outline-dark" block size="lg")
+        b-button(@click="addVisualization" :disabled="saving" variant="outline-dark" block size="lg")
           icon(name="plus")
           span {{ $t('activityView.addVisualization') }}
 
   div(v-if="editing").mt-2
     div.d-flex.flex-row-reverse
-      b-button(variant="outline-dark" @click="discard(); editing = !editing;")
+      b-button(variant="outline-dark" :disabled="saving" @click="discard")
         icon(name="times")
         span {{ $t('activityView.cancel') }}
-      b-button.mr-2(variant="success" @click="save(); editing = !editing;")
+      b-button.mr-2(variant="success" :disabled="saving" @click="save")
         icon(name="save")
         span {{ $t('activityView.save') }}
     div.mt-2.d-flex.flex-row-reverse
-      b-button(variant="warning" size="sm" @click="restoreDefaults();")
+      b-button(variant="warning" size="sm" :disabled="saving" @click="restoreDefaults();")
         icon(name="undo")
         span {{ $t('activityView.restoreDefaults') }}
-      b-button.mr-2(variant="danger" size="sm" v-b-modal="'remove-view-modal-' + view.id")
+      b-button.mr-2(v-if="view" variant="danger" size="sm" :disabled="saving" v-b-modal="'remove-view-modal-' + view.id")
         icon(name="trash")
         span {{ $t('activityView.remove') }}
   div(v-else).d-flex.flex-row-reverse.mt-2
@@ -90,6 +87,9 @@ import draggable from 'vuedraggable';
 
 import { useViewsStore } from '~/stores/views';
 
+const elementKeys = new WeakMap<object, number>();
+let nextElementKey = 0;
+
 export default {
   name: 'ActivityView',
   components: {
@@ -101,6 +101,9 @@ export default {
   data() {
     return {
       editing: false,
+      pendingAction: false,
+      saveError: '',
+      layoutRevision: 0,
       showCustomVisModal: false,
       customVisWatcherName: 'aw-watcher-',
       customVisTitle: '',
@@ -108,6 +111,9 @@ export default {
     };
   },
   computed: {
+    saving(): boolean {
+      return this.pendingAction || useViewsStore().saving;
+    },
     views: function () {
       return useViewsStore().viewsForHost(this.$route.params.host || '');
     },
@@ -134,11 +140,36 @@ export default {
     },
   },
   methods: {
-    save() {
-      useViewsStore().save();
+    elementKey(element): number {
+      if (!elementKeys.has(element)) elementKeys.set(element, nextElementKey++);
+      return elementKeys.get(element);
     },
-    discard() {
-      useViewsStore().load();
+    async save() {
+      if (this.saving) return;
+      this.pendingAction = true;
+      this.saveError = '';
+      try {
+        await useViewsStore().save();
+        this.editing = false;
+      } catch (error) {
+        this.saveError = error instanceof Error ? error.message : String(error);
+      } finally {
+        this.pendingAction = false;
+      }
+    },
+    async discard() {
+      if (this.saving) return;
+      this.pendingAction = true;
+      this.saveError = '';
+      try {
+        await useViewsStore().load();
+        this.layoutRevision++;
+        this.editing = false;
+      } catch (error) {
+        this.saveError = error instanceof Error ? error.message : String(error);
+      } finally {
+        this.pendingAction = false;
+      }
     },
     remove() {
       useViewsStore().removeView({ view_id: this.view.id });
@@ -149,6 +180,7 @@ export default {
     },
     restoreDefaults() {
       useViewsStore().restoreDefaults();
+      this.layoutRevision++;
       alert(this.$t('activityView.restoreAlert'));
       // If we're on an URL that might become invalid, navigate to the main/default view
       if (!this.$route.path.includes('default')) {

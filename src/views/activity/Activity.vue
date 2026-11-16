@@ -149,18 +149,19 @@ div
         h6 {{view.name}}
 
     li.nav-item(style="margin-left: auto")
-      a.nav-link(@click="$refs.new_view.show()")
+      a.nav-link(:class="{ disabled: viewSavePending }" :aria-disabled="viewSavePending" @click="!viewSavePending && $refs.new_view.show()")
         h6
           icon(name="plus")
           span.d-none.d-md-inline
             | {{ $t('activity.newView') }}
 
-  b-modal(id="new_view" ref="new_view" :title="$t('activity.newViewTitle')" @show="resetModal" @hidden="resetModal" @ok="handleOk" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
+  b-modal(id="new_view" ref="new_view" :title="$t('activity.newViewTitle')" :ok-disabled="viewSavePending" :cancel-disabled="newViewSaving" :hide-header-close="newViewSaving" :no-close-on-backdrop="newViewSaving" :no-close-on-esc="newViewSaving" @show="resetModal" @hidden="resetModal" @ok="handleOk" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
     div.my-1
+      b-alert(:show="newViewError !== ''" variant="danger") {{ newViewError }}
       b-input-group.my-1(:prepend="$t('activity.viewId')")
-        b-form-input(v-model="new_view.id")
+        b-form-input(v-model="new_view.id" :disabled="viewSavePending")
       b-input-group.my-1(:prepend="$t('activity.viewName')")
-        b-form-input(v-model="new_view.name")
+        b-form-input(v-model="new_view.name" :disabled="viewSavePending")
 
   div
     router-view
@@ -293,9 +294,14 @@ export default {
       include_stopwatch: true,
       filter_afk: true,
       new_view: {},
+      newViewSaving: false,
+      newViewError: '',
     };
   },
   computed: {
+    viewSavePending() {
+      return this.newViewSaving || this.viewsStore.saving;
+    },
     views(): import('~/stores/views').View[] {
       return this.viewsStore.viewsForHost(this.host);
     },
@@ -802,24 +808,31 @@ export default {
       this.handleSubmit();
     },
 
-    handleSubmit() {
-      // Exit when the form isn't valid
-      const valid = this.checkFormValidity();
-      if (!valid) {
-        return;
-      }
+    async handleSubmit() {
+      // 保存进行中时先返回：待完成的保存会用它更早的快照重新加载。
+      if (this.viewSavePending || !this.checkFormValidity()) return;
 
       const viewsStore = useViewsStore();
-      viewsStore.addView({ id: this.new_view.id, name: this.new_view.name, elements: [] });
-      viewsStore.save();
-
-      // Hide the modal manually
-      this.$nextTick(() => {
-        this.$refs.new_view.hide();
-      });
+      const id = this.new_view.id;
+      this.newViewSaving = true;
+      this.newViewError = '';
+      viewsStore.addView({ id, name: this.new_view.name, elements: [] });
+      try {
+        await viewsStore.save();
+      } catch (error) {
+        // 保留已有的布局草稿，但允许本表单重试该 id。
+        if (viewsStore.getViewById(id)) viewsStore.removeView({ view_id: id });
+        this.newViewError = error instanceof Error ? error.message : String(error);
+        return;
+      } finally {
+        this.newViewSaving = false;
+      }
+      // 导航可能在持久化进行中卸载本表单。
+      this.$refs.new_view?.hide();
     },
 
     resetModal() {
+      this.newViewError = '';
       this.new_view = {
         id: '',
         name: '',

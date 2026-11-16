@@ -72,11 +72,13 @@ export const defaultViews = !process.env.VUE_APP_ON_ANDROID ? desktopViews : and
 
 interface State {
   views: View[];
+  saving: boolean;
 }
 
 export const useViewsStore = defineStore('views', {
   state: (): State => ({
     views: [],
+    saving: false,
   }),
   getters: {
     getViewById: state => (id: string) => state.views.find(view => view.id === id),
@@ -89,12 +91,29 @@ export const useViewsStore = defineStore('views', {
       this.loadViews(views);
     },
     async save() {
-      const settingsStore = useSettingsStore();
-      settingsStore.update({ views: this.views });
-      await this.load();
+      // ActivityView 在保存进行中可能重新挂载；锁放在 store 上，
+      // 后续调用无法与本次写入及其回滚竞争。
+      if (this.saving) throw new Error('A view save is already in progress');
+      this.saving = true;
+      try {
+        const settingsStore = useSettingsStore();
+        // Settings.update 在持久化前先 patch 状态。把已确认基线与草稿分开，
+        // 持久化失败时也要能回滚（含 reject 的情况）。
+        const confirmed = JSON.parse(JSON.stringify(settingsStore.views));
+        const draft = JSON.parse(JSON.stringify(this.views));
+        try {
+          await settingsStore.update({ views: draft });
+        } catch (error) {
+          settingsStore.$patch({ views: confirmed });
+          throw error;
+        }
+        await this.load();
+      } finally {
+        this.saving = false;
+      }
     },
     loadViews(views: View[]) {
-      this.$patch({ views });
+      this.$patch({ views: JSON.parse(JSON.stringify(views)) });
       console.log('Loaded views:', this.views);
     },
     clearViews(this: State) {
@@ -104,7 +123,7 @@ export const useViewsStore = defineStore('views', {
       this.views.find(v => v.id == view_id).elements = elements;
     },
     restoreDefaults(this: State) {
-      this.views = defaultViews;
+      this.views = JSON.parse(JSON.stringify(defaultViews));
     },
     viewsForHost(_host: string): View[] {
       return this.views;
