@@ -57,3 +57,20 @@ test('blank regex category never matches, children still do', () => {
   );
   expect(events.map(e => e.data.$category)).toEqual([['Uncategorized'], ['Work', 'Programming']]);
 });
+
+// 同步上游 #1184：模糊的 'kate' 分支应只匹配整个应用/标题字段，
+// 而不是无关标题的子串（例如 'Skateboarding tips'）。
+test.each<[string, string, string[] | null]>([
+  ['Firefox', 'Skateboarding tips', null],
+  ['Firefox', 'Dinner with kate', null],
+  ['kate', 'notes.txt', ['Work', 'Programming']],
+  ['vim', 'main.c', ['Work', 'Programming']],
+  ['Firefox', 'GitHub - owner/repo', ['Work', 'Programming']],
+])('默认 Programming 规则 app=%s title=%s', (app, title, expected) => {
+  const cat = classes.matchStrings([app, title], classes.defaultCategories);
+  expect(cat?.name ?? null).toEqual(expected);
+
+  const event: IEvent = { timestamp: '', duration: 1, data: { app, title } };
+  const [classified] = classes.classifyEvents([event], classes.defaultCategories);
+  expect(classified.data.$category).toEqual(expected ?? ['Uncategorized']);
+});
