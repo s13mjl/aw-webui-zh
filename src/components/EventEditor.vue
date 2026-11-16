@@ -1,6 +1,6 @@
 <template lang="pug">
 b-modal(v-if="event && event.id", :id="'edit-modal-' + event.id", ref="eventEditModal", :title="$t('eventEditor.title')", centered, hide-footer)
-  div(v-if="!editedEvent")
+  div(v-if="!draftReady")
     | {{ $t('eventEditor.loading') }}
 
   div(v-else)
@@ -76,9 +76,33 @@ export default {
   data() {
     return {
       editedEvent: null,
+      // The draft belongs to one selection (bucket + event id + object instance).
+      // Loading a different selection must never let a stale draft be edited or
+      // submitted, and a late load/response must not overwrite the current one.
+      draftIdentity: null,
+      draftSource: null,
+      loadSequence: 0,
+      disposed: false,
     };
   },
   computed: {
+    selectionIdentity() {
+      return this.bucket_id && this.event && this.event.id
+        ? JSON.stringify([this.bucket_id, this.event.id])
+        : null;
+    },
+    // Object replacement is a new editing session even for the same bucket/id
+    // (e.g. reopening a timeline event after cancelling its draft).
+    selectionSource() {
+      return { identity: this.selectionIdentity, event: this.event };
+    },
+    draftReady() {
+      return (
+        this.editedEvent !== null &&
+        this.draftIdentity === this.selectionIdentity &&
+        this.draftSource === this.event
+      );
+    },
     start: {
       get: function () {
         return moment(this.editedEvent.timestamp).format();
@@ -100,15 +124,25 @@ export default {
     },
   },
   watch: {
-    async event() {
-      await this.getEvent();
+    selectionSource() {
+      // React to bucket and event changes (including a replacement object with
+      // the same id); getEvent guards against late responses itself.
+      this.getEvent();
     },
   },
   mounted: async function () {
     await this.getEvent();
   },
+  beforeUnmount() {
+    // Invalidate any pending load or mutation when the editor goes away.
+    this.disposed = true;
+    this.loadSequence++;
+  },
   methods: {
     async save() {
+      // Only a draft owned by the current selection may be submitted; a stale
+      // draft after navigation/reopen must not mutate another event.
+      if (!this.draftReady || this.disposed) return;
       // Capture before any async suspension: another selection can change
       // this.editedEvent or this.bucket_id while replaceEvent is in-flight.
       const savedEvent = _.cloneDeep(this.editedEvent);
@@ -120,6 +154,7 @@ export default {
       this.$emit('saved', savedEvent, savedBucketId);
     },
     async delete_() {
+      if (!this.draftReady || this.disposed) return;
       // This emit needs to be called first, otherwise it won't occur for some reason
       // FIXME: but what if the replace fails? Then UI will incorrectly think event was deleted?
       const deletedEvent = _.cloneDeep(this.event);
@@ -129,10 +164,24 @@ export default {
       this.$emit('deleted', deletedEvent, deletedBucketId);
     },
     async getEvent() {
-      if (this.bucket_id && this.event && this.event.id) {
-        this.editedEvent = await this.$aw.getEvent(this.bucket_id, this.event.id);
-      } else {
-        this.editedEvent = null;
+      const source = this.selectionSource;
+      const identity = source.identity;
+      const sequence = ++this.loadSequence;
+      // Clear the old draft immediately so it can never be edited/submitted
+      // while the new selection's event is loading.
+      this.editedEvent = null;
+      this.draftIdentity = null;
+      this.draftSource = null;
+      if (!identity || this.disposed) return;
+      const bucketId = this.bucket_id;
+      const eventId = source.event.id;
+      const stillSelected = () =>
+        !this.disposed && this.selectionSource === source && this.loadSequence === sequence;
+      const event = await this.$aw.getEvent(bucketId, eventId);
+      if (stillSelected()) {
+        this.editedEvent = event;
+        this.draftIdentity = identity;
+        this.draftSource = source.event;
       }
     },
     close() {
