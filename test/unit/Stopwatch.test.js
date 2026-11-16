@@ -288,6 +288,7 @@ describe('Stopwatch editor completion', () => {
     const vm = {
       event: oldRunning,
       bucket_id: 'aw-stopwatch',
+      draftReady: true, // method-level fixture: a draft owned by this selection
       $emit: jest.fn(),
       $aw: { deleteEvent: jest.fn().mockReturnValue(mutation) },
     };
@@ -305,6 +306,7 @@ describe('Stopwatch editor completion', () => {
     const vm = {
       event: oldRunning,
       bucket_id: 'aw-stopwatch',
+      draftReady: true, // method-level fixture: a draft owned by this selection
       $emit: jest.fn(),
       $aw: { deleteEvent: jest.fn().mockRejectedValue(new Error('offline')) },
     };

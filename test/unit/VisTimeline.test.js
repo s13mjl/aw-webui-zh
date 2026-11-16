@@ -37,6 +37,7 @@ describe('timeline event editing (#984)', () => {
     await EventEditor.methods.save.call({
       bucket_id: 'aw-watcher-window_test',
       editedEvent,
+      draftReady: true, // method-level fixture: a draft owned by this selection
       $aw: { replaceEvent },
       $emit: emit,
     });
@@ -67,6 +68,7 @@ describe('timeline event editing (#984)', () => {
     const vm = {
       bucket_id: 'aw-stopwatch_test',
       editedEvent,
+      draftReady: true, // method-level fixture: a draft owned by this selection
       $aw: { replaceEvent },
       $emit: emit,
     };
@@ -107,6 +109,7 @@ describe('timeline event editing (#984)', () => {
       EventEditor.methods.save.call({
         bucket_id: 'aw-watcher-window_test',
         editedEvent,
+        draftReady: true, // method-level fixture: a draft owned by this selection
         $aw: { replaceEvent: jest.fn().mockRejectedValue(new Error('offline')) },
         $emit: emit,
       })
