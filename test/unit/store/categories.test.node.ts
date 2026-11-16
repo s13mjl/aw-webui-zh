@@ -12,13 +12,13 @@ describe('categories store', () => {
     categoryStore.clearAll();
   });
 
-  test('loads default categories', () => {
+  test('loads default categories', async () => {
     // Load categories
     expect(categoryStore.classes).toHaveLength(0);
     categoryStore.restoreDefaultClasses();
 
     expect(categoryStore.classes_unsaved_changes).toBeTruthy();
-    categoryStore.save();
+    await categoryStore.save();
 
     expect(categoryStore.classes_unsaved_changes).toBeFalsy();
     expect(categoryStore.classes).not.toHaveLength(0);

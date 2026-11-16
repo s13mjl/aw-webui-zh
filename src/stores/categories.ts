@@ -1,6 +1,5 @@
 import _ from 'lodash';
 import {
-  saveClasses,
   saveCategories,
   loadCategories,
   cleanCategory,
@@ -84,6 +83,18 @@ function syncToPrimarySet(state: State) {
   if (primarySet) {
     primarySet.categories = state.classes.map(cleanCategory);
   }
+}
+
+// 同步上游 #1228：每个 store 的待写入队列放在可序列化的 Pinia state 之外。
+// 被拒绝的写入要 reject 调用方，但不能阻止后续显式保存重试。
+const pendingSaves = new WeakMap<State, Promise<void>>();
+
+function saveSnapshot(state: State) {
+  return _.cloneDeep({
+    classes: state.classes.map(cleanCategory),
+    category_sets: state.category_sets,
+    active_set_ids: state.active_set_ids,
+  });
 }
 
 export const useCategoryStore = defineStore('categories', {
@@ -220,13 +231,32 @@ export const useCategoryStore = defineStore('categories', {
       this.classes_unsaved_changes = false;
     },
 
-    save(this: State) {
-      // Sync current classes back to the primary active set before persisting
+    async save(this: State) {
+      // 在发起写入时捕获意图，而不是等先前写入完成才读取当前数据。
       syncToPrimarySet(this);
-      saveCategories(this.category_sets, this.active_set_ids);
-      // Also update legacy flat classes field for backwards compatibility
-      saveClasses(this.classes);
-      this.classes_unsaved_changes = false;
+      const snapshot = saveSnapshot(this);
+      const previous = pendingSaves.get(this);
+      this.classes_unsaved_changes = true;
+      const write = (async () => {
+        if (previous) await previous.catch(() => undefined);
+        // saveCategories 已经写入旧版 `classes` 字段；再次调用 saveClasses
+        // 会与本次 update 竞态，可能持久化空/默认快照（aw-android#247）。
+        await saveCategories(snapshot.category_sets, snapshot.active_set_ids);
+      })();
+      pendingSaves.set(this, write);
+      try {
+        await write;
+        // 期间排队的另一份快照可能与当前内容不同；即使当前内容又和本快照一致，
+        // 也只有最后一次写入才能确认当前内容已保存。
+        if (pendingSaves.get(this) === write) {
+          this.classes_unsaved_changes = !_.isEqual(snapshot, saveSnapshot(this));
+        }
+      } catch (error) {
+        this.classes_unsaved_changes = true;
+        throw error;
+      } finally {
+        if (pendingSaves.get(this) === write) pendingSaves.delete(this);
+      }
     },
 
     // ── Category set management ──────────────────────────────────────────────
