@@ -58,6 +58,22 @@ interface AggregatedEvent {
   duration: number;
   data: Record<string, any>;
 }
+// watcher 值是 JSON 风格数据：保持类型与结构独立于展示文本；
+// 对象属性插入顺序不属于值身份，数组顺序属于。
+function valueIdentity(value: unknown): unknown {
+  if (value === null || value === undefined) return ['unknown'];
+  if (Array.isArray(value)) return ['array', value.map(valueIdentity)];
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    return [
+      'object',
+      Object.keys(obj)
+        .sort()
+        .map(key => [key, valueIdentity(obj[key])]),
+    ];
+  }
+  return [typeof value, value];
+}
 export default {
   name: 'aw-top-bucket-data',
   props: {
@@ -200,7 +216,8 @@ export default {
       this.events.forEach(e => {
         const value = _.get(e, path);
         const display = this.formatValue(value);
-        const key = Array.isArray(value) ? JSON.stringify(value) : String(display);
+        // 按类型与结构分组，而不是按展示文本，避免数值 1 与字符串 "1" 等被合并。
+        const key = JSON.stringify(valueIdentity(value));
         if (!grouped.has(key)) {
           grouped.set(key, {
             duration: 0,
@@ -210,7 +227,26 @@ export default {
         const entry = grouped.get(key);
         entry.duration += e.duration || 0;
       });
-      this.aggregated = Array.from(grouped.values()).sort((a, b) => b.duration - a.duration);
+      const rows = Array.from(grouped.values());
+      const labelCounts = new Map<string, number>();
+      rows.forEach(e =>
+        labelCounts.set(e.data.display, (labelCounts.get(e.data.display) || 0) + 1)
+      );
+      // 保留原始标签，避免生成的注解掩盖同名字符串；普通字符串名称保持不变。
+      const usedLabels = new Set(rows.map(e => e.data.display));
+      rows.forEach(e => {
+        if ((labelCounts.get(e.data.display) || 0) < 2 || typeof e.data.raw === 'string') return;
+        const raw = e.data.raw;
+        const type = raw == null ? 'unknown' : Array.isArray(raw) ? 'array' : typeof raw;
+        const text = Array.isArray(raw) ? JSON.stringify(raw) : e.data.display;
+        const base = `${text} (${type})`;
+        let label = base;
+        let suffix = 2;
+        while (usedLabels.has(label)) label = `${base} #${suffix++}`;
+        usedLabels.add(label);
+        e.data.display = label;
+      });
+      this.aggregated = rows.sort((a, b) => b.duration - a.duration);
     },
     emitSelection() {
       this.$emit('update-props', {
