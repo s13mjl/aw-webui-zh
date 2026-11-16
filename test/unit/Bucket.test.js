@@ -236,3 +236,77 @@ describe('Bucket view', () => {
     );
   });
 });
+
+const range = () => [{ format: () => 'start' }, { format: () => 'end' }];
+
+function makeVm(getBucketWithEvents, daterange = range()) {
+  return {
+    daterange,
+    events: [],
+    eventsRequestId: 0,
+    showingMostRecent: false,
+    lastEventTime: null,
+    bucket: { id: 'b', metadata: { end: '2020-01-02T00:00:00Z' } },
+    bucketsStore: { getBucketWithEvents },
+  };
+}
+
+describe('Bucket.vue 最近事件回退（同步上游 #1030）', () => {
+  test('区间为空时显示最近事件并记录最新时间', async () => {
+    const recent = [{ timestamp: '2020-01-01T10:00:00Z' }, { timestamp: '2020-01-01T09:00:00Z' }];
+    const get = jest.fn(async ({ limit }) => ({ events: limit ? recent : [] }));
+    const vm = makeVm(get);
+
+    await Bucket.methods.getEvents.call(vm, 'b');
+
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(vm.events).toEqual(recent);
+    expect(vm.showingMostRecent).toBe(true);
+    expect(vm.lastEventTime).toBe('2020-01-01T10:00:00Z');
+  });
+
+  test('区间内有事件时不回退', async () => {
+    const events = [{ timestamp: 'x' }];
+    const get = jest.fn(async () => ({ events }));
+    const vm = makeVm(get);
+
+    await Bucket.methods.getEvents.call(vm, 'b');
+
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(vm.showingMostRecent).toBe(false);
+  });
+
+  test('回退请求失败时静默处理', async () => {
+    const get = jest.fn(async ({ limit }) => {
+      if (limit) throw new Error('network error');
+      return { events: [] };
+    });
+    const vm = makeVm(get);
+
+    await expect(Bucket.methods.getEvents.call(vm, 'b')).resolves.not.toThrow();
+    expect(vm.showingMostRecent).toBe(false);
+    expect(vm.events).toEqual([]);
+  });
+
+  test('过期的回退结果不覆盖更新的选择', async () => {
+    let release;
+    const gate = new Promise(resolve => (release = resolve));
+    const get = jest.fn(async ({ limit }) => {
+      if (limit) {
+        await gate;
+        return { events: [{ timestamp: 'stale' }] };
+      }
+      return { events: [] };
+    });
+    const vm = makeVm(get);
+    const inFlight = Bucket.methods.getEvents.call(vm, 'b');
+    await flush();
+    // 用户改选新的区间，并已拿到新数据。
+    vm.eventsRequestId += 1;
+    vm.events = [{ timestamp: 'fresh' }];
+    release();
+    await inFlight;
+    expect(vm.events).toEqual([{ timestamp: 'fresh' }]);
+    expect(vm.showingMostRecent).toBe(false);
+  });
+});
