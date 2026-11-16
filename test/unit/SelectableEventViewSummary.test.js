@@ -6,7 +6,13 @@ import summary from '~/visualizations/summary';
 import i18nInstance from '~/i18n';
 import { installBootstrapVue } from '~/compat/bootstrap-vue';
 
-const event = { duration: 60, data: { title: 'TITLE_ONE', app: 'APP_ONE' } };
+// 真实事件一定带合法 timestamp；#1244 起 SelectableEventView 会据此判断结果形状，
+// 夹具需保持为合法事件，才能进入 summary 可视化。
+const event = {
+  timestamp: '2026-10-01T12:00:00Z',
+  duration: 60,
+  data: { title: 'TITLE_ONE', app: 'APP_ONE' },
+};
 
 function svgName(wrapper) {
   const title = wrapper.element.querySelector('g[id^="summary_"] > title');
@@ -60,7 +66,15 @@ describe('SelectableEventView 数据键变化重绘', () => {
       input.element.value = 'app';
       input.trigger('change');
       await flush(wrapper);
-      await wrapper.setProps({ events: [{ duration: 60, data: { title: 'TITLE_ONE', app: 'APP_ONE' } }] });
+      await wrapper.setProps({
+        events: [
+          {
+            timestamp: '2026-10-01T12:00:00Z',
+            duration: 60,
+            data: { title: 'TITLE_ONE', app: 'APP_ONE' },
+          },
+        ],
+      });
       await flush(wrapper);
       expect(svgName(wrapper)).toBe('APP_ONE');
     } finally {

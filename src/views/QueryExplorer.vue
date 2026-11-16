@@ -104,6 +104,7 @@ import _ from 'lodash';
 import { querystr_to_array } from '~/queries';
 import { useCategoryStore } from '~/stores/categories';
 import { useSettingsStore } from '~/stores/settings';
+import { isEventArray } from '~/util/queryResult';
 import {
   buildSavedQuery,
   buildSavedQueryId,
@@ -167,7 +168,7 @@ RETURN = sort_by_duration(merged_events);
       return this.savedQueries.find(query => query.id === this.selected_saved_query_id) || null;
     },
     eventcount_str: function () {
-      if (Array.isArray(this.events))
+      if (isEventArray(this.events))
         return this.$t('queryExplorer.numberOfEvents') + this.events.length;
       else return '';
     },

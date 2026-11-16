@@ -187,3 +187,20 @@ describe('QueryExplorer saveCurrentQuery', () => {
     expect(vm.showRenameQueryModal).toBe(false);
   });
 });
+
+describe('QueryExplorer eventcount_str', () => {
+  const event = { timestamp: '2026-10-31T12:00:00Z', duration: 10, data: { title: 'Code' } };
+  const count = value => QueryExplorer.computed.eventcount_str.call({ events: value, $t: (key, values) => i18n.t(key, values) });
+
+  test('统计普通与空事件数组', () => {
+    expect(count([event])).toBe(i18n.t('queryExplorer.numberOfEvents') + '1');
+    expect(count([])).toBe(i18n.t('queryExplorer.numberOfEvents') + '0');
+  });
+
+  test.each([[42], [{ total: 42 }], [null], [[1, 2]], [[{ duration: 5, label: 'total' }]]])(
+    '非事件结果 %p 不标注为事件',
+    value => {
+      expect(count(value)).toBe('');
+    }
+  );
+});
