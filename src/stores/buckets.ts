@@ -283,11 +283,20 @@ export const useBucketsStore = defineStore('buckets', {
       await this.loadBuckets();
     },
 
-    async deleteBucketsByHost({ bucketIds }: { bucketIds: string[] }): Promise<string[]> {
+    async deleteBucketsByHost({
+      bucketIds,
+      onDeleted,
+    }: {
+      bucketIds: string[];
+      onDeleted?: (bucketId: string) => void;
+    }): Promise<string[]> {
       console.log(`Deleting ${bucketIds.length} buckets`);
       try {
         for (const bucketId of bucketIds) {
           await getClient().deleteBucket(bucketId);
+          // Report the acknowledgement before the next delete or catalogue
+          // refresh can fail, so confirmed deletions are never retried.
+          onDeleted?.(bucketId);
         }
       } finally {
         await this.loadBuckets().catch(err => {
