@@ -95,9 +95,10 @@ export function get_today_with_offset(offset?: string): string {
   if (!offset) {
     offset = getStartOfDayOffset();
   }
-  // Gets "today" in an offset-aware way
-  const offset_dur = get_offset_duration(offset);
-  return moment().subtract(offset_dur).startOf('day').format('YYYY-MM-DD');
+  // 与本地墙上时钟的日界比较：减去已过去的小时数会在 UTC 偏移变化的早晨跨过错误的午夜。
+  const now = moment();
+  const dayStart = moment(get_day_start_with_offset(now, offset));
+  return (now.isBefore(dayStart) ? now.subtract(1, 'day') : now).format('YYYY-MM-DD');
 }
 
 export function format_weekday_short(dateParam: Date, locale?: string | string[]) {
