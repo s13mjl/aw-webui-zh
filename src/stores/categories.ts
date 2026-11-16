@@ -142,7 +142,9 @@ export const useCategoryStore = defineStore('categories', {
             return l;
           })
         ),
-        (v: string[]) => v.join('>>>>') // Can be any separator that doesn't appear in the category names themselves
+        // 用 JSON.stringify 编码分段边界：分类名本身可能包含任意分隔符，
+        // 用固定分隔符 join 会把不同路径误判为同一项（同步上游 #1232）。
+        (v: string[]) => JSON.stringify(v)
       );
     },
     allCategoriesSelect(): { value: string[]; text: string }[] {
