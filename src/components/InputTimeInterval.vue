@@ -143,15 +143,16 @@ export default {
         { text: this.$t('inputTime.modeRange'), value: 'range' },
       ];
     },
+    dateRange() {
+      const startDate = moment(this.start);
+      // 日期输入是包含当天的，发出的结束时刻是下一个本地午夜。
+      const endDate = this.end ? moment(this.end).add(1, 'day') : startDate.clone().add(1, 'day');
+      return [startDate, endDate];
+    },
     value: {
       get() {
         if (this.mode == 'range' && this.start) {
-          const startDate = moment(this.start);
-          // If only start date is set, show that single day
-          const endDate = this.end
-            ? moment(this.end).add(1, 'day')
-            : startDate.clone().add(1, 'day');
-          return [startDate, endDate];
+          return this.dateRange;
         } else {
           return [moment().subtract(this.duration, 'seconds'), moment()];
         }
@@ -165,8 +166,10 @@ export default {
       return moment(this.start) > moment(this.end);
     },
     daterangeTooLong() {
-      if (!this.end) return false;
-      return moment(this.start).add(this.maxDuration, 'seconds').isBefore(moment(this.end));
+      if (!this.start || this.maxDuration === null) return false;
+      const [start, end] = this.dateRange;
+      // maxDuration 是经过的秒数，不是日历天数（DST 下每天时长会变）。
+      return end.diff(start, 'seconds', true) > this.maxDuration;
     },
   },
   mounted() {
@@ -202,7 +205,6 @@ export default {
     },
     applyRange() {
       this.mode = 'range';
-      this.duration = 0;
       this.valueChanged();
     },
     applyLastDuration() {
