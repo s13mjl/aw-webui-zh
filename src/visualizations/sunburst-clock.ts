@@ -160,7 +160,8 @@ function mouseover(_: Event, d: d3.HierarchyRectangularNode<IEvent>) {
   rootEl
     .selectAll('path')
     .filter(function (node: any) {
-      return sequenceArray.indexOf(node) >= 0;
+      // DST 拆分出的多段弧共享同一事件数据；高亮所有碎片及其父级。
+      return sequenceArray.some(ancestor => ancestor.data === node.data);
     })
     .style('opacity', 1);
 }
@@ -234,6 +235,34 @@ function create(el: HTMLElement) {
     });
 }
 
+// 每个显示日只查找一次时区切换点（而非每个事件一次），在这些时刻切分弧段：
+// 春季跳变缺失的本地小时保持空白，秋季重复的本地小时落在同一扇区。
+function offsetTransitions(start: number, end: number): number[] {
+  const transitions: number[] = [];
+  for (let from = start; from < end; from += 3600000) {
+    let low = from;
+    let high = Math.min(from + 3600000, end);
+    const offset = moment(low).utcOffset();
+    if (moment(high).utcOffset() === offset) continue;
+    while (high - low > 1) {
+      const middle = Math.floor((low + high) / 2);
+      if (moment(middle).utcOffset() === offset) low = middle;
+      else high = middle;
+    }
+    if (high < end) transitions.push(high);
+  }
+  return transitions;
+}
+
+// 用本地挂钟时间（时:分:秒）而不是相对“自午夜起经过的毫秒”来定位角度，
+// 这样 06:00 始终固定在表盘同一位置，与 startOfDay 偏移或 DST 无关。
+function wallClockAngle(timestamp: number): number {
+  const local = moment(timestamp);
+  const seconds =
+    local.hours() * 3600 + local.minutes() * 60 + local.seconds() + local.milliseconds() / 1000;
+  return (2 * Math.PI * seconds) / 86400;
+}
+
 // Main function to draw and set up the visualization, once we have the data.
 function update(
   el: HTMLElement,
@@ -254,6 +283,8 @@ function update(
   const root_node: d3.HierarchyRectangularNode<IEvent> = partition_layout(root);
 
   const mode_clock = true;
+  // 0.001 弧度约为固定 24 小时表盘上的 14 秒。
+  const threshold = 0.001;
   let nodes;
   if (mode_clock) {
     // TODO: Make this a checkbox in the UI
@@ -289,43 +320,33 @@ function update(
       drawClock(now.hour(), now.minute(), 'Now');
     }
 
-    nodes = root_node
-      .each(function (d: d3.HierarchyRectangularNode<IEvent>) {
-        const loc_start_sec = moment(d.data.timestamp).diff(root_start, 'seconds', true);
-        const loc_end_sec = moment(d.data.timestamp)
-          .add(d.data.duration, 'seconds')
-          .diff(root_start, 'seconds', true);
-
-        const loc_start = Math.max(
-          0,
-          loc_start_sec / ((root_end.valueOf() - root_start.valueOf()) / 1000)
-        );
-        const loc_end = Math.min(
-          1,
-          loc_end_sec / ((root_end.valueOf() - root_start.valueOf()) / 1000)
-        );
-
-        d.x0 = 2 * Math.PI * loc_start;
-        d.x1 = 2 * Math.PI * loc_end;
-      })
-      .descendants();
+    const periodStart = root_start.valueOf();
+    const periodEnd = root_end.valueOf();
+    const transitions = offsetTransitions(periodStart, periodEnd);
+    nodes = root_node.descendants().flatMap(d => {
+      const timestamp = moment(d.data.timestamp).valueOf();
+      const start = Math.max(periodStart, timestamp);
+      const end = Math.min(periodEnd, timestamp + d.data.duration * 1000);
+      // 可见性按裁剪后的整个事件判断，而不是按每个 DST 碎片分别判断。
+      if (!((2 * Math.PI * (end - start)) / 86400000 > threshold)) return [];
+      const bounds = [start, ...transitions.filter(t => t > start && t < end), end];
+      return bounds.slice(0, -1).map((from, i) => {
+        const x0 = wallClockAngle(from);
+        // 每段内 UTC 偏移恒定，故经过时长等于挂钟时长。跨午夜时角度保持不回绕，
+        // 由 D3 画出跨零点的小弧，而不是倒退或整圈的大扇形。
+        const x1 = x0 + (2 * Math.PI * (bounds[i + 1] - from)) / 86400000;
+        // 不修改输入数据：复制节点对象（共享 data 引用），只覆盖 x0/x1。
+        return Object.assign(Object.create(Object.getPrototypeOf(d)), d, { x0, x1 });
+      });
+    });
   } else {
     // sum()/sort() mutate the hierarchy in place, so the result must not be dropped
     root
       .sum(d => d.duration)
       .sort((a, b) => JSON.stringify(a.data.data).localeCompare(JSON.stringify(b.data.data)));
-    nodes = root_node.descendants();
+    // 只保留足够大的节点以提升效率。
+    nodes = root_node.descendants().filter(d => d.x1 - d.x0 > threshold);
   }
-
-  // For efficiency, filter nodes to keep only those large enough to see.
-  nodes = nodes.filter(function (d: d3.HierarchyRectangularNode<IEvent>) {
-    // 0.005 radians = 0.29 degrees
-    // If show_whole_day:
-    //   0.0044 rad = 1min
-    //   0.0011 rad = 15s
-    const threshold = 0.001;
-    return d.x1 - d.x0 > threshold;
-  });
 
   vis
     .data([root_event])
