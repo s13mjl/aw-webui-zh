@@ -23,9 +23,9 @@ div
             | {{savedQuery.name}}
       div.form-group.col-lg-6
         div.saved-query-actions
-          button.btn.btn-success.mr-2(type="button", @click="saveCurrentQuery()") {{ $t('queryExplorer.saveCurrent') }}
-          button.btn.btn-secondary.mr-2(type="button", @click="renameSelectedQuery()", :disabled="!selected_saved_query_id") {{ $t('queryExplorer.rename') }}
-          button.btn.btn-danger(type="button", @click="deleteSelectedQuery()", :disabled="!selected_saved_query_id")
+          button.btn.btn-success.mr-2(type="button", @click="saveCurrentQuery()", :disabled="saved_query_pending") {{ $t('queryExplorer.saveCurrent') }}
+          button.btn.btn-secondary.mr-2(type="button", @click="renameSelectedQuery()", :disabled="!selected_saved_query_id || saved_query_pending") {{ $t('queryExplorer.rename') }}
+          button.btn.btn-danger(type="button", @click="deleteSelectedQuery()", :disabled="!selected_saved_query_id || saved_query_pending")
             icon(name="trash")
             |  {{ $t('queryExplorer.delete') }}
 
@@ -54,6 +54,11 @@ div
     :title="$t('queryExplorer.saveModalTitle')"
     :ok-title="$t('common.save')"
     :cancel-title="$t('common.cancel')"
+    :ok-disabled="saved_query_pending"
+    :cancel-disabled="saved_query_pending"
+    :no-close-on-backdrop="saved_query_pending"
+    :no-close-on-esc="saved_query_pending"
+    :hide-header-close="saved_query_pending"
     @ok="onSaveQueryConfirm"
     @shown="$refs.saveQueryNameInput && $refs.saveQueryNameInput.focus()"
   )
@@ -69,6 +74,11 @@ div
     :title="$t('queryExplorer.renameModalTitle')"
     :ok-title="$t('queryExplorer.rename')"
     :cancel-title="$t('common.cancel')"
+    :ok-disabled="saved_query_pending"
+    :cancel-disabled="saved_query_pending"
+    :no-close-on-backdrop="saved_query_pending"
+    :no-close-on-esc="saved_query_pending"
+    :hide-header-close="saved_query_pending"
     @ok="onRenameQueryConfirm"
     @shown="$refs.renameQueryNameInput && $refs.renameQueryNameInput.focus()"
   )
@@ -141,8 +151,12 @@ RETURN = sort_by_duration(merged_events);
       enddate: tomorrow.format('YYYY-MM-DD'),
       showSaveQueryModal: false,
       saveQueryName: '',
+      // 弹窗确认期间固定当时打开的快照，避免选择/表单变化串到本次操作。
+      saveQueryDraft: null,
       showRenameQueryModal: false,
       renameQueryName: '',
+      renameQueryTarget: null,
+      saved_query_pending: false,
     };
   },
   computed: {
@@ -187,110 +201,112 @@ RETURN = sort_by_duration(merged_events);
       this.saved_query_error = '';
     },
     saveCurrentQuery: async function () {
+      if (this.saved_query_pending) return;
       const current = this.selectedSavedQuery;
-
-      if (current) {
-        if (!confirm(this.$t('queryExplorer.updatePrompt', { name: current.name }))) {
-          return;
-        }
-
-        const updatedQuery = buildSavedQuery({
-          id: current.id,
-          name: current.name,
-          query_code: this.query_code,
-          startdate: this.startdate,
-          enddate: this.enddate,
-          event_type: this.event_type,
-        });
-
-        const didPersist = await this.persistSavedQueries(
-          this.savedQueries.map(savedQuery =>
-            savedQuery.id === current.id ? updatedQuery : savedQuery
-          )
-        );
-        if (didPersist) {
-          this.selected_saved_query_id = current.id;
-        }
-        return;
-      }
-
-      // No existing query — open modal to get a name
-      this.saveQueryName = getDefaultSavedQueryName(this.query_code);
-      this.showSaveQueryModal = true;
-    },
-    onSaveQueryConfirm: async function (event) {
-      event.preventDefault();
-
-      const trimmedName = this.saveQueryName.trim();
-      if (_.isEmpty(trimmedName)) {
-        this.saved_query_error = this.$t('queryExplorer.emptyNameAlert');
-        return;
-      }
-
-      const newId = buildSavedQueryId(
-        trimmedName,
-        this.savedQueries.map(savedQuery => savedQuery.id)
-      );
-      const newQuery = buildSavedQuery({
-        id: newId,
-        name: trimmedName,
+      // 在确认/等待前固定本次操作的目标与内容快照。
+      const draft = buildSavedQuery({
+        id: current?.id || '',
+        name: current?.name || '',
         query_code: this.query_code,
         startdate: this.startdate,
         enddate: this.enddate,
         event_type: this.event_type,
       });
 
-      const didPersist = await this.persistSavedQueries([...this.savedQueries, newQuery]);
-      if (didPersist) {
-        this.selected_saved_query_id = newId;
-        this.showSaveQueryModal = false;
-      }
-    },
-    renameSelectedQuery: async function () {
-      if (!this.selectedSavedQuery) {
+      if (current) {
+        this.saved_query_pending = true;
+        try {
+          if (!confirm(this.$t('queryExplorer.updatePrompt', { name: draft.name }))) return;
+          await this.persistSavedQueries(
+            this.savedQueries.map(savedQuery => (savedQuery.id === draft.id ? draft : savedQuery))
+          );
+        } finally {
+          this.saved_query_pending = false;
+        }
         return;
       }
 
-      this.renameQueryName = this.selectedSavedQuery.name;
+      // 没有已选查询：用本次快照命名并打开弹窗。
+      this.saveQueryDraft = draft;
+      this.saveQueryName = getDefaultSavedQueryName(draft.query_code);
+      this.showSaveQueryModal = true;
+    },
+    onSaveQueryConfirm: async function (event) {
+      event.preventDefault();
+
+      if (this.saved_query_pending) return;
+      const draft = this.saveQueryDraft;
+      const trimmedName = this.saveQueryName.trim();
+      if (_.isEmpty(trimmedName)) {
+        this.saved_query_error = this.$t('queryExplorer.emptyNameAlert');
+        return;
+      }
+      if (!draft) return;
+
+      const newId = buildSavedQueryId(
+        trimmedName,
+        this.savedQueries.map(savedQuery => savedQuery.id)
+      );
+      const newQuery = { ...draft, id: newId, name: trimmedName };
+      this.saved_query_pending = true;
+      try {
+        const didPersist = await this.persistSavedQueries([...this.savedQueries, newQuery]);
+        if (didPersist && this.saveQueryDraft === draft) {
+          if (!this.selected_saved_query_id) this.selected_saved_query_id = newId;
+          this.showSaveQueryModal = false;
+        }
+      } finally {
+        this.saved_query_pending = false;
+      }
+    },
+    renameSelectedQuery: async function () {
+      if (this.saved_query_pending || !this.selectedSavedQuery) return;
+
+      this.renameQueryTarget = { ...this.selectedSavedQuery };
+      this.renameQueryName = this.renameQueryTarget.name;
       this.showRenameQueryModal = true;
     },
     onRenameQueryConfirm: async function (event) {
       event.preventDefault();
 
-      if (!this.selectedSavedQuery) {
-        return;
-      }
-
+      if (this.saved_query_pending) return;
+      const target = this.renameQueryTarget;
       const trimmedName = this.renameQueryName.trim();
       if (_.isEmpty(trimmedName)) {
         this.saved_query_error = this.$t('queryExplorer.emptyNameAlert');
         return;
       }
+      if (!target) return;
 
-      const selectedQueryId = this.selectedSavedQuery.id;
-      const didPersist = await this.persistSavedQueries(
-        this.savedQueries.map(savedQuery =>
-          savedQuery.id === selectedQueryId ? { ...savedQuery, name: trimmedName } : savedQuery
-        )
-      );
-      if (didPersist) {
-        this.showRenameQueryModal = false;
+      this.saved_query_pending = true;
+      try {
+        const didPersist = await this.persistSavedQueries(
+          this.savedQueries.map(savedQuery =>
+            savedQuery.id === target.id ? { ...savedQuery, name: trimmedName } : savedQuery
+          )
+        );
+        if (didPersist && this.renameQueryTarget === target) {
+          this.showRenameQueryModal = false;
+        }
+      } finally {
+        this.saved_query_pending = false;
       }
     },
     deleteSelectedQuery: async function () {
-      if (!this.selectedSavedQuery) {
-        return;
-      }
-
-      if (!confirm(this.$t('queryExplorer.deletePrompt', { name: this.selectedSavedQuery.name }))) {
-        return;
-      }
-
-      const didPersist = await this.persistSavedQueries(
-        this.savedQueries.filter(savedQuery => savedQuery.id !== this.selected_saved_query_id)
-      );
-      if (didPersist) {
-        this.selected_saved_query_id = '';
+      if (this.saved_query_pending || !this.selectedSavedQuery) return;
+      const targetId = this.selectedSavedQuery.id;
+      const targetName = this.selectedSavedQuery.name;
+      this.saved_query_pending = true;
+      try {
+        if (!confirm(this.$t('queryExplorer.deletePrompt', { name: targetName }))) return;
+        const didPersist = await this.persistSavedQueries(
+          this.savedQueries.filter(savedQuery => savedQuery.id !== targetId)
+        );
+        if (didPersist && this.selected_saved_query_id === targetId) {
+          this.selected_saved_query_id = '';
+        }
+      } finally {
+        this.saved_query_pending = false;
       }
     },
     query: async function () {
