@@ -2,7 +2,7 @@ import { isEqual } from 'lodash';
 import { setActivePinia, createPinia } from 'pinia';
 
 import { useCategoryStore } from '~/stores/categories';
-import { createMissingParents, defaultCategories, Category } from '~/util/classes';
+import { createMissingParents, defaultCategories, Category, Rule, matchString } from '~/util/classes';
 
 describe('categories store', () => {
   setActivePinia(createPinia());
@@ -225,5 +225,53 @@ describe('categories store', () => {
     categoryStore.switchToSet('setA');
 
     expect(categoryStore.classes_unsaved_changes).toBe(false);
+  });
+});
+
+// 同步上游 #1230：向空白正则追加模式时不能生成前导 '|'（会匹配所有内容）。
+describe('categories store: append rule', () => {
+  const asRule = (r: any): Rule => r as Rule;
+
+  test.each<Rule>([
+    asRule({ type: 'none' }),
+    asRule({ type: null }),
+    asRule({ type: 'regex', regex: '' }),
+    asRule({ type: 'regex', regex: 'browser' }),
+  ])('追加首个或后续模式到 %j 且不匹配无关标题', r => {
+    const store = useCategoryStore(createPinia());
+    store.load([{ name: ['Work'], rule: r }]);
+
+    store.appendClassRule(store.classes[0].id, 'editor\\.exe');
+
+    expect(matchString('editor.exe', store.classes)?.name).toEqual(['Work']);
+    expect(matchString('totally unrelated', store.classes)).toBeNull();
+    expect(matchString('editorXexe', store.classes)).toBeNull();
+    if (r.regex === 'browser') {
+      expect(matchString('browser', store.classes)?.name).toEqual(['Work']);
+    }
+    expect(store.classes_unsaved_changes).toBe(true);
+    expect(store.classes_for_query[0][1]).toEqual(store.classes[0].rule);
+  });
+
+  test.each([false, true])('保留规则选项（ignore_case=%s）', ignore_case => {
+    const store = useCategoryStore(createPinia());
+    const options = { ignore_case, select_keys: ['title'], priority: 7, weight: 3 };
+    store.load([{ name: ['Work'], rule: asRule({ type: 'regex', regex: '', ...options }) }]);
+
+    store.appendClassRule(store.classes[0].id, 'editor');
+
+    expect(store.classes[0].rule).toEqual({ type: 'regex', regex: 'editor', ...options });
+    expect(Boolean(matchString('EDITOR', store.classes))).toBe(ignore_case);
+    expect(matchString('totally unrelated', store.classes)).toBeNull();
+  });
+
+  test.each([' ', 'browser|', '|browser', '.*'])('保留用户填写的非空正则 %j', regex => {
+    const store = useCategoryStore(createPinia());
+    store.load([{ name: ['Work'], rule: asRule({ type: 'regex', regex }) }]);
+
+    store.appendClassRule(store.classes[0].id, 'editor');
+
+    expect(store.classes[0].rule.regex).toBe(regex + '|editor');
+    expect(matchString('editor', store.classes)?.name).toEqual(['Work']);
   });
 });
