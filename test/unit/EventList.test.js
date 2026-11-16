@@ -1,4 +1,4 @@
-import { shallowMount } from '@vue/test-utils';
+import { shallowMount, mount } from '@vue/test-utils';
 import EventList from '~/visualizations/EventList.vue';
 import i18nInstance from '~/i18n';
 import { installBootstrapVue } from '~/compat/bootstrap-vue';
@@ -40,5 +40,71 @@ describe('EventList confirmed deletion forwarding', () => {
 
     wrapper.vm.removeEvent({ id: 11 }, 'bucket-A');
     expect(wrapper.vm.editableEvent).toBeNull();
+  });
+});
+
+const sampleEvent = {
+  timestamp: '2026-10-31T12:00:00Z',
+  duration: 12,
+  data: { title: 'Code', app: 'Vim' },
+};
+
+function mountFull(events) {
+  return mount(EventList, {
+    props: { events },
+    global: {
+      plugins: [i18nInstance, { install: installBootstrapVue }],
+      config: {
+        globalProperties: {
+          $filters: { friendlytime: v => String(v), friendlyduration: v => String(v) },
+        },
+      },
+      stubs: {
+        'event-editor': true,
+        'b-card': { template: '<div class="card"><slot name="header" /><slot /></div>' },
+        'b-button': true,
+        'b-btn': true,
+        icon: true,
+      },
+    },
+  });
+}
+
+describe('EventList 结果形状', () => {
+  test('正常事件数组可渲染', () => {
+    const wrapper = mountFull([sampleEvent]);
+    try {
+      expect(wrapper.text()).toContain('Code');
+      expect(wrapper.findAll('li')).toHaveLength(1);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  test('空事件数组不崩溃', () => {
+    const wrapper = mountFull([]);
+    try {
+      expect(wrapper.findAll('li')).toHaveLength(0);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  test.each([42, { total: 42 }, null])('非数组结果 %p 不抛错', value => {
+    const wrapper = mountFull(value);
+    try {
+      expect(wrapper.findAll('li')).toHaveLength(0);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  test('基本类型数组不抛错', () => {
+    const wrapper = mountFull([1, 2]);
+    try {
+      expect(wrapper.findAll('li')).toHaveLength(2);
+    } finally {
+      wrapper.unmount();
+    }
   });
 });
