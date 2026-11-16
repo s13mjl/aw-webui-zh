@@ -77,6 +77,8 @@ interface State {
 
   // Set to true if settings loaded
   _loaded: boolean;
+  // 服务端实际已保存过的键（下划线开头，不参与持久化），供通知组件判断是否首次初始化。
+  _storedKeys: string[];
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -131,6 +133,7 @@ export const useSettingsStore = defineStore('settings', {
     autoBackupLastTime: '',
 
     _loaded: false,
+    _storedKeys: [],
   }),
 
   getters: {
@@ -162,6 +165,9 @@ export const useSettingsStore = defineStore('settings', {
 
       // Fetch from server, fall back to localStorage
       const server_settings = await client.get_settings();
+
+      // 记录服务端已保存的键，供通知组件区分首次初始化与后续加载。
+      this._storedKeys = Object.keys(server_settings).filter(key => !key.startsWith('_'));
 
       // Build a unified map: server value wins, localStorage is fallback.
       // Skip keys that are missing from BOTH sources — otherwise `null` from
