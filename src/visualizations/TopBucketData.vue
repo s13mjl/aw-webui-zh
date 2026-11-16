@@ -6,7 +6,7 @@ div
         b-form-select(
           v-model="selectedBucketId",
           :options="bucketOptions",
-          :disabled="bucketOptions.length === 0 || loading"
+          :disabled="disabled || bucketOptions.length === 0 || loading"
         )
     b-col(cols="12", md="6").mb-2
       b-form-group
@@ -18,13 +18,13 @@ div
         b-form-select(
           v-model="selectedField",
           :options="fieldSelectOptions",
-          :disabled="!selectedBucketId || loading"
+          :disabled="disabled || !selectedBucketId || loading"
         )
         b-form-input.mt-2(
           v-if="selectedField === '__custom' || fieldOptions.length === 0",
           v-model="customField",
           :placeholder="$t('topBucketData.fieldPlaceholder')",
-          :disabled="loading"
+          :disabled="disabled || loading"
         )
   b-alert.mt-2(v-if="error", show, variant="danger") {{ error }}
   b-alert.mt-2(v-else-if="!selectedBucketId" show variant="info")
@@ -64,6 +64,7 @@ export default {
     initialBucketId: { type: String, default: '' },
     initialField: { type: String, default: '' },
     initialCustomField: { type: String, default: '' },
+    disabled: { type: Boolean, default: false },
   },
   data() {
     return {
@@ -115,6 +116,10 @@ export default {
     },
   },
   watch: {
+    disabled(value) {
+      // 字段发现在保存期间可能完成；父级重新接受草稿更新时再转发结果选择。
+      if (!value) this.emitSelection();
+    },
     selectedBucketId: function () {
       this.emitSelection();
       this.loadEvents();
