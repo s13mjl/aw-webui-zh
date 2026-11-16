@@ -16,17 +16,15 @@ div
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent, PropType } from 'vue';
 import { useCategoryStore } from '~/stores/categories';
-
-const SEP = ' > ';
 
 export default defineComponent({
   name: 'SelectCategoriesOrPattern',
   emits: ['update:modelValue'],
   props: {
     filterCategories: {
-      type: Array,
+      type: Array as PropType<string[][]>,
       default: () => [],
     },
   },
@@ -34,7 +32,7 @@ export default defineComponent({
     return {
       mode: 'categories',
       pattern: '',
-      filterCategoriesData: [],
+      filterCategoriesData: this.filterCategories.map(path => [...path]),
     };
   },
   computed: {
@@ -44,17 +42,18 @@ export default defineComponent({
 
     categoriesWithRules() {
       if (this.mode === 'categories') {
-        // Get the category and all subcategories
+        // Get the category and all subcategories. Match by structural path
+        // prefix so a literal ">" inside a segment, or a coincidental
+        // substring, cannot select the wrong category.
         return this.categories
-          .filter(cat => {
-            const name = cat.name.join(SEP);
-            for (const filterCat of this.filterCategoriesData) {
-              if (name.includes(filterCat.join(SEP))) {
-                return true;
-              }
-            }
-            return false;
-          })
+          .filter(cat =>
+            this.filterCategoriesData.some(
+              path =>
+                path.length > 0 &&
+                path.length <= cat.name.length &&
+                path.every((segment, index) => segment === cat.name[index])
+            )
+          )
           .filter(cat => cat.rule.type === 'regex')
           .map(cat => [cat.name, cat.rule]);
       } else if (this.mode === 'custom') {
@@ -66,16 +65,14 @@ export default defineComponent({
     },
   },
   watch: {
-    filterCategories() {
-      this.filterCategoriesData = [...this.filterCategoriesData, ...this.filterCategories];
+    filterCategories(paths: string[][]) {
+      this.filterCategoriesData = paths.map(path => [...path]);
     },
-    filterCategoriesData() {
-      this.$emit('update:modelValue', this.categoriesWithRules);
-      console.log(this.categoriesWithRules);
-    },
-    pattern() {
-      this.$emit('update:modelValue', this.categoriesWithRules);
-      console.log(this.categoriesWithRules);
+    categoriesWithRules: {
+      immediate: true,
+      handler(rules) {
+        this.$emit('update:modelValue', rules);
+      },
     },
   },
   async mounted() {
