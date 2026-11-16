@@ -415,3 +415,39 @@ describe('categories store: multiple active sets', () => {
     expect(names('mine')).toEqual([['Work']]);
   });
 });
+
+// 同步上游 #1071：导入分类集时可选择叠加到当前分类之上。
+describe('categories store: importSetOnTop', () => {
+  const imported = [{ name: ['Imported'], rule: { type: 'none' as const } }];
+
+  test('新 ID 直接追加为额外启用集合并标记未保存', () => {
+    const store = useCategoryStore(createPinia());
+    store.category_sets = [{ id: 'main', categories: [] }];
+    store.active_set_ids = ['main'];
+    store.classes = [];
+
+    store.importSetOnTop('shared', imported);
+
+    expect(store.category_sets.map(s => s.id)).toEqual(['main', 'shared']);
+    expect(store.category_sets[1].categories).toEqual(imported);
+    expect(store.active_set_ids).toEqual(['main', 'shared']);
+    expect(store.classes).toHaveLength(1);
+    expect(store.classes_unsaved_changes).toBe(true);
+  });
+
+  test('与主分类集同名时自动加 -imported 后缀，不覆盖主集', () => {
+    const store = useCategoryStore(createPinia());
+    store.category_sets = [{ id: 'main', categories: [] }];
+    store.active_set_ids = ['main'];
+    store.classes = [];
+
+    store.importSetOnTop('main', imported);
+
+    expect(store.category_sets.map(s => s.id)).toEqual(['main', 'main-imported']);
+    expect(store.category_sets[0].categories).toEqual([]);
+    expect(store.category_sets[1].categories).toEqual(imported);
+    expect(store.active_set_ids).toEqual(['main', 'main-imported']);
+    expect(store.classes).toHaveLength(1);
+    expect(store.classes_unsaved_changes).toBe(true);
+  });
+});
