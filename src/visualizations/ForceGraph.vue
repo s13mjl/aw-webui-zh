@@ -69,7 +69,7 @@ export default {
       this.drawnWidth = width;
       const svgEl = ForceGraph(
         { nodes, links },
-        { width, nodeTitle: d => d.id, invalidation: promise }
+        { width, nodeTitle: d => d.title ?? d.id, invalidation: promise }
       );
       const svg: d3.Selection<SVGSVGElement, unknown, HTMLElement, undefined> =
         d3.select('#forcegraph');
@@ -84,6 +84,8 @@ export default {
 
 type GNode = {
   id: string;
+  label?: string;
+  title?: string;
   color: string;
   value: number;
   radius?: number;
@@ -157,6 +159,7 @@ function ForceGraph(
   // Replace the input nodes and links with mutable objects for the simulation.
   nodes = d3.map(nodes, (node, i) => ({
     id: N[i],
+    label: node.label ?? String(node.id).split('>').pop(),
     color: node.color,
     value: node.value,
   }));
@@ -227,8 +230,8 @@ function ForceGraph(
   node.attr('fill', (({ index: i }) => nodes[i].color) as any);
   if (T) node.append('title').text((({ index: i }) => T[i]) as any);
 
-  // Label each node with the last segment of its category (ids look like "Work>Programming"),
-  // since titles only show on hover, which isn't available on touch devices.
+  // 标签与内部 id 分离；id 现在是不透明的 JSON 键，显示文本走 label。
+  // title 只在悬停时显示，触屏设备无法悬停，故需要独立标签。
   const label = svg
     .append('g')
     .attr('fill', 'currentColor')
@@ -238,7 +241,7 @@ function ForceGraph(
     .data(nodes)
     .join('text')
     .attr('dy', '0.35em')
-    .text(d => String(d.id).split('>').pop());
+    .text(d => d.label);
   if (invalidation != null) invalidation.then(() => simulation.stop());
 
   function intern(value) {
