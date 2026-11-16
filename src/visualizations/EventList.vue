@@ -11,7 +11,7 @@ div
     template(v-slot:header)
       h4.card-title {{ $t('eventList.title') }}
       span.pagination-header
-        | {{ $t('eventList.showing', { shown: displayed_events.length }) }} #[span(v-if="events.length > displayed_events.length") {{ $t('eventList.outOf', { total: events.length }) }}]
+        | {{ $t('eventList.showing', { shown: displayed_events.length }) }} #[span(v-if="safe_events.length > displayed_events.length") {{ $t('eventList.outOf', { total: safe_events.length }) }}]
       b-button(@click="expandList", size="sm", style="float: right;")
         span(v-if="!isListExpanded")
           | {{ $t('eventList.expand') }}
@@ -139,8 +139,12 @@ export default {
     };
   },
   computed: {
+    // 查询结果可能不是事件数组，避免对非数组调用 slice 而崩溃。
+    safe_events: function () {
+      return Array.isArray(this.events) ? this.events : [];
+    },
     displayed_events: function () {
-      return this.events.slice(0, this.limit);
+      return this.safe_events.slice(0, this.limit);
     },
   },
   methods: {
