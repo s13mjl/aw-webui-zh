@@ -11,6 +11,46 @@ import { i18n } from '~/i18n';
  * See: https://github.com/ActivityWatch/aw-tauri/issues/199
  */
 
+import Papa from 'papaparse';
+
+import { IEvent } from './interfaces';
+
+/**
+ * 电子表格会当作公式执行的单元格：以 `=` `+` `-` `@` 开头，前导空白后同样算数
+ * （Excel 和 LibreOffice 会裁掉前导空白，所以 " =1+1" 也会执行）。窗口标题来自
+ * 网页和其他应用，因此导出的标题在 CSV 被打开时绝不能运行。
+ * 与 aw-server-rust 及 aw-server 的 `/export/csv` 端点保持一致。
+ *
+ * 同步上游 https://github.com/ActivityWatch/aw-webui/pull/1192
+ */
+export const CSV_FORMULA_PATTERN = /^[ \t\r\n]*[=+\-@]/;
+
+/** 给疑似公式的 CSV 单元格加 `'` 前缀，让电子表格以文本显示。 */
+export function neutralizeCsvFormula(value: string): string {
+  return CSV_FORMULA_PATTERN.test(value) ? `'${value}` : value;
+}
+
+/**
+ * Report 视图事件的 CSV：一个表头行，随后每个事件一行。
+ * PapaParse 对数组行的 `columns` 选项不生效，因此表头须通过 `fields` 传入。
+ */
+export function reportEventsCsv(events: IEvent[]): string {
+  return Papa.unparse(
+    {
+      fields: ['timestamp', 'duration', 'category', 'app', 'title'],
+      data: events.map(e => [
+        e.timestamp,
+        e.duration,
+        // PapaParse 在把数组强制转成逗号分隔文本前先检查字符串。
+        String(e.data['$category'] ?? ''),
+        e.data['app'],
+        e.data['title'],
+      ]),
+    },
+    { escapeFormulae: CSV_FORMULA_PATTERN }
+  );
+}
+
 interface FileFilter {
   name: string;
   extensions: string[];

@@ -78,7 +78,6 @@ div
 <script lang="ts">
 import _ from 'lodash';
 import moment from 'moment';
-import Papa from 'papaparse';
 
 
 import { canonicalEvents, querystr_to_array } from '~/queries';
@@ -89,7 +88,7 @@ import { useCategoryStore } from '~/stores/categories';
 import { useBucketsStore } from '~/stores/buckets';
 
 import { getClient } from '~/util/awclient';
-import { downloadFile } from '~/util/export';
+import { downloadFile, reportEventsCsv } from '~/util/export';
 
 export default {
   name: 'Report',
@@ -162,13 +161,7 @@ export default {
     },
 
     async export_csv() {
-      const data = this.events.map(e => {
-        return [e.timestamp, e.duration, e.data['$category'], e.data['app'], e.data['title']];
-      });
-      const csv = Papa.unparse(data, {
-        columns: ['timestamp', 'duration', 'category', 'app', 'title'],
-      });
-      await downloadFile('events.csv', csv, 'text/csv');
+      await downloadFile('events.csv', reportEventsCsv(this.events), 'text/csv');
     },
 
     extendByWeek() {
