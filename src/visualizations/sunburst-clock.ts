@@ -20,7 +20,7 @@ import moment from 'moment';
 import { IEvent } from '~/util/interfaces';
 
 import { seconds_to_duration } from '../util/time';
-import { getColorFromString, getContrastTextColor } from '~/util/color';
+import { getColorFromString, getContrastTextColor, getCategoryColorFromEvent } from '~/util/color';
 
 // Dimensions of sunburst.
 const width = 750;
@@ -340,7 +340,11 @@ function update(
     .attr('fill-rule', 'evenodd')
     .style('fill', function (d: d3.HierarchyNode<IEvent>) {
       const e: IEvent = d.data;
-      return getColorFromString(e.data.status || e.data.app);
+      // 深度 2 是窗口弧：使用配置好的分类颜色（继承父级、按字段匹配），
+      // 其余层级（状态弧、根）仍沿用原来的字符串哈希颜色。
+      return d.depth === 2
+        ? getCategoryColorFromEvent({ type: 'currentwindow' }, e)
+        : getColorFromString(e.data.status || e.data.app);
     })
     .style('opacity', 1)
     .on('mouseover', mouseover)
