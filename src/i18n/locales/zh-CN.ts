@@ -867,6 +867,13 @@ export default {
     notFound: '未找到名为 "{id}" 的存储桶',
     seeAllBuckets: '查看全部存储桶',
   },
+  watcherLiveness: {
+    title: 'Watcher 已停止上报：',
+    messageOne: '{name} 已有 {minutes} 分钟没有上报数据。',
+    messageMany: '{name} 已有 {minutes} 分钟没有上报数据。',
+    checkTray: '请检查托盘图标，或',
+    restart: '重启 watcher',
+  },
   queryExplorer: {
     docsPrefix: '查看',
     docsLink: '文档',

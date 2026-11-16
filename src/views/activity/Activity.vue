@@ -141,6 +141,7 @@ div
 
   aw-periodusage(v-if="showPeriodUsage", :periodusage_arr="periodusage", @update="setDate")
 
+  aw-watcher-liveness-banner(v-if="host", :host="host")
   aw-uncategorized-notification(:periodLength="periodLength")
 
   ul.row.nav.nav-tabs.mt-4
@@ -246,7 +247,6 @@ import { get_day_start_with_offset, get_today_with_offset } from '~/util/time';
 import { periodStartDate } from '~/util/timeperiod';
 import _ from 'lodash';
 
-
 import { useSettingsStore } from '~/stores/settings';
 import { useCategoryStore } from '~/stores/categories';
 import { useActivityStore, QueryOptions } from '~/stores/activity';
@@ -256,7 +256,12 @@ import { useViewsStore } from '~/stores/views';
 export default {
   name: 'Activity',
   components: {
-    'aw-uncategorized-notification': defineAsyncComponent(() => import('~/components/UncategorizedNotification.vue')),
+    'aw-uncategorized-notification': defineAsyncComponent(
+      () => import('~/components/UncategorizedNotification.vue')
+    ),
+    'aw-watcher-liveness-banner': defineAsyncComponent(
+      () => import('~/components/WatcherLivenessBanner.vue')
+    ),
   },
   props: {
     host: String,

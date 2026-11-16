@@ -882,6 +882,13 @@ export default {
     notFound: 'No bucket named "{id}".',
     seeAllBuckets: 'See all buckets',
   },
+  watcherLiveness: {
+    title: 'Watcher stopped:',
+    messageOne: '{name} last reported {minutes} minute ago.',
+    messageMany: '{name} last reported {minutes} minutes ago.',
+    checkTray: 'Check the tray icon or',
+    restart: 'restart the watcher',
+  },
   queryExplorer: {
     docsPrefix: 'See',
     docsLink: 'the documentation',
