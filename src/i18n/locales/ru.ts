@@ -35,6 +35,7 @@ export default {
   },
   common: {
     loading: 'Загрузка…',
+    requestFailed: 'Запрос не удался.',
     save: 'Сохранить',
     cancel: 'Отмена',
     confirm: 'Подтвердить',
