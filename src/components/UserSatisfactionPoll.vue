@@ -60,6 +60,7 @@ ul {
 <script lang="ts">
 import { range } from 'lodash/fp';
 import moment from 'moment';
+import { mapState } from 'pinia';
 
 import { useSettingsStore } from '~/stores/settings';
 
@@ -77,47 +78,74 @@ export default {
       isPollVisible: false,
       isPosFollowUpVisible: false,
       isNegFollowUpVisible: false,
+      isSaving: false,
       // options is an array of [1, ..., NUM_OPTIONS]
       options: range(1, NUM_OPTIONS + 1),
       rating: null,
     };
   },
   computed: {
-    data: {
-      get() {
-        const settingsStore = useSettingsStore();
-        return settingsStore.userSatisfactionPollData;
-      },
-      set(value) {
-        const settingsStore = useSettingsStore();
-        const data = settingsStore.userSatisfactionPollData;
-        settingsStore.update({
-          userSatisfactionPollData: { ...data, ...value },
-        });
-      },
-    },
+    ...mapState(useSettingsStore, { data: 'userSatisfactionPollData' }),
   },
   async mounted() {
+    const settings = useSettingsStore();
+    try {
+      await settings.ensureLoaded();
+    } catch (err) {
+      console.error('无法加载满意度调查设置：', err);
+      return;
+    }
+    // 首次加载时持久化初始截止时间，避免每次打开页面都顺延。
+    if (!settings._storedKeys.includes('userSatisfactionPollData')) {
+      if (!(await this.saveData({ ...this.data }))) return;
+    }
     if (!this.data.isEnabled) {
       return;
     }
 
-    // Show poll if enough time has passed
-    if (moment() >= moment(this.data.nextPollTime)) {
-      this.data.timesPollIsShown = this.data.timesPollIsShown + 1;
-      this.isPollVisible = true;
-      this.data.nextPollTime = moment().add(BACKOFF_PERIOD, 'seconds');
+    // 最多展示 3 次，达到上限后关闭并持久化，不再展示。
+    if (this.data.timesPollIsShown >= 3) {
+      await this.saveData({ ...this.data, isEnabled: false });
+      return;
     }
 
-    // Show the poll a maximum of 3 times
-    if (this.data.timesPollIsShown > 2) {
-      this.data.isEnabled = false;
+    // 时间到达后展示，并持久化展示次数与退避时间。
+    if (moment() >= moment(this.data.nextPollTime)) {
+      const timesPollIsShown = this.data.timesPollIsShown + 1;
+      if (
+        await this.saveData({
+          ...this.data,
+          timesPollIsShown,
+          nextPollTime: moment().add(BACKOFF_PERIOD, 'seconds'),
+          isEnabled: timesPollIsShown < 3,
+        })
+      ) {
+        this.isPollVisible = true;
+      }
     }
   },
   methods: {
-    submit() {
+    async saveData(data) {
+      if (this.isSaving) return false;
+      const settings = useSettingsStore();
+      const previous = { ...settings.userSatisfactionPollData };
+      this.isSaving = true;
+      try {
+        await settings.update({ userSatisfactionPollData: data });
+        return true;
+      } catch (err) {
+        settings.$patch(state => {
+          state.userSatisfactionPollData = previous;
+        });
+        console.error('无法保存满意度调查设置：', err);
+        return false;
+      } finally {
+        this.isSaving = false;
+      }
+    },
+    async submit() {
+      if (!(await this.saveData({ ...this.data, isEnabled: false }))) return;
       this.isPollVisible = false;
-      this.data = { ...this.data, isEnabled: false };
 
       if (parseInt(this.rating) >= 6) {
         this.isPosFollowUpVisible = true;
@@ -125,9 +153,9 @@ export default {
         this.isNegFollowUpVisible = true;
       }
     },
-    dontShowAgain() {
+    async dontShowAgain() {
+      if (!(await this.saveData({ ...this.data, isEnabled: false }))) return;
       this.isPollVisible = false;
-      this.data = { ...this.data, isEnabled: false };
     },
   },
 };
