@@ -40,6 +40,9 @@ div
 
     div.col-md-6
       h4 {{ $t('home.supportTitle') }}
+      p(v-if="!isSupporter")
+        | {{ $t('home.subscribeIntro') }}
+        |  #[a(href="https://activitywatch.net/go/?src=inapp-home") {{ $t('home.subscribeCta') }}]
       p
         | {{ $t('home.support1') }}
       ul
@@ -100,11 +103,34 @@ div
 <script lang="ts">
 import { mapState } from 'pinia';
 import { useServerStore } from '~/stores/server';
+import { useSettingsStore } from '~/stores/settings';
+
+// Legacy honor-system "I already support" flag. The real flag now lives in the
+// server settings store (`supporter`), so every browser and the desktop clients
+// agree; this key is still honoured for users who set it before that existed.
+const SUPPORTER_FLAG_KEY = 'aw-supporter';
 
 export default {
   name: 'Home',
   computed: {
     ...mapState(useServerStore, ['info']),
+    settingsStore() {
+      return useSettingsStore();
+    },
+    // Server flag wins; fall back to the legacy localStorage flag when the
+    // store is unavailable (e.g. an isolated unit test).
+    isSupporter(): boolean {
+      try {
+        if (this.settingsStore.supporter) return true;
+      } catch {
+        // No active store — use the legacy flag.
+      }
+      try {
+        return localStorage.getItem(SUPPORTER_FLAG_KEY) === 'true';
+      } catch {
+        return false;
+      }
+    },
     homeIntro1() {
       return this.$t('home.intro1');
     },
@@ -112,6 +138,12 @@ export default {
       const base = window.location.pathname.replace(/[^/]*$/, '');
       return base + 'api/';
     },
+  },
+  mounted() {
+    // Best-effort refresh: a flag set in another tab or on the Settings page
+    // should suppress the prompt. A failed load falls back to the legacy flag.
+    const settingsStore = useSettingsStore();
+    Promise.resolve(settingsStore.load()).catch(() => undefined);
   },
 };
 </script>
