@@ -439,6 +439,9 @@ export default {
     titlePrefix: 'Trends für',
     earlyDev: 'Diese Funktion befindet sich noch in früher Entwicklung.',
     loadDemo: 'Demo-Daten laden',
+    timePerWeek: 'Zeit pro Woche',
+    groupByDay: 'Tag',
+    groupByWeek: 'Woche',
   },
   timespiral: {
     title: 'Timespiral',

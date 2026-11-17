@@ -437,6 +437,9 @@ export default {
     titlePrefix: 'Тренди за',
     earlyDev: 'Функція ще на ранній стадії розробки.',
     loadDemo: 'Завантажити демо-дані',
+    timePerWeek: 'Час за тижнями',
+    groupByDay: 'День',
+    groupByWeek: 'Тиждень',
   },
   timespiral: {
     title: 'Timespiral',

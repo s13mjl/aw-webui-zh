@@ -62,8 +62,17 @@ div
           h4.mb-0.text-muted(v-else) —
           div.small.text-muted.mt-1(v-if="busiestDay") {{ $filters.friendlyduration(busiestDay.duration) }} {{ $t('trends.onThisDay') }}
 
-    h5.mt-3 {{ $t('trends.timePerDay') }}
-    aw-timeline-barchart(:datasets="datasets" :height="100" :timeperiod_start="currentStart.toISOString()" :timeperiod_length="[periodDays, 'days']")
+    div.d-flex.align-items-center.mt-3
+      h5.mb-0.mr-3 {{ groupBy === 'week' ? $t('trends.timePerWeek') : $t('trends.timePerDay') }}
+      b-button-group(size="sm")
+        b-button.px-3(
+          v-for="opt in groupByOptions"
+          :key="opt.value"
+          :pressed="groupBy === opt.value"
+          @click="groupBy = opt.value"
+          variant="outline-dark"
+        ) {{ opt.text }}
+    aw-timeline-barchart(:datasets="datasets" :height="100" :timeperiod_start="barchartStart" :timeperiod_length="barchartLength")
 
     h5.mt-4 {{ $t('trends.topChanges') }}
     p.small.text-muted(v-if="categoryTrends.length === 0")
@@ -104,7 +113,7 @@ import {
   format_date_short,
   format_date_with_weekday,
 } from '~/util/time';
-import { buildBarchartDataset } from '~/util/datasets';
+import { buildBarchartDataset, groupDaysIntoWeeks } from '~/util/datasets';
 import { canonicalEvents, querystr_to_array } from '~/queries';
 import { getClient, queryLong } from '~/util/awclient';
 import { useBucketsStore } from '~/stores/buckets';
@@ -133,6 +142,9 @@ export default {
 
       periodDays: 7,
 
+      // Bar granularity: one bar per day, or per week starting on the
+      // configured start of week. Grouping is client-side; no re-query.
+      groupBy: 'day' as 'day' | 'week',
       selectedCategory: null as string[] | null,
 
       loading: false,
@@ -179,6 +191,32 @@ export default {
         { value: 30, text: this.$t('trends.days', { count: 30 }) },
         { value: 90, text: this.$t('trends.days', { count: 90 }) },
       ];
+    },
+
+    groupByOptions(): { value: string; text: string }[] {
+      return [
+        { value: 'day', text: this.$t('trends.groupByDay') },
+        { value: 'week', text: this.$t('trends.groupByWeek') },
+      ];
+    },
+
+    weekly(): { firstWeekStart: string | null; byWeek: Record<string, any> } | null {
+      if (!this.byPeriod) return null;
+      return groupDaysIntoWeeks(this.byPeriod, this.settingsStore.startOfWeek);
+    },
+
+    barchartStart(): string {
+      if (this.groupBy === 'week' && this.weekly && this.weekly.firstWeekStart) {
+        return moment(this.weekly.firstWeekStart).toISOString();
+      }
+      return this.currentStart.toISOString();
+    },
+
+    barchartLength(): [number, string] {
+      if (this.groupBy === 'week' && this.weekly) {
+        return [Object.keys(this.weekly.byWeek).length, 'weeks'];
+      }
+      return [this.periodDays, 'days'];
     },
 
     categoryFields(): { key: string; label: string; class?: string; sortable: boolean }[] {
@@ -265,7 +303,8 @@ export default {
     datasets(): any {
       if (this.loading) return [];
       if (!this.byPeriod) return null;
-      const built = buildBarchartDataset(this.byPeriod, this.categoryStore.classes);
+      const source = this.groupBy === 'week' && this.weekly ? this.weekly.byWeek : this.byPeriod;
+      const built = buildBarchartDataset(source, this.categoryStore.classes);
       return built.length > 0 ? built : null;
     },
 
