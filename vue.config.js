@@ -48,6 +48,7 @@ export default {
         PRODUCTION: process.env.NODE_ENV === 'production',
         AW_SERVER_URL: process.env.AW_SERVER_URL,
         COMMIT_HASH: JSON.stringify(_COMMIT_HASH),
+        AW_RESEARCH_EDITION: process.env.AW_RESEARCH_EDITION === 'true',
       }),
       new CopyWebpackPlugin({
         patterns: [{ from: 'static/', to: '' }],

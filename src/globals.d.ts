@@ -5,3 +5,4 @@
 declare const PRODUCTION: boolean;
 declare const AW_SERVER_URL: string;
 declare const COMMIT_HASH: string;
+declare const AW_RESEARCH_EDITION: boolean;

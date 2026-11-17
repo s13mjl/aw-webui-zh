@@ -123,6 +123,7 @@ export default defineConfig(({ mode }) => {
       PRODUCTION,
       AW_SERVER_URL: process.env.AW_SERVER_URL,
       COMMIT_HASH: process.env.COMMIT_HASH,
+      AW_RESEARCH_EDITION: process.env.AW_RESEARCH_EDITION === 'true',
       'process.env.VUE_APP_ON_ANDROID': process.env.VUE_APP_ON_ANDROID,
     },
   };
