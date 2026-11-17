@@ -20,6 +20,8 @@ export default {
     graph: 'Граф',
     rawData: 'Сирі дані',
     settings: 'Налаштування',
+    menu: 'Меню',
+    close: 'Закрити',
   },
   footer: {
     madeWith: 'Зроблено з',

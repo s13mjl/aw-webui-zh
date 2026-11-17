@@ -39,6 +39,7 @@ import {
   BNavbarToggle,
 } from './navbar';
 import { BModal, registerBModalDirective } from './modal';
+import { BSidebar } from './sidebar';
 import { BTable } from './table';
 import { BPopover, BTooltip } from './tooltip';
 import { BBadge, BCard, BCardGroup, BCol, BRow, BSpinner } from './layout';
@@ -86,6 +87,7 @@ const components: Record<string, any> = {
   BNavbarToggle,
   BCollapse,
   BModal,
+  BSidebar,
   BTable,
   BTooltip,
   BPopover,
@@ -137,6 +139,7 @@ const aliases: Record<string, string> = {
   'b-navbar-toggle': 'BNavbarToggle',
   'b-collapse': 'BCollapse',
   'b-modal': 'BModal',
+  'b-sidebar': 'BSidebar',
   'b-table': 'BTable',
   'b-tooltip': 'BTooltip',
   'b-popover': 'BPopover',

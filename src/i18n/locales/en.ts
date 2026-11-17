@@ -20,6 +20,8 @@ export default {
     graph: 'Graph',
     rawData: 'Raw Data',
     settings: 'Settings',
+    menu: 'Menu',
+    close: 'Close',
   },
   footer: {
     madeWith: 'Made with',

@@ -19,6 +19,8 @@ export default {
     graph: 'Граф',
     rawData: 'Сырые данные',
     settings: 'Настройки',
+    menu: 'Меню',
+    close: 'Закрыть',
   },
   footer: {
     madeWith: 'Сделано с',

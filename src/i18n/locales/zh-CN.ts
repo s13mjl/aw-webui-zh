@@ -20,6 +20,8 @@ export default {
     graph: '图谱',
     rawData: '原始数据',
     settings: '设置',
+    menu: '菜单',
+    close: '关闭',
   },
   footer: {
     madeWith: '由',

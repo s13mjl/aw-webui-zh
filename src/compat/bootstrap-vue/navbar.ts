@@ -1,5 +1,6 @@
 import { defineComponent, h, onBeforeUnmount, onMounted, ref, watch, PropType } from 'vue';
 import { RouterLink } from 'vue-router';
+import { toggleSidebar } from './sidebar';
 
 interface CollapseHandle {
   toggle: () => void;
@@ -9,8 +10,11 @@ interface CollapseHandle {
 
 const collapses = new Map<string, CollapseHandle>();
 
-export function toggleCollapse(id: string): void {
-  collapses.get(id)?.toggle();
+export function toggleCollapse(id: string): boolean {
+  const handle = collapses.get(id);
+  if (!handle) return false;
+  handle.toggle();
+  return true;
 }
 
 export function showCollapse(id: string): void {
@@ -181,7 +185,11 @@ export const BNavbarToggle = defineComponent({
           'aria-label': props.label,
           onClick: () => {
             if (props.disabled) return;
-            targets.forEach((id) => toggleCollapse(id));
+            targets.forEach((id) => {
+              // The same toggle drives both nav collapses and sidebars
+              // (BootstrapVue's v-b-toggle resolves either target type).
+              if (!toggleCollapse(id)) toggleSidebar(id);
+            });
           },
         },
         slots.default ? slots.default() : [h('span', { class: 'navbar-toggler-icon' })]

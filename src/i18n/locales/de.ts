@@ -20,6 +20,8 @@ export default {
     graph: 'Graph',
     rawData: 'Rohdaten',
     settings: 'Einstellungen',
+    menu: 'Menü',
+    close: 'Schließen',
   },
   footer: {
     madeWith: 'Gemacht mit',
