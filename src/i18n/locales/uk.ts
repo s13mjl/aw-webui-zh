@@ -283,6 +283,17 @@ export default {
     periodCustom: 'Власний',
     customRangeStart: 'Дата початку',
     customRangeEnd: 'Дата завершення',
+    periodExactInterval: 'точний час',
+    intervalStart: 'Час початку',
+    intervalEnd: 'Час завершення (не включно)',
+    invalidInterval: 'Недійсний часовий інтервал в URL, показано сьогодні.',
+    intervalNonexistentTime:
+      'Такого моменту немає у вашому часовому поясі (години переводяться вперед).',
+    intervalAmbiguousTime:
+      'Цей момент трапляється у вашому часовому поясі двічі (години переводяться назад). Виберіть потрібний:',
+    intervalTooLong:
+      'Точний інтервал не може перевищувати 92 дні; для довших проміжків використовуйте діапазон дат.',
+    intervalEndAfterStart: 'Час завершення має бути пізніше часу початку.',
     filterAfkTooltip: 'Приховати час, коли AFK-watcher не фіксував введення з клавіатури чи миші.',
     filterAudibleTooltip:
       'Якщо активне вікно — вкладка браузера зі звуком, рахувати як активність. Потрібен browser watcher.',
@@ -328,6 +339,7 @@ export default {
     periodLast30d: 'останні 30 днів',
     periodAll: 'весь час',
     periodCustom: 'вибраний період',
+    periodExactInterval: 'у вибраному часовому інтервалі',
   },
   visualizations: {
     noData: '(немає даних)',

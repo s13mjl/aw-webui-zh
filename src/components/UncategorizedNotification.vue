@@ -50,6 +50,7 @@ export default {
         last30d: 'uncategorized.periodLast30d',
         all: 'uncategorized.periodAll',
         custom: 'uncategorized.periodCustom',
+        interval: 'uncategorized.periodExactInterval',
       };
       const key = periodMap[this.periodLength] || 'uncategorized.periodToday';
       return this.$t(key);

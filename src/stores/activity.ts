@@ -11,7 +11,7 @@ import {
   TimePeriod,
   dateToTimeperiod,
   timeperiodToStr,
-  timeperiodsForPeriod,
+  timeperiodsForBarchart,
   timeperiodsAroundTimeperiod,
 } from '~/util/timeperiod';
 
@@ -476,7 +476,7 @@ export const useActivityStore = defineStore('activity', {
       // Choose an appropriate granularity for the period. Adaptive splitting
       // keeps custom/all-time ranges (which can span years) from issuing
       // thousands of sequential per-day queries.
-      let periods: string[] = timeperiodsForPeriod(timeperiod).map(timeperiodToStr);
+      let periods: string[] = timeperiodsForBarchart(timeperiod).map(timeperiodToStr);
 
       // Filter out periods that start in the future
       periods = periods.filter(period => new Date(period.split('/')[0]) < new Date());

@@ -36,3 +36,39 @@ describe('router', () => {
     expect(typeof workReportRoute.component).toBe('function');
   });
 });
+
+describe('activity route exact interval segment', () => {
+  test('keeps the RFC3339 instants and the ".." separator in the interval segment', () => {
+    const interval = '2026-10-20T13:00:00Z..2026-10-20T14:00:00Z';
+    const resolved = router.resolve({
+      name: 'activity-view',
+      params: { host: 'testhost', periodLength: 'interval', date: interval },
+    });
+    expect(resolved.params.date).toBe(interval);
+    expect(resolved.path).toBe(`/activity/testhost/interval/${interval}/view`);
+  });
+
+  test('keeps timezone offsets, colons and plus signs in instants', () => {
+    const interval = '2026-10-20T13:00:00+02:00..2026-10-20T14:00:00-04:00';
+    const resolved = router.resolve({
+      name: 'activity-view',
+      params: { host: 'testhost', periodLength: 'interval', date: interval },
+    });
+    expect(resolved.params.date).toBe(interval);
+    expect(resolved.path).toContain('2026-10-20T13:00:00+02:00');
+    expect(resolved.path).toContain('2026-10-20T14:00:00-04:00');
+  });
+
+  test('an interval is not confused with a date-range segment', () => {
+    const resolved = router.resolve({
+      name: 'activity-view',
+      params: {
+        host: 'testhost',
+        periodLength: 'interval',
+        date: '2026-10-20T13:00:00Z..2026-10-20T14:00:00Z',
+      },
+    });
+    expect(resolved.params.periodLength).toBe('interval');
+    expect(resolved.params.date).toBe('2026-10-20T13:00:00Z..2026-10-20T14:00:00Z');
+  });
+});

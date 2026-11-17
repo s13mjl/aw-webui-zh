@@ -286,6 +286,17 @@ export default {
     periodCustom: 'Benutzerdefiniert',
     customRangeStart: 'Startdatum',
     customRangeEnd: 'Enddatum',
+    periodExactInterval: 'genaue Uhrzeit',
+    intervalStart: 'Startzeit',
+    intervalEnd: 'Endzeit (ausschließlich)',
+    invalidInterval: 'Ungültiges Zeitintervall in der URL, stattdessen wird heute angezeigt.',
+    intervalNonexistentTime:
+      'Diese Uhrzeit existiert in Ihrer Zeitzone nicht (die Uhr springt vor).',
+    intervalAmbiguousTime:
+      'Diese Uhrzeit kommt in Ihrer Zeitzone zweimal vor (die Uhr geht zurück). Wählen Sie die gewünschte aus:',
+    intervalTooLong:
+      'Ein genaues Intervall darf höchstens 92 Tage umfassen; verwenden Sie für längere Zeiträume einen Datumsbereich.',
+    intervalEndAfterStart: 'Die Endzeit muss nach der Startzeit liegen.',
     filterAfkTooltip: 'Zeit ausblenden, in der der AFK-Watcher keine Eingabe erkannt hat.',
     filterAudibleTooltip:
       'Aktives Fenster mit hörbarem Browser-Tab als aktiv zählen. Erfordert Browser-Watcher.',
@@ -331,6 +342,7 @@ export default {
     periodLast30d: 'die letzten 30 Tage',
     periodAll: 'der gesamte Zeitraum',
     periodCustom: 'der ausgewählte Zeitraum',
+    periodExactInterval: 'im gewählten Zeitintervall',
   },
   visualizations: {
     noData: '(keine Daten)',
