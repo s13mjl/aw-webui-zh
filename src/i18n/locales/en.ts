@@ -127,6 +127,8 @@ export default {
       categorization: 'Categorization',
       categorizationHelp:
         'Rules that classify events into categories, plus AFK/active-pattern overrides.',
+      notifications: 'Notifications',
+      notificationsHelp: 'Configure alert thresholds for the aw-notify Android integration.',
       privacy: 'Privacy',
       privacyHelp: 'Filters that drop or redact sensitive event data before it is stored.',
       developer: 'Developer',
@@ -138,6 +140,37 @@ export default {
     releaseNotification: {
       title: 'Check for new releases',
       help: 'When enabled, the web UI checks once per day for a new ActivityWatch release and shows a hint if one is available.',
+    },
+    awNotify: {
+      title: 'Mobile Notifications',
+      subtitle: 'Configure aw-notify alert thresholds for the Android app',
+      save: 'Save',
+      saving: 'Saving…',
+      saved: 'Settings saved.',
+      loading: 'Loading…',
+      introPrefix:
+        'Alerts are checked periodically by the Android app. Each alert fires a notification when the accumulated time crosses a threshold. Uses the',
+      introSuffix: 'server setting.',
+      empty: 'No alerts configured.',
+      label: 'Label',
+      labelPlaceholder: 'e.g. Work',
+      category: 'Category',
+      categoryPlaceholder: 'Leave empty to track all time',
+      categoryHelp:
+        'Match the category name in your AW categorization rules, or leave empty for total time.',
+      thresholds: 'Thresholds',
+      thresholdsPlaceholder: 'e.g. 60, 120, 240',
+      thresholdsHelp:
+        'Comma-separated positive whole minutes. A notification fires as each threshold is crossed.',
+      thresholdsInvalid: 'Use comma-separated positive whole minutes.',
+      type: 'Type',
+      goalWarning: 'Warning (exceeded limit)',
+      goalTarget: 'Goal (reached target)',
+      removeTitle: 'Remove alert',
+      addAlert: 'Add alert',
+      loadFailed: 'Failed to load settings: {error}',
+      saveFailed: 'Failed to save settings: {error}',
+      invalidThresholds: 'Thresholds must be comma-separated positive whole minutes.',
     },
     color: {
       title: 'Use fallback colors',

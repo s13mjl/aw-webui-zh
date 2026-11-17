@@ -39,6 +39,7 @@ import ColorSettings from '~/views/settings/ColorSettings.vue';
 import ActivePatternSettings from '~/views/settings/ActivePatternSettings.vue';
 import PrivacyFilterSettings from '~/views/settings/PrivacyFilterSettings.vue';
 import BackupSettings from '~/views/settings/BackupSettings.vue';
+import AwNotifySettings from '~/views/settings/AwNotifySettings.vue';
 
 interface Group {
   id: string;
@@ -63,6 +64,7 @@ export default {
     ActivePatternSettings,
     PrivacyFilterSettings,
     BackupSettings,
+    AwNotifySettings,
   },
   beforeRouteLeave(to, from, next) {
     const categoryStore = useCategoryStore();
@@ -111,6 +113,12 @@ export default {
         help: this.$t('settings.groups.categorizationHelp'),
         components: [{ name: 'CategorizationSettings' }, { name: 'ActivePatternSettings' }],
       };
+      const notifications: Group = {
+        id: 'notifications',
+        label: this.$t('settings.groups.notifications'),
+        help: this.$t('settings.groups.notificationsHelp'),
+        components: [{ name: 'AwNotifySettings' }],
+      };
       const privacy: Group = {
         id: 'privacy',
         label: this.$t('settings.groups.privacy'),
@@ -123,7 +131,7 @@ export default {
         components: [{ name: 'DeveloperSettings' }],
       };
 
-      return [general, appearance, categorization, privacy, developer];
+      return [general, appearance, categorization, notifications, privacy, developer];
     },
   },
   async created() {

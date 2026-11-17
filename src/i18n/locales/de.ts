@@ -100,6 +100,9 @@ export default {
       categorization: 'Kategorisierung',
       categorizationHelp:
         'Regeln zur Einstufung von Ereignissen in Kategorien sowie AFK-/Aktivitäts-Overrides.',
+      notifications: 'Benachrichtigungen',
+      notificationsHelp:
+        'Benachrichtigungsschwellenwerte für die Android-Integration aw-notify konfigurieren.',
       privacy: 'Datenschutz',
       privacyHelp:
         'Filter, die sensible Ereignisdaten vor dem Speichern verwerfen oder ausblenden.',
@@ -112,6 +115,38 @@ export default {
     releaseNotification: {
       title: 'Auf neue Versionen prüfen',
       help: 'Wenn aktiviert, prüft die Weboberfläche einmal täglich auf eine neue ActivityWatch-Version und zeigt einen Hinweis an.',
+    },
+    awNotify: {
+      title: 'Mobile Benachrichtigungen',
+      subtitle: 'Schwellenwerte für Warnungen der Android-App aw-notify konfigurieren',
+      save: 'Speichern',
+      saving: 'Wird gespeichert…',
+      saved: 'Einstellungen gespeichert.',
+      loading: 'Wird geladen…',
+      introPrefix:
+        'Warnungen werden von der Android-App regelmäßig geprüft. Bei Überschreiten eines Schwellenwerts wird eine Benachrichtigung gesendet. Verwendet die Servereinstellung',
+      introSuffix: '.',
+      empty: 'Keine Warnungen konfiguriert.',
+      label: 'Bezeichnung',
+      labelPlaceholder: 'z. B. Arbeit',
+      category: 'Kategorie',
+      categoryPlaceholder: 'Leer lassen für alle Zeiterfassung',
+      categoryHelp:
+        'Kategorienamen aus Ihren AW-Kategorisierungsregeln verwenden; leer lassen für Gesamtzeit.',
+      thresholds: 'Schwellenwerte',
+      thresholdsPlaceholder: 'z. B. 60, 120, 240',
+      thresholdsHelp:
+        'Durch Kommas getrennte positive ganze Minuten. Bei Erreichen jedes Schwellenwerts wird eine Benachrichtigung gesendet.',
+      thresholdsInvalid: 'Durch Kommas getrennte positive ganze Minuten verwenden.',
+      type: 'Typ',
+      goalWarning: 'Warnung (Limit überschritten)',
+      goalTarget: 'Ziel (Ziel erreicht)',
+      removeTitle: 'Warnung entfernen',
+      addAlert: 'Warnung hinzufügen',
+      loadFailed: 'Einstellungen konnten nicht geladen werden: {error}',
+      saveFailed: 'Einstellungen konnten nicht gespeichert werden: {error}',
+      invalidThresholds:
+        'Schwellenwerte müssen durch Kommas getrennte positive ganze Minuten sein.',
     },
     color: {
       title: 'Ersatzfarben verwenden',
