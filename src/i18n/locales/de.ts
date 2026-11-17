@@ -16,6 +16,7 @@ export default {
     report: 'Bericht',
     alerts: 'Benachrichtigungen',
     timespiral: 'Timespiral',
+    categoryBuilder: 'Kategorie-Builder',
     query: 'Abfrage',
     graph: 'Graph',
     rawData: 'Rohdaten',
@@ -150,6 +151,7 @@ export default {
       builderSubtitle: 'Regeln aus unkategorisierter Aktivität erzeugen',
       openBuilder: 'Builder öffnen',
       hideBuilder: 'Builder ausblenden',
+      openBuilderFullPage: 'Als eigene Seite öffnen',
     },
     developer: {
       title: 'Entwicklereinstellungen',

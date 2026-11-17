@@ -12,6 +12,7 @@ const QueryExplorer = () => import('./views/QueryExplorer.vue');
 const Timeline = () => import('./views/Timeline.vue');
 const Trends = () => import('./views/Trends.vue');
 const Settings = () => import('./views/settings/Settings.vue');
+const CategoryBuilder = () => import('./views/settings/CategoryBuilder.vue');
 const Stopwatch = () => import('./views/Stopwatch.vue');
 const WorkReport = () => import('./views/WorkReport.vue');
 const Alerts = () => import('./views/Alerts.vue');
@@ -73,10 +74,9 @@ const router = createRouter({
     { path: '/alerts', component: Alerts },
     { path: '/timespiral', component: TimespiralView },
     { path: '/settings', component: Settings },
-    // Category Builder now lives embedded inside the Categorization
-    // settings panel; keep the old standalone route as a redirect so
-    // external links / bookmarks still land somewhere useful.
-    { path: '/settings/category-builder', redirect: '/settings/categorization' },
+    { path: '/category-builder', component: CategoryBuilder },
+    // Keep old URL working for bookmarks / external links.
+    { path: '/settings/category-builder', redirect: '/category-builder' },
     // :group lets the active settings panel survive reloads / be linkable.
     // The matcher excludes 'category-builder' so the more specific route above
     // wins; new groups added in Settings.vue should also be added here.
