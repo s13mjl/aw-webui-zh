@@ -23,6 +23,11 @@ export const LONG_BACKOFF_PERIOD = 5 * 24 * 60 * 60;
 // Initial wait period for UserSatisfactionPoll
 export const INITIAL_WAIT_PERIOD = 7 * 24 * 60 * 60;
 
+// Settings that no longer exist. The server has no delete endpoint, so stale
+// values may still be stored; skip them on load so they don't get patched
+// back into state.
+const REMOVED_KEYS = new Set(['showYearly']);
+
 interface State {
   // Timestamp when user was first seen (first time webapp is run)
   initialTimestamp: Moment;
@@ -167,7 +172,9 @@ export const useSettingsStore = defineStore('settings', {
       const server_settings = await client.get_settings();
 
       // 记录服务端已保存的键，供通知组件区分首次初始化与后续加载。
-      this._storedKeys = Object.keys(server_settings).filter(key => !key.startsWith('_'));
+      this._storedKeys = Object.keys(server_settings).filter(
+        key => !key.startsWith('_') && !REMOVED_KEYS.has(key)
+      );
 
       // Build a unified map: server value wins, localStorage is fallback.
       // Skip keys that are missing from BOTH sources — otherwise `null` from
@@ -177,7 +184,7 @@ export const useSettingsStore = defineStore('settings', {
 
       // 1. Server settings take priority
       for (const key of Object.keys(server_settings)) {
-        if (key.startsWith('_')) continue;
+        if (key.startsWith('_') || REMOVED_KEYS.has(key)) continue;
         if (key === 'locale' && !isAppLocale(server_settings[key])) {
           console.warn('Ignoring invalid locale from server:', server_settings[key]);
           continue;
@@ -188,7 +195,7 @@ export const useSettingsStore = defineStore('settings', {
 
       // 2. localStorage fills in gaps, but skip missing keys (null)
       for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('_') || used.has(key)) continue;
+        if (key.startsWith('_') || REMOVED_KEYS.has(key) || used.has(key)) continue;
         const raw = localStorage.getItem(key);
         if (raw === null || raw === 'null') continue; // key absent or stored as null → keep state() default
 
