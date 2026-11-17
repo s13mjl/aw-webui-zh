@@ -70,6 +70,14 @@ interface DesktopQueryParams extends BaseQueryParams {
 
 interface AndroidQueryParams extends BaseQueryParams {
   bid_android: string;
+  /** 桶是否为 aw-import-screentime（iOS）导入。ScreenTime 事件带 title 键；
+   *  aw-watcher-android 事件不带。保持默认 false，避免合并时因缺键丢掉全部事件。 */
+  isIos?: boolean;
+  /** 保留原始（flood 后的）应用事件，不预先按 app 合并。
+   *  当事件需要与其它时间线（如多设备、浏览器 URL 融合）合并时必须置 true：
+   *  merge_events_by_keys 会把每个应用压成首条时间戳、时长累加的单事件，
+   *  后续与其它时间线做周期交集会取错时钟时段。 */
+  keep_event_timestamps?: boolean;
 }
 
 interface MultiQueryParams extends BaseQueryParams {
@@ -154,8 +162,14 @@ export function canonicalEvents(params: DesktopQueryParams | AndroidQueryParams)
   return [
     // Fetch window/app events
     `events = flood(${queryBucket(bid_window)});`,
-    // On Android, merge events to avoid overload of events
-    isAndroidParams(params) ? 'events = merge_events_by_keys(events, ["app"]);' : '',
+    // On Android, merge events to avoid overload of events.
+    // keep_event_timestamps 置 true 时（需要与其它时间线做周期交集）保留原始事件；
+    // ScreenTime(iOS) 事件带 title，合并键需包含 title，否则缺键会丢掉全部事件。
+    isAndroidParams(params) && !params.keep_event_timestamps
+      ? params.isIos
+        ? 'events = merge_events_by_keys(events, ["app", "title"]);'
+        : 'events = merge_events_by_keys(events, ["app"]);'
+      : '',
     // Fetch not-afk events
     isDesktopParams(params)
       ? `not_afk = flood(${queryBucket(params.bid_afk)});
@@ -255,16 +269,47 @@ export function appQuery(
 // variants (upper/lowercase, spacing, .exe suffix) are handled by
 // browser_appname_regex using (?i) flag. See test/unit/queries.test.node.ts for
 // the complete list of known app names these patterns cover.
-const browser_appnames: Record<string, string[]> = {
-  chrome: ['com.google.Chrome', 'com.google.ChromeDev', 'org.chromium.Chromium'],
-  firefox: ['org.mozilla.firefox', 'io.gitlab.librewolf-community', 'net.waterfox.waterfox'],
-  opera: ['com.opera.Opera'],
-  brave: ['com.brave.Browser'],
-  edge: ['com.microsoft.Edge', 'com.microsoft.EdgeDev'],
+export const browser_appnames: Record<string, string[]> = {
+  chrome: [
+    // 桌面端（Flatpak / macOS bundle ID）
+    'com.google.Chrome',
+    'com.google.ChromeDev',
+    'org.chromium.Chromium',
+    // Android 包名——使用 chrome 扩展桶的 Chromium 系浏览器
+    'com.android.chrome',
+    'com.chrome.beta',
+    'com.chrome.dev',
+    'com.chrome.canary',
+    'org.bromite.cromite', // Cromite 是 Chromium 分支；其扩展上报为 chrome
+  ],
+  firefox: [
+    // 桌面端
+    'org.mozilla.firefox',
+    'io.gitlab.librewolf-community',
+    'net.waterfox.waterfox',
+    // Android
+    'org.mozilla.fenix',
+    'org.mozilla.firefox_beta',
+    'org.mozilla.focus',
+  ],
+  opera: ['com.opera.Opera', 'com.opera.browser', 'com.opera.browser.beta'],
+  brave: [
+    'com.brave.Browser',
+    'com.brave.browser',
+    'com.brave.browser_beta',
+    'com.brave.browser_nightly',
+  ],
+  edge: [
+    'com.microsoft.Edge',
+    'com.microsoft.EdgeDev',
+    'com.microsoft.emmx',
+    'com.microsoft.emmx.beta',
+    'com.microsoft.emmx.dev',
+  ],
   arc: [],
-  vivaldi: ['com.vivaldi.Vivaldi'],
+  vivaldi: ['com.vivaldi.Vivaldi', 'com.vivaldi.browser'],
   orion: ['Orion'],
-  yandex: ['ru.yandex.Browser'],
+  yandex: ['ru.yandex.Browser', 'ru.yandex.browser'],
   zen: ['app.zen_browser.zen'],
   floorp: ['one.ablaze.floorp'],
   helium: ['net.imput.helium'],
@@ -496,6 +541,105 @@ export function activityQueryAndroid(androidbucket: string): string[] {
   return [`events = query_bucket("${androidbucket}");`, 'RETURN = sum_durations(events);'];
 }
 
+// 融合 Android 应用数据与浏览器 URL 数据的查询（取交集）。
+// 对同时存在 aw-watcher-web 桶与匹配 Android 应用事件的浏览器，URL 事件只保留
+// 该浏览器在 Android 设备上处于前台的时段；与桌面端 fullDesktopQuery 融合窗口焦点
+// 与浏览器 URL 的方式对应。
+//
+// 返回 { browser: { domains, urls, titles, duration } }，结构与 fullDesktopQuery
+// 的 browser 段一致，可被 query_browser_completed 直接消费。
+export function androidBrowserQuery(
+  bid_android: string,
+  bid_browsers: string[],
+  categories: Category[],
+  filter_categories: string[][],
+  isIos = false
+): string[] {
+  bid_android = escape_doublequote(bid_android);
+  const escaped_browsers = bid_browsers.map(escape_doublequote);
+  // keep_event_timestamps：merge_events_by_keys 会把每个应用压成首条时间戳、时长累加的
+  // 单事件，URL 交集就会取错时钟时段（Chrome 09:00–09:10 与 10:00–10:10 会变成
+  // 09:00 起的 20 分钟事件）。与多设备路径合并 Android 事件时使用同一开关。
+  // filter_categories 为与 appQuery 签名对齐而传入，但此处不能应用：选中排除浏览器应用的
+  // 类别会丢掉其前台时段（进而丢掉其 URL），即便这些站点本属于所选类别。桌面端是在类别
+  // 过滤之前先选浏览器时段；此前的 Android 纯浏览器查询也忽略了类别过滤。
+  const params: AndroidQueryParams = {
+    bid_android,
+    categories,
+    filter_categories,
+    isIos,
+    keep_event_timestamps: true,
+  };
+  // 与桌面选择器不同，每个浏览器的全部 profile 桶都保留。
+  const browsers: [string, string][] = Object.keys(browser_appnames)
+    .filter(browserName => browser_appnames[browserName].length > 0)
+    .flatMap(browserName =>
+      escaped_browsers
+        .filter(
+          bucketId =>
+            bucketId === `aw-watcher-web-${browserName}` ||
+            bucketId.startsWith(`aw-watcher-web-${browserName}_`) ||
+            bucketId.startsWith(`aw-watcher-web-${browserName}-synced-from-`)
+        )
+        .map(bucketId => [browserName, bucketId] as [string, string])
+    );
+
+  // 仿照 browserEvents()，但依赖 canonicalEvents(AndroidQueryParams) 产出的
+  // `events` 变量（即 Android 应用事件）。对 "package" 做精确 filter_keyvals 匹配，
+  // 选出浏览器在 Android 前台的时段，形成真正的交集而非原始 URL 累计。
+  let browser_code = `browser_events = [];`;
+  _.each(browsers, ([browserName, bucketId]) => {
+    const appnames_str = JSON.stringify(browser_appnames[browserName]);
+    browser_code += `
+      events_${browserName} = flood(query_bucket("${bucketId}"));
+      window_${browserName} = filter_keyvals(events, "package", ${appnames_str});`;
+    // 移动 watcher 事件把展示名放在 app、精确 ID 放在 package；桌面端子串正则
+    // 可能误选到别的浏览器（例如 Firefox 的 "nightly" 会匹配 Brave Nightly）。
+    browser_code += `
+      events_${browserName} = filter_period_intersect(events_${browserName}, window_${browserName});
+      events_${browserName} = split_url_events(events_${browserName});
+      browser_events = concat(browser_events, events_${browserName});
+      browser_events = sort_by_timestamp(browser_events);`;
+  });
+
+  // 自定义扩展名没有已知的包名映射；保留此前的纯浏览器行为，避免直接丢弃这些桶。
+  const matchedBuckets = new Set(browsers.map(([, bucketId]) => bucketId));
+  escaped_browsers
+    .filter(bucketId => !matchedBuckets.has(bucketId))
+    .forEach((bucketId, i) => {
+      browser_code += `
+      events_custom_${i} = flood(query_bucket("${bucketId}"));
+      events_custom_${i} = split_url_events(events_custom_${i});
+      browser_events = concat(browser_events, events_custom_${i});`;
+    });
+
+  const code = `
+    ${canonicalEvents({
+      ...params,
+      // 类别过滤在此不应用（见上方注释）；空列表在本地 canonicalEvents 中仍为真值，
+      // 故用 undefined 明确跳过该步骤。
+      filter_categories: undefined as string[][],
+    })}
+    ${browser_code}
+    browser_urls = merge_events_by_keys(browser_events, ["url"]);
+    browser_urls = sort_by_duration(browser_urls);
+    browser_domains = merge_events_by_keys(browser_events, ["$domain"]);
+    browser_domains = sort_by_duration(browser_domains);
+    browser_titles = merge_events_by_keys(browser_events, ["title"]);
+    browser_titles = sort_by_duration(browser_titles);
+    browser_duration = sum_durations(browser_events);
+    RETURN = {
+      "browser": {
+        "domains": browser_domains,
+        "urls": browser_urls,
+        "titles": browser_titles,
+        "duration": browser_duration
+      }
+    };
+  `;
+  return querystr_to_array(code);
+}
+
 // Returns a query that yields a dict with a key "cat_events" which is an
 // array of one event per category, with the duration of each event set to the sum of the category durations.
 export function categoryQuery(
@@ -513,6 +657,7 @@ export default {
   fullDesktopQuery,
   multideviceQuery,
   appQuery,
+  androidBrowserQuery,
   activityQuery,
   activityQueryAndroid,
   categoryQuery,

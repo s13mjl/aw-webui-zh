@@ -369,13 +369,48 @@ export const useActivityStore = defineStore('activity', {
     async query_android({ timeperiod, filter_categories }: QueryOptions) {
       const periods = [timeperiodToStr(timeperiod)];
       const categoryStore = useCategoryStore();
+
+      // ScreenTime(iOS) 导入桶不提供可靠的浏览器前台时间线；本地暂不提供其
+      // 纯浏览器回退路径，因此仅用于识别并跳过浏览器融合。
+      const iosBucket = this.buckets.android.find((id: string) =>
+        id.startsWith('aw-import-screentime')
+      );
+      const selectedBucket = iosBucket || this.buckets.android[0];
+      const isIos = !!iosBucket;
+
       const q = queries.appQuery(
-        this.buckets.android[0],
+        selectedBucket,
         categoryStore.classes_for_query,
         filter_categories
       );
       const data = await getClient().query(periods, q).catch(this.errorHandler);
+
+      if (!(data && data[0])) {
+        // 不把部分合计当作覆盖整个周期的结果
+        this.query_window_completed();
+        this.query_browser_completed({ domains: [], urls: [], titles: [], duration: 0 });
+        return;
+      }
       this.query_window_completed(data[0]);
+
+      // 存在 aw-watcher-web 桶时融合浏览器 URL 数据：androidBrowserQuery 把 URL
+      // 事件与浏览器应用前台时段取交集，对应桌面端 fullDesktopQuery 的窗口+浏览器融合。
+      if (this.buckets.browser.length > 0 && !isIos) {
+        const bq = queries.androidBrowserQuery(
+          selectedBucket,
+          this.buckets.browser,
+          categoryStore.classes_for_query,
+          filter_categories,
+          isIos
+        );
+        const bResult = await getClient().query(periods, bq, { name: 'androidBrowserQuery' });
+        if (!(bResult && bResult[0] && bResult[0].browser)) {
+          // 浏览器片段失败时不把部分合计当作完整结果
+          this.query_browser_completed();
+          return;
+        }
+        this.query_browser_completed(bResult[0].browser);
+      }
     },
 
     async reset() {
@@ -602,10 +637,9 @@ export const useActivityStore = defineStore('activity', {
     set_available(this: State) {
       // TODO: Move to bucketStore on a per-host basis?
       this.window.available = this.buckets.afk.length > 0 && this.buckets.window.length > 0;
-      this.browser.available =
-        this.buckets.afk.length > 0 &&
-        this.buckets.window.length > 0 &&
-        this.buckets.browser.length > 0;
+      // 浏览器桶存在即视为可用：Android 设备上由 query_android 内的
+      // androidBrowserQuery 完成融合，不再要求同时具备窗口/AFK 桶。
+      this.browser.available = this.buckets.browser.length > 0;
       this.active.available = this.buckets.afk.length > 0;
       this.editor.available = this.buckets.editor.length > 0;
       this.android.available = this.buckets.android.length > 0;

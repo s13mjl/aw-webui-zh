@@ -61,8 +61,10 @@
 
 import {
   browser_appname_regex,
+  browser_appnames,
   editorActivityQuery,
   fullDesktopQuery,
+  androidBrowserQuery,
   querystr_to_array,
 } from '~/queries';
 
@@ -365,5 +367,209 @@ describe('querystr_to_array', () => {
     const query = '\n  events = query_bucket("bucket");\n  RETURN = events;\n';
     const result = querystr_to_array(query);
     expect(result).toHaveLength(2);
+  });
+});
+
+describe('browser_appnames Android 包名识别（同步上游 #1091）', () => {
+  test('Chrome 系 Android 包名归入 chrome 桶', () => {
+    for (const pkg of [
+      'com.android.chrome',
+      'com.chrome.beta',
+      'com.chrome.dev',
+      'com.chrome.canary',
+      'org.bromite.cromite',
+    ]) {
+      expect(browser_appnames.chrome).toContain(pkg);
+    }
+  });
+
+  test('Firefox 系 Android 包名归入 firefox 桶', () => {
+    for (const pkg of ['org.mozilla.fenix', 'org.mozilla.firefox_beta', 'org.mozilla.focus']) {
+      expect(browser_appnames.firefox).toContain(pkg);
+    }
+  });
+
+  test('其它浏览器的 Android 包名归入各自分组', () => {
+    expect(browser_appnames.opera).toEqual(
+      expect.arrayContaining(['com.opera.Opera', 'com.opera.browser', 'com.opera.browser.beta'])
+    );
+    expect(browser_appnames.brave).toEqual(
+      expect.arrayContaining([
+        'com.brave.Browser',
+        'com.brave.browser',
+        'com.brave.browser_beta',
+        'com.brave.browser_nightly',
+      ])
+    );
+    expect(browser_appnames.edge).toEqual(
+      expect.arrayContaining([
+        'com.microsoft.Edge',
+        'com.microsoft.EdgeDev',
+        'com.microsoft.emmx',
+        'com.microsoft.emmx.beta',
+        'com.microsoft.emmx.dev',
+      ])
+    );
+    expect(browser_appnames.vivaldi).toContain('com.vivaldi.browser');
+    expect(browser_appnames.yandex).toContain('ru.yandex.browser');
+  });
+
+  test('相似包名不误伤：非浏览器包名与扩展后缀不进入任何分组', () => {
+    const all = Object.values(browser_appnames).flat();
+    for (const pkg of [
+      'com.chromeos',
+      'com.android.chrome.xxx',
+      'com.chrome.beta.xxx',
+      'com.brave.browser.xxx',
+      'org.mozilla.firefox.xxx',
+      'com.microsoft.emmx.xxx',
+    ]) {
+      expect(all).not.toContain(pkg);
+    }
+  });
+
+  test('桌面端既有精确标识保留不回归', () => {
+    expect(browser_appnames.chrome).toEqual(
+      expect.arrayContaining(['com.google.Chrome', 'com.google.ChromeDev', 'org.chromium.Chromium'])
+    );
+    expect(browser_appnames.firefox).toEqual(
+      expect.arrayContaining([
+        'org.mozilla.firefox',
+        'io.gitlab.librewolf-community',
+        'net.waterfox.waterfox',
+      ])
+    );
+    expect(browser_appnames.orion).toContain('Orion');
+    expect(browser_appnames.zen).toContain('app.zen_browser.zen');
+  });
+});
+
+describe('androidBrowserQuery 融合查询（同步上游 #1091）', () => {
+  test('移动端包名按 package 精确匹配，不使用桌面 app 正则', () => {
+    const joined = androidBrowserQuery(
+      'aw-watcher-android_device',
+      ['aw-watcher-web-firefox', 'aw-watcher-web-brave'],
+      [],
+      []
+    ).join('\n');
+    expect(joined).toContain('org.mozilla.fenix');
+    expect(joined).toContain('com.brave.browser_nightly');
+    // aw-android 把展示名放在 app、标识放在 package
+    expect(joined).toContain('window_firefox = filter_keyvals(events, "package",');
+    expect(joined).not.toContain('filter_keyvals(events, "app",');
+    // Firefox 桌面端 "nightly" 备选会同时匹配 Brave Nightly，移动端不能用正则
+    expect(joined).not.toContain('filter_keyvals_regex(events, "app"');
+  });
+
+  test.each([
+    ['yandex', 'ru.yandex.browser'],
+    ['edge', 'com.microsoft.emmx.dev'],
+  ])('为 %s 的 Android 包名生成前台交集', (browser, androidPackage) => {
+    const joined = androidBrowserQuery(
+      'aw-watcher-android_device',
+      [`aw-watcher-web-${browser}_phone`],
+      [],
+      []
+    ).join('\n');
+    const foregroundFilter = joined
+      .split('\n')
+      .find(line => line.includes(`window_${browser} = filter_keyvals(events, "package",`));
+    expect(foregroundFilter).toContain(`"${androidPackage}"`);
+    expect(joined).toContain(`filter_period_intersect(events_${browser}, window_${browser})`);
+  });
+
+  test('桶名里出现的浏览器名（主机名/profile）不被当作浏览器标识', () => {
+    const joined = androidBrowserQuery(
+      'aw-watcher-android_device',
+      ['aw-watcher-web-firefox_chromephone', 'aw-watcher-web-brave_firefox-profile'],
+      [],
+      []
+    ).join('\n');
+    expect(joined.match(/filter_period_intersect/g)).toHaveLength(2);
+    expect(joined).not.toContain('events_chrome =');
+    expect(joined).toContain(
+      'events_firefox = flood(query_bucket("aw-watcher-web-firefox_chromephone"))'
+    );
+    expect(joined).toContain(
+      'events_brave = flood(query_bucket("aw-watcher-web-brave_firefox-profile"))'
+    );
+  });
+
+  test('未知自定义浏览器名保留纯浏览器数据，不做前台交集', () => {
+    const joined = androidBrowserQuery(
+      'aw-watcher-android_device',
+      ['aw-watcher-web-cromite_phone', 'aw-watcher-web-personal_phone', 'aw-watcher-web-arc_phone'],
+      [],
+      []
+    ).join('\n');
+    expect(joined).toContain('query_bucket("aw-watcher-web-cromite_phone")');
+    expect(joined).toContain('query_bucket("aw-watcher-web-personal_phone")');
+    expect(joined).toContain('query_bucket("aw-watcher-web-arc_phone")');
+    expect(joined).not.toContain('filter_period_intersect');
+    expect(joined).toContain('split_url_events');
+  });
+
+  test('同一浏览器多个 profile 桶全部查询', () => {
+    const buckets = [
+      'aw-watcher-web-firefox_profile1',
+      'aw-watcher-web-firefox_profile2',
+      'aw-watcher-web-firefox-synced-from-phone',
+    ];
+    const joined = androidBrowserQuery('aw-watcher-android_device', buckets, [], []).join('\n');
+    for (const bucket of buckets) {
+      expect(joined).toContain(`query_bucket("${bucket}")`);
+    }
+    expect(joined.match(/filter_period_intersect/g)).toHaveLength(3);
+  });
+
+  test('片段合并前保留全部浏览器聚合结果（不在查询内截断）', () => {
+    const joined = androidBrowserQuery(
+      'aw-watcher-android_device',
+      ['aw-watcher-web-chrome'],
+      [],
+      []
+    ).join('\n');
+    expect(joined).not.toContain('limit_events(browser_');
+  });
+
+  test('保留事件时间戳，URL 交集使用真实前台时段', () => {
+    const joined = androidBrowserQuery(
+      'aw-watcher-android_device',
+      ['aw-watcher-web-chrome'],
+      [],
+      [],
+      false
+    ).join('\n');
+    // 未保留时间戳时 canonicalEvents 会按 app 合并，09:00–09:10 与 10:00–10:10
+    // 会被压成 09:00 起的 20 分钟单事件，交集取错时段。
+    expect(joined).not.toContain('merge_events_by_keys(events, ["app"])');
+    expect(joined).not.toContain('merge_events_by_keys(events, ["app", "title"])');
+    expect(joined).toContain('filter_period_intersect');
+  });
+
+  test('类别过滤不在浏览器前台时段选择之前应用', () => {
+    const joined = androidBrowserQuery(
+      'aw-watcher-android_device',
+      ['aw-watcher-web-chrome'],
+      [[['Work'], { type: 'regex', regex: 'Chrome' }]],
+      [['Work']],
+      false
+    ).join('\n');
+    expect(joined).not.toContain('filter_keyvals(events, "$category"');
+    expect(joined).toContain('com.android.chrome');
+  });
+
+  test('RETURN 包含浏览器 domains、urls、titles、duration', () => {
+    const joined = androidBrowserQuery(
+      'aw-watcher-android_device',
+      ['aw-watcher-web-chrome'],
+      [],
+      [],
+      false
+    ).join('\n');
+    expect(joined).toContain('"domains"');
+    expect(joined).toContain('"urls"');
+    expect(joined).toContain('"titles"');
+    expect(joined).toContain('"duration"');
   });
 });
