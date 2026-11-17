@@ -154,14 +154,54 @@ export const BBadge = defineComponent({
       h(
         props.tag,
         {
-          class: [
-            'badge',
-            `badge-${props.variant}`,
-            { 'rounded-pill': props.pill },
-          ],
+          class: ['badge', `badge-${props.variant}`, { 'rounded-pill': props.pill }],
         },
         slots.default ? slots.default() : undefined
       );
+  },
+});
+
+export const BProgress = defineComponent({
+  name: 'BProgress',
+  props: {
+    value: { type: Number, default: 0 },
+    max: { type: Number, default: 100 },
+    variant: { type: String, default: undefined },
+    height: { type: [String, Number] as PropType<string | number>, default: undefined },
+    striped: { type: Boolean, default: false },
+    animated: { type: Boolean, default: false },
+    label: { type: String, default: undefined },
+  },
+  setup(props, { slots }) {
+    return () => {
+      const max = props.max > 0 ? props.max : 100;
+      const pct = Math.min(100, Math.max(0, (props.value / max) * 100));
+      const style =
+        props.height !== undefined
+          ? { height: typeof props.height === 'number' ? `${props.height}rem` : props.height }
+          : undefined;
+      return h('div', { class: 'progress', style }, [
+        h(
+          'div',
+          {
+            class: [
+              'progress-bar',
+              props.variant ? `bg-${props.variant}` : null,
+              {
+                'progress-bar-striped': props.striped,
+                'progress-bar-animated': props.animated,
+              },
+            ],
+            style: { width: `${pct}%` },
+            role: 'progressbar',
+            'aria-valuenow': String(props.value),
+            'aria-valuemin': '0',
+            'aria-valuemax': String(props.max),
+          },
+          slots.default ? slots.default() : props.label
+        ),
+      ]);
+    };
   },
 });
 
@@ -181,9 +221,7 @@ export const BSpinner = defineComponent({
           class: [`spinner-${props.type}`, props.small ? `spinner-${props.type}-sm` : null],
           role: 'status',
         },
-        [
-          slots.default ? slots.default() : h('span', { class: 'sr-only' }, props.label),
-        ]
+        [slots.default ? slots.default() : h('span', { class: 'sr-only' }, props.label)]
       );
   },
 });

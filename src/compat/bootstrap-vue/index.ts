@@ -41,7 +41,15 @@ import {
 import { BModal, registerBModalDirective } from './modal';
 import { BTable } from './table';
 import { BPopover, BTooltip } from './tooltip';
-import { BBadge, BCard, BCardGroup, BCol, BRow, BSpinner } from './layout';
+import {
+  BBadge,
+  BCard,
+  BCardGroup,
+  BCol,
+  BProgress,
+  BRow,
+  BSpinner,
+} from './layout';
 
 export * from './modal';
 
@@ -54,6 +62,7 @@ const components: Record<string, any> = {
   BCard,
   BCardGroup,
   BCol,
+  BProgress,
   BRow,
   BSpinner,
   BInputGroup,
@@ -100,6 +109,7 @@ const aliases: Record<string, string> = {
   'b-badge': 'BBadge',
   'b-card': 'BCard',
   'b-card-group': 'BCardGroup',
+  'b-progress': 'BProgress',
   'b-col': 'BCol',
   'b-row': 'BRow',
   'b-spinner': 'BSpinner',

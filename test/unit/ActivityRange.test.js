@@ -129,4 +129,47 @@ describe('Activity 自定义日期范围 (#1005)', () => {
     expect(wrapper.findAll('input[type="date"]')).toHaveLength(0);
     wrapper.unmount();
   });
+
+  test('全部时间选项存在于周期列表，点击后路由到无日期段的 all 路径', async () => {
+    const wrapper = mountActivity({ periodLength: 'all', date: '' });
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+
+    const allLabel = wrapper.vm.$t('activity.periodAllTime');
+    const options = wrapper.vm.periodLengthsButtons;
+    const allOption = options.find(o => o.value === 'all');
+    expect(allOption).toBeDefined();
+    expect(allOption.text).toContain(allLabel);
+
+    // 切换到全部时间：路径不含日期段
+    wrapper.vm.setDate(wrapper.vm._date, 'all');
+    const push = wrapper.vm.$router.push;
+    expect(push).toHaveBeenCalled();
+    const arg = push.mock.calls[push.mock.calls.length - 1][0];
+    expect(arg.path).toBe('/activity/testhost/all/default/');
+    wrapper.unmount();
+  });
+
+  test('全部时间加载中挂载进度条组件并反映 done/total，空闲时卸载', async () => {
+    const wrapper = mountActivity({ periodLength: 'all', date: '' });
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+
+    // 空闲：无进度条组件
+    expect(wrapper.findComponent({ name: 'BProgress' }).exists()).toBe(false);
+
+    // 加载中：进度条出现，props 反映 done/total
+    wrapper.vm.activityStore.progress = { done: 1, total: 3 };
+    await wrapper.vm.$nextTick();
+    const progress = wrapper.findComponent({ name: 'BProgress' });
+    expect(progress.exists()).toBe(true);
+    expect(progress.props('max')).toBe(3);
+    expect(progress.props('value')).toBe(1);
+
+    // 回到空闲：进度条卸载
+    wrapper.vm.activityStore.progress = null;
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findComponent({ name: 'BProgress' }).exists()).toBe(false);
+    wrapper.unmount();
+  });
 });
