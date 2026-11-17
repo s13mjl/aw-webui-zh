@@ -351,6 +351,13 @@ export default {
     topStopwatches: 'Top-Stoppuhr-Ereignisse',
     topBucketData: 'Top-Bucket-Daten',
   },
+  categoryEdit: {
+    matchFields: 'Felder',
+    matchFieldsHelp: 'Leer lassen, um alle Textfelder zu prüfen (Standard).',
+    fieldApp: 'App',
+    fieldTitle: 'Titel',
+    errorInvalidField: 'Ein oder mehrere ausgewählte Felder sind unbekannt. Bitte „App“ oder „Titel“ wählen.',
+  },
   timeline: {
     title: 'Zeitleiste',
     eventsShown: 'Angezeigte Ereignisse:',

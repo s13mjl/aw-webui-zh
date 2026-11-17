@@ -212,8 +212,10 @@ export function getCategoryColorFromEvent(bucket: Pick<IBucket, 'type'>, e: IEve
   if (categorizationStrings !== null) {
     // Test each field individually against the category rules, matching
     // the server-side categorize() behaviour. See #646.
+    // Field-scoped rules (select_keys) are honored against the event itself
+    // (同步上游 #952).
     const allCats = loadClasses();
-    const c = matchStrings(categorizationStrings, allCats);
+    const c = matchStrings(categorizationStrings, allCats, e);
     if (c !== null) {
       return getColorFromCategory(c, allCats);
     }

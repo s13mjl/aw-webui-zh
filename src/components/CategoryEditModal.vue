@@ -37,6 +37,16 @@ b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetM
             div.text-danger(v-if="!validPattern") {{ $t('categoryEdit.invalidPattern') }}
             div.text-warning(v-if="validPattern && broad_pattern") {{ $t('categoryEdit.patternTooBroad') }}
       small.text-muted {{ $t('categoryEdit.patternHelp') }}
+      div.mt-2
+        small.text-muted {{ $t('categoryEdit.matchFields') }}
+        div.d-flex.flex-wrap
+          b-form-checkbox.mr-3(
+            v-for="key in fieldOptions"
+            :key="key"
+            v-model="editing.match_fields"
+            :value="key"
+          ) {{ fieldLabel(key) }}
+        small.text-muted {{ $t('categoryEdit.matchFieldsHelp') }}
 
   hr
   div.my-1
@@ -73,8 +83,12 @@ import _ from 'lodash';
 import ColorPicker from '~/components/ColorPicker.vue';
 import { useCategoryStore } from '~/stores/categories';
 import { validateRegex, isRegexBroad } from '~/util/validate';
-import { patternsToRegex, regexToPatterns } from '~/util/classes';
-
+import {
+  patternsToRegex,
+  regexToPatterns,
+  CANONICAL_SELECT_KEYS,
+  normalizeSelectKeys,
+} from '~/util/classes';
 
 export default {
   name: 'CategoryEditModal',
@@ -99,6 +113,7 @@ export default {
         score: null,
         priority: 0,
         patterns: [] as string[],
+        match_fields: [] as string[],
       },
       // Error message shown in the modal when validation fails on submit.
       // Cleared every time the modal is reopened and every time a new submit
@@ -136,6 +151,12 @@ export default {
     },
     broad_pattern: function () {
       return this.editing.rule.type === 'regex' && isRegexBroad(this.computedRegex);
+    },
+    fieldOptions: function () {
+      const extra = (this.editing.match_fields || []).filter(
+        k => !(CANONICAL_SELECT_KEYS as readonly string[]).includes(k)
+      );
+      return [...CANONICAL_SELECT_KEYS, ...extra];
     },
   },
   watch: {
@@ -197,8 +218,25 @@ export default {
           this.submitError = this.$t('categoryEdit.errorInvalidPattern');
           return false;
         }
+        // Reject unknown match fields: only the canonical event.data keys are
+        // understood by the client matcher and the server-side categorize().
+        const selectedFields = normalizeSelectKeys(this.editing.match_fields);
+        if (
+          selectedFields &&
+          selectedFields.some(k => !(CANONICAL_SELECT_KEYS as readonly string[]).includes(k))
+        ) {
+          this.submitError = this.$t('categoryEdit.errorInvalidField');
+          return false;
+        }
       }
       return true;
+    },
+    fieldLabel(key: string): string {
+      const labels: Record<string, string> = {
+        app: this.$t('categoryEdit.fieldApp'),
+        title: this.$t('categoryEdit.fieldTitle'),
+      };
+      return labels[key] ?? key;
     },
     handleEnter(event) {
       // Enter submits the modal, same as pressing OK (#232).
@@ -269,6 +307,10 @@ export default {
           regex: patternsToRegex(patterns),
           ignore_case: this.editing.rule.ignore_case === true,
         };
+        const selectedFields = normalizeSelectKeys(this.editing.match_fields);
+        if (selectedFields) {
+          rule.select_keys = selectedFields;
+        }
       } else {
         rule = { type: 'none' as const };
         patterns = [];
@@ -316,10 +358,12 @@ export default {
       }
       // Ensure there's always at least one editable field
       if (patterns.length === 0) patterns = [''];
+      const rule = _.cloneDeep(cat.rule) || {};
+      const storedKeys = normalizeSelectKeys(rule.select_keys);
       this.editing = {
         id: cat.id,
         name: cat.subname,
-        rule: _.cloneDeep(cat.rule),
+        rule,
         parent: cat.parent ? cat.parent : [],
         color,
         inherit_color,
@@ -327,6 +371,7 @@ export default {
         inherit_score,
         priority: cat.priority ?? 0,
         patterns,
+        match_fields: storedKeys ? [...storedKeys] : [],
       };
       // Clear any error from a previous submit attempt when the modal reopens
       this.submitError = null;

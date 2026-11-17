@@ -45,6 +45,21 @@ describe('categories store', () => {
     expect(categoryStore.all_categories).toHaveLength(1);
   });
 
+  test('updateClass preserves regex select_keys', () => {
+    categoryStore.load([
+      {
+        name: ['Browser'],
+        rule: { type: 'regex', regex: 'Firefox', select_keys: ['app'] },
+      },
+    ]);
+
+    const browserCat = categoryStore.get_category(['Browser']);
+    browserCat.rule.select_keys = ['title'];
+    categoryStore.updateClass(browserCat);
+
+    expect(categoryStore.get_category(['Browser']).rule.select_keys).toEqual(['title']);
+  });
+
   test('classes_for_query sends blank-regex rules as none (#382)', () => {
     categoryStore.load([
       { name: ['Work'], rule: { type: 'regex', regex: '' } },
