@@ -459,6 +459,10 @@ export default {
   timeline: {
     title: 'Timeline',
     eventsShown: 'Events shown:',
+    list: 'List',
+    listShowing: 'Showing {shown} of {total} events',
+    showMore: 'Show more',
+    eventTitle: 'Title',
     swimlanes: 'Swimlanes:',
     filterAfk: 'Filter AFK',
     mergeByApp: 'Merge by app',
