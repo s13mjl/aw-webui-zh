@@ -96,11 +96,31 @@ export default {
       dark: 'Тёмная',
       help: 'Цветовая тема интерфейса (цвета категорий для тёмного режима настраиваются вручную).',
     },
+    layout: {
+      title: 'Text and content layout',
+      help: 'Adjust text size and content width independently of window zoom. Some chart and SVG labels use fixed sizes and may not scale with text.',
+      textSize: 'Text size (%)',
+      textHelp: '80–150%, in whole percentages. Default: 100%.',
+      automaticWidth: 'Automatic content width (use each page’s default)',
+      contentWidth: 'Maximum content width (pixels)',
+      widthHelp:
+        '600–2400 pixels. Always fits within the window. Automatic preserves each page’s normal width.',
+      save: 'Save layout',
+      saving: 'Saving…',
+      reset: 'Reset text and width',
+      saved: 'Layout saved.',
+      changedElsewhere:
+        'Layout changed elsewhere while saving. The current saved values are shown; review them before retrying.',
+      invalid:
+        'Enter a whole-number text size from 80 to 150 and a width from 600 to 2400, or choose Automatic.',
+      saveFailed:
+        'Could not save layout. The previous layout has been restored. Some settings may have reached the server; retry saving to confirm both values.',
+    },
     groups: {
       general: 'Общие',
       generalHelp: 'Параметры по умолчанию для периодов, хронологии и стартовой страницы.',
       appearance: 'Внешний вид',
-      appearanceHelp: 'Тема и цвета визуализаций.',
+      appearanceHelp: 'Тема, размер текста, ширина контента и цвета визуализаций.',
       categorization: 'Категоризация',
       categorizationHelp:
         'Правила классификации событий по категориям и переопределения AFK/активности.',
