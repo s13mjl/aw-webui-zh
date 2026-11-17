@@ -119,6 +119,9 @@ export default {
     awNotify: {
       title: 'Mobile Benachrichtigungen',
       subtitle: 'Schwellenwerte für Warnungen der Android-App aw-notify konfigurieren',
+      enabledLabel: 'Benachrichtigungen aktivieren',
+      enabledHelp: 'aw-notify läuft nur, wenn diese Option eingeschaltet ist; der Tray-Schalter spiegelt diese Einstellung.',
+      disabledHint: 'Benachrichtigungen sind aus: die Schwellenwerteinstellungen bleiben erhalten und gelten wieder, wenn Sie sie erneut aktivieren.',
       save: 'Speichern',
       saving: 'Wird gespeichert…',
       saved: 'Einstellungen gespeichert.',

@@ -142,6 +142,9 @@ export default {
     awNotify: {
       title: '移动端通知',
       subtitle: '为 Android 应用配置 aw-notify 提醒阈值',
+      enabledLabel: '启用通知',
+      enabledHelp: '仅在开启时 aw-notify 才运行；托盘开关与此设置保持一致。',
+      disabledHint: '通知已关闭：下方阈值设置已保留，重新开启后生效。',
       save: '保存',
       saving: '保存中…',
       saved: '设置已保存。',

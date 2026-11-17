@@ -1,4 +1,4 @@
-import { parseThresholds } from '~/util/aw-notify';
+import { parseThresholds, parseAwNotifyConfig } from '~/util/aw-notify';
 
 describe('parseThresholds', () => {
   test('parses comma-separated positive whole minutes', () => {
@@ -16,4 +16,57 @@ describe('parseThresholds', () => {
       expect(parseThresholds(input)).toBeNull();
     }
   );
+});
+
+describe('parseAwNotifyConfig', () => {
+  const canonicalAlert = {
+    label: 'All',
+    category: null,
+    thresholdMinutes: [60, 120, 240],
+    positive: false,
+  };
+
+  test('accepts a valid config with alerts', () => {
+    const config = { alerts: [canonicalAlert] };
+    expect(parseAwNotifyConfig(config)).toEqual(config);
+  });
+
+  test('accepts enabled: true', () => {
+    const config = { enabled: true, alerts: [canonicalAlert] };
+    expect(parseAwNotifyConfig(config)).toEqual(config);
+  });
+
+  test('accepts enabled: false', () => {
+    const config = { enabled: false, alerts: [] };
+    expect(parseAwNotifyConfig(config)).toEqual(config);
+  });
+
+  test('accepts missing enabled (undefined)', () => {
+    const config = { alerts: [] };
+    expect(parseAwNotifyConfig(config)).toEqual(config);
+  });
+
+  test('preserves unknown config keys', () => {
+    const config = { enabled: true, alerts: [canonicalAlert], http_port: 5600 };
+    expect(parseAwNotifyConfig(config)).toEqual(config);
+  });
+
+  test('preserves an explicitly empty alert list', () => {
+    expect(parseAwNotifyConfig({ alerts: [] })).toEqual({ alerts: [] });
+  });
+
+  test.each([
+    null,
+    'not-an-object',
+    [],
+    [canonicalAlert],
+    { alerts: 'not-an-array' },
+    { alerts: [canonicalAlert], enabled: 'yes' },
+    { alerts: [canonicalAlert], enabled: 1 },
+    { alerts: [{ ...canonicalAlert, thresholdMinutes: [0] }] },
+    { alerts: [{ ...canonicalAlert, thresholdMinutes: ['60'] }] },
+    { alerts: [{ ...canonicalAlert, positive: 'yes' }] },
+  ])('rejects unsupported config %p', config => {
+    expect(parseAwNotifyConfig(config)).toBeNull();
+  });
 });

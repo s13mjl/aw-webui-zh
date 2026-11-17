@@ -144,6 +144,9 @@ export default {
     awNotify: {
       title: 'Mobile Notifications',
       subtitle: 'Configure aw-notify alert thresholds for the Android app',
+      enabledLabel: 'Enable notifications',
+      enabledHelp: 'aw-notify runs only when this is on; the tray toggle mirrors this setting.',
+      disabledHint: 'Notifications are off: threshold settings are kept and apply again when you re-enable them.',
       save: 'Save',
       saving: 'Saving…',
       saved: 'Settings saved.',
