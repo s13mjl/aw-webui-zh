@@ -6,6 +6,7 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
       b-navbar-brand(to="/" style="background-color: transparent;")
         img.aligh-middle(src="/logo.png" style="height: 1.5em;")
         span.ml-2.align-middle(style="font-size: 1em; color: #000;") {{ $t('app.name') }}
+        b-badge.ml-2.align-middle(v-if="researchEdition" variant="info" data-testid="research-edition-badge") {{ $t('app.researchEdition') }}
 
     b-navbar-toggle(target="nav-collapse")
 
@@ -48,6 +49,7 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
         b-navbar-brand(to="/" style="background-color: transparent;")
           img.ml-0.aligh-middle(src="/logo.png" style="height: 1.5em;")
           span.ml-2.align-middle(style="font-size: 1.0em; color: #000;") {{ $t('app.name') }}
+          b-badge.ml-2.align-middle(v-if="researchEdition" variant="info" data-testid="research-edition-badge") {{ $t('app.researchEdition') }}
 
       b-navbar-nav.ml-auto
         b-nav-item-dropdown
@@ -115,6 +117,7 @@ export default {
       // view) otherwise scroll the navigation out of reach.
       // See https://github.com/ActivityWatch/aw-webui/issues/299
       fixedTopMenu: true,
+      researchEdition: typeof AW_RESEARCH_EDITION !== 'undefined' && AW_RESEARCH_EDITION,
     };
   },
   computed: {

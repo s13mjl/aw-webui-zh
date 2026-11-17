@@ -1,6 +1,7 @@
 export default {
   app: {
     name: 'ActivityWatch',
+    researchEdition: 'Исследовательская версия',
   },
   nav: {
     activity: 'Активность',
