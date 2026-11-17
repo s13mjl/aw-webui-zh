@@ -6,14 +6,17 @@ import { IEvent } from '~/util/interfaces';
 
 import { window_events } from '~/util/fakedata';
 import queries from '~/queries';
-import { get_day_start_with_offset } from '~/util/time';
+import { get_day_start_with_offset, get_offset_duration } from '~/util/time';
 import {
   TimePeriod,
   dateToTimeperiod,
   timeperiodToStr,
-  timeperiodsForPeriod,
+  splitTimeperiodStrs,
   timeperiodsAroundTimeperiod,
+  timeperiodsForBarchart,
+  usesMonthlyBuckets,
 } from '~/util/timeperiod';
+import { earliestEventInBuckets } from '~/util/earliestEvent';
 
 import { useSettingsStore } from '~/stores/settings';
 import { useBucketsStore } from '~/stores/buckets';
@@ -21,7 +24,10 @@ import { useCategoryStore } from '~/stores/categories';
 
 import { getClient } from '~/util/awclient';
 import {
+  DESKTOP_QUERY_EVENT_LIMIT,
   FullDesktopQueryResult,
+  categoryByPeriodFromChunks,
+  mergeEventsByKeys,
   mergeFullDesktopResults,
   periodsForFullDesktopQuery,
 } from '~/util/desktopQuerySplit';
@@ -57,21 +63,66 @@ function scoreCategories(events: IEvent[]): IEvent[] {
 async function queryDesktopPeriods(
   periods: string[],
   query: string[],
-  name: string
-): Promise<FullDesktopQueryResult> {
+  name: string,
+  onProgress?: () => void
+): Promise<{ merged: FullDesktopQueryResult; chunks: [string, FullDesktopQueryResult][] }> {
   const client = getClient();
   const signal = client.controller.signal;
-  const results: FullDesktopQueryResult[] = [];
+  const chunks: [string, FullDesktopQueryResult][] = [];
   for (const period of periods) {
     if (signal.aborted) {
       throw signal['reason'] || 'unknown reason';
     }
     const data = await client.query([period], query, { name, verbose: true });
     if (data && data[0]) {
-      results.push(data[0]);
+      chunks.push([period, data[0]]);
     }
+    if (onProgress) onProgress();
   }
-  return mergeFullDesktopResults(results);
+  return { merged: mergeFullDesktopResults(chunks.map(([, r]) => r)), chunks };
+}
+
+// Max days per request for the editor query (one aggregate for the whole
+// period). Only long periods (e.g. All time) get split.
+const EDITOR_MAX_DAYS_PER_REQUEST = 366;
+
+// Per-chunk limit when a query is split: items outside one chunk's top 100
+// can still be in the overall top 100 once summed, so over-fetch and cut
+// after merging.
+const CHUNKED_QUERY_LIMIT = 1000;
+
+// host -> first day with data (YYYY-MM-DD), see get_earliest_date
+const earliestDateCache = new Map<string, string | null>();
+
+function sumDurations(results: { duration?: number }[]): number {
+  return results.reduce((acc, r) => acc + (r.duration || 0), 0);
+}
+
+export function mergeEditorResults(results: Record<string, any>[]) {
+  const all = (key: string): IEvent[] => _.flatten(results.map(r => r[key] || []));
+  return {
+    files: mergeEventsByKeys(all('files'), ['file', 'language'], DESKTOP_QUERY_EVENT_LIMIT),
+    languages: mergeEventsByKeys(all('languages'), ['language'], DESKTOP_QUERY_EVENT_LIMIT),
+    projects: mergeEventsByKeys(all('projects'), ['project'], DESKTOP_QUERY_EVENT_LIMIT),
+    duration: sumDurations(results),
+  };
+}
+
+export function mergeAppQueryResults(results: Record<string, any>[]) {
+  if (results.length === 1) return results[0];
+  const all = (key: string): IEvent[] => _.flatten(results.map(r => r[key] || []));
+  const app_events = mergeEventsByKeys(all('app_events'), ['app'], DESKTOP_QUERY_EVENT_LIMIT);
+  return {
+    app_events,
+    title_events: mergeEventsByKeys(
+      all('title_events'),
+      ['app', 'classname'],
+      DESKTOP_QUERY_EVENT_LIMIT
+    ),
+    cat_events: mergeEventsByKeys(all('cat_events'), ['$category']),
+    duration: sumDurations(results),
+    active_events: app_events,
+  };
 }
 
 export interface QueryOptions {
@@ -142,6 +193,9 @@ interface State {
 
   query_options?: QueryOptions;
 
+  // Request progress while loading, for long periods (All time). null when idle.
+  progress: { done: number; total: number } | null;
+
   // Incremented for every load attempt (and on reset) so that a failing
   // superseded load can't clear the guard set by a newer one.
   loadId: number;
@@ -211,6 +265,8 @@ export const useActivityStore = defineStore('activity', {
     },
 
     query_options: null,
+
+    progress: null,
 
     loadId: 0,
 
@@ -360,10 +416,14 @@ export const useActivityStore = defineStore('activity', {
         await this.query_editor_completed();
       }
 
-      // Perform this last, as it takes the longest
-      if (this.window.available || this.android.available) {
+      // Perform this last, as it takes the longest.
+      // Skipped when query_desktop_full already derived it (long ranges).
+      const derivedByPeriod =
+        this.window.available && usesMonthlyBuckets(query_options.timeperiod!);
+      if ((this.window.available || this.android.available) && !derivedByPeriod) {
         await this.query_category_time_by_period(query_options);
       }
+      this.progress = null;
     },
 
     async query_android({ timeperiod, filter_categories }: QueryOptions) {
@@ -384,6 +444,7 @@ export const useActivityStore = defineStore('activity', {
       // mounted again) must re-query instead of skipping on identical options.
       this.loadId += 1;
       this.loaded = false;
+      this.progress = null;
       getClient().abort();
       this.query_window_completed({});
       this.query_browser_completed({});
@@ -395,7 +456,8 @@ export const useActivityStore = defineStore('activity', {
       { timeperiod, filter_categories, filter_afk, always_active_pattern }: QueryOptions,
       hosts: string[]
     ) {
-      const periods = periodsForFullDesktopQuery(timeperiod);
+      const periods = periodsForFullDesktopQuery(timeperiod!);
+      this.progress_add(periods.length);
       const categories = useCategoryStore().classes_for_query;
 
       const q = queries.multideviceQuery({
@@ -406,8 +468,19 @@ export const useActivityStore = defineStore('activity', {
         host_params: {},
         always_active_pattern,
       });
-      const merged = await queryDesktopPeriods(periods, q, 'multidevice');
-      this.query_window_completed(merged.window || {});
+      const { merged, chunks } = await queryDesktopPeriods(periods, q, 'multidevice', () =>
+        this.progress_tick()
+      );
+      const windowResult = merged.window || {};
+      if (usesMonthlyBuckets(timeperiod!)) {
+        // As in query_desktop_full: long ranges don't keep years of active
+        // events in state, and build the monthly barchart from the chunks.
+        windowResult.active_events = [];
+        this.query_category_time_by_period_completed({
+          by_period: categoryByPeriodFromChunks(timeperiod!, chunks),
+        });
+      }
+      this.query_window_completed(windowResult);
     },
 
     async query_desktop_full({
@@ -418,7 +491,8 @@ export const useActivityStore = defineStore('activity', {
       include_stopwatch,
       always_active_pattern,
     }: QueryOptions) {
-      const periods = periodsForFullDesktopQuery(timeperiod);
+      const periods = periodsForFullDesktopQuery(timeperiod!);
+      this.progress_add(periods.length);
       const categories = useCategoryStore().classes_for_query;
 
       const q = queries.fullDesktopQuery({
@@ -437,8 +511,24 @@ export const useActivityStore = defineStore('activity', {
       });
       // Queried one day at a time, so no single request needs the extended
       // timeout that #1099 added for whole-period desktop queries.
-      const merged = await queryDesktopPeriods(periods, q, 'fullDesktopQuery');
+      const { merged, chunks } = await queryDesktopPeriods(periods, q, 'fullDesktopQuery', () =>
+        this.progress_tick()
+      );
+      if (usesMonthlyBuckets(timeperiod!) && merged.window) {
+        // active_events is only used to skip inactive periods in the
+        // category-by-period query, which long ranges don't run. Don't keep
+        // years of AFK events in reactive state.
+        merged.window.active_events = [];
+      }
       this.query_window_completed(merged.window || {});
+      if (usesMonthlyBuckets(timeperiod!)) {
+        // Long ranges: build the monthly barchart from the chunk results
+        // instead of querying every month again (month-sized category queries
+        // took 10-38 s each on a 1.7 GB database, past the timeout).
+        this.query_category_time_by_period_completed({
+          by_period: categoryByPeriodFromChunks(timeperiod!, chunks),
+        });
+      }
       this.query_browser_completed(merged.browser || {});
       if (include_stopwatch) {
         this.query_stopwatch_completed(merged.stopwatch || {});
@@ -446,20 +536,78 @@ export const useActivityStore = defineStore('activity', {
     },
 
     async query_editor({ timeperiod }) {
-      const periods = [timeperiodToStr(timeperiod)];
-      const q = queries.editorActivityQuery(this.buckets.editor);
-      const data = await getClient().query(periods, q, {
-        name: 'editorActivityQuery',
-        verbose: true,
-      });
-      this.query_editor_completed(data[0]);
+      const periods = splitTimeperiodStrs(timeperiod!, EDITOR_MAX_DAYS_PER_REQUEST);
+      const q = queries.editorActivityQuery(
+        this.buckets.editor,
+        periods.length > 1 ? CHUNKED_QUERY_LIMIT : undefined
+      );
+      this.progress_add(periods.length);
+      const chunks = [];
+      for (const period of periods) {
+        const data = await getClient().query([period], q, {
+          name: 'editorActivityQuery',
+          verbose: true,
+        });
+        this.progress_tick();
+        if (data && data[0]) chunks.push(data[0]);
+      }
+      this.query_editor_completed(chunks.length === 1 ? chunks[0] : mergeEditorResults(chunks));
+    },
+
+    /**
+     * Start of the earliest day with data in any bucket the Activity view may
+     * query for `host` (all hosts when multidevice is on), or null if there is
+     * none. Cached per host and day-start offset.
+     */
+    async get_earliest_date(host: string): Promise<string | null> {
+      const settingsStore = useSettingsStore();
+      const bucketsStore = useBucketsStore();
+      await bucketsStore.ensureLoaded();
+      // The devices the Activity query will include.
+      const hosts = settingsStore.useMultidevice ? bucketsStore.hosts : [host];
+      const key = [hosts.join(','), settingsStore.startOfDay].join('|');
+      if (earliestDateCache.has(key)) return earliestDateCache.get(key);
+
+      const ids = _.uniq(
+        _.flatMap(hosts, h => [
+          ...bucketsStore.bucketsWindow(h),
+          ...bucketsStore.bucketsAFK(h),
+          ...bucketsStore.bucketsEditor(h),
+          ...bucketsStore.bucketsBrowser(h),
+          ...bucketsStore.bucketsStopwatch(h),
+        ])
+      );
+      const buckets = ids.map(id => bucketsStore.getBucket(id)).filter(b => b);
+      const client = getClient();
+      let earliest: Date | null;
+      try {
+        earliest = await earliestEventInBuckets(buckets, (id, params) =>
+          client.getEvents(id, params)
+        );
+      } catch (e) {
+        // Fall back to bucket creation dates (not cached, so a refresh retries)
+        console.warn('Failed to find earliest event, using bucket creation dates', e);
+        const created = buckets.map(b => b.first_seen).filter(d => d);
+        return created.length > 0
+          ? moment(_.min(created.map(d => new Date(d).getTime())))
+              .subtract(get_offset_duration(settingsStore.startOfDay))
+              .format('YYYY-MM-DD')
+          : null;
+      }
+      const date = earliest
+        ? moment(earliest)
+            .subtract(get_offset_duration(settingsStore.startOfDay))
+            .format('YYYY-MM-DD')
+        : null;
+      earliestDateCache.set(key, date);
+      return date;
     },
 
     async query_active_history({ timeperiod, ...query_options }: QueryOptions) {
       const settingsStore = useSettingsStore();
       const bucketsStore = useBucketsStore();
       // Filter out periods that are already in the history, and that are in the future
-      const periods = timeperiodStrsAroundTimeperiod(timeperiod).filter(tp_str => {
+      const periods = timeperiodStrsAroundTimeperiod(timeperiod!).filter(tp_str => {
         return (
           !_.includes(this.active.history, tp_str) && new Date(tp_str.split('/')[0]) < new Date()
         );
@@ -502,13 +650,13 @@ export const useActivityStore = defineStore('activity', {
       always_active_pattern,
     }: QueryOptions & { dontQueryInactive: boolean }) {
       // TODO: Needs to be adapted for Android
-      // Choose an appropriate granularity for the period. Adaptive splitting
-      // keeps custom/all-time ranges (which can span years) from issuing
-      // thousands of sequential per-day queries.
-      let periods: string[] = timeperiodsForPeriod(timeperiod).map(timeperiodToStr);
+      // Hours for a single day, days for up to MAX_DAILY_BUCKETS days,
+      // calendar months for a year and longer ranges.
+      let periods: string[] = timeperiodsForBarchart(timeperiod!).map(timeperiodToStr);
 
       // Filter out periods that start in the future
       periods = periods.filter(period => new Date(period.split('/')[0]) < new Date());
+      this.progress_add(periods.length);
 
       const signal = getClient().controller.signal;
       let cancelled = false;
@@ -570,6 +718,7 @@ export const useActivityStore = defineStore('activity', {
           verbose: true,
           name: 'categoryQuery',
         });
+        this.progress_tick();
         data = data.concat(result);
       }
 
@@ -736,6 +885,7 @@ export const useActivityStore = defineStore('activity', {
       this.category.by_period = null;
 
       this.active.duration = null;
+      this.progress = null;
 
       // Ensures that active history isn't being fully reloaded on every date change
       // (see caching done in query_active_history and query_active_history_android)
@@ -784,6 +934,20 @@ export const useActivityStore = defineStore('activity', {
       this.editor.top_files = data.files;
       this.editor.top_languages = data.languages;
       this.editor.top_projects = data.projects;
+    },
+
+    progress_add(this: State, n: number) {
+      if (this.progress === null) {
+        this.progress = { done: 0, total: n };
+      } else {
+        this.progress = { ...this.progress, total: this.progress.total + n };
+      }
+    },
+
+    progress_tick(this: State) {
+      if (this.progress !== null) {
+        this.progress = { ...this.progress, done: this.progress.done + 1 };
+      }
     },
 
     query_active_history_completed(this: State, { active_history } = { active_history: {} }) {

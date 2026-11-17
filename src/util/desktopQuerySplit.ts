@@ -2,7 +2,12 @@ import moment from 'moment';
 
 import { default_limit as DESKTOP_QUERY_EVENT_LIMIT } from '~/queries';
 import { IEvent } from '~/util/interfaces';
-import { TimePeriod, timeperiodToStr, timeperiodsDaysOfPeriod } from '~/util/timeperiod';
+import {
+  TimePeriod,
+  timeperiodToStr,
+  timeperiodsCalendarMonthsOfPeriod,
+  timeperiodsDaysOfPeriod,
+} from '~/util/timeperiod';
 
 export { DESKTOP_QUERY_EVENT_LIMIT };
 
@@ -108,6 +113,32 @@ export function mergeEventsByKeys(events: IEvent[], keys: string[], limit?: numb
   }
   const merged = Array.from(groups.values()).sort((a, b) => b.duration - a.duration);
   return limit === undefined ? merged : merged.slice(0, limit);
+}
+
+/**
+ * Category-by-period data for the monthly barchart, built from the results of
+ * the chunked desktop query (chunks never cross a calendar month) instead of
+ * querying each month again.
+ */
+export function categoryByPeriodFromChunks(
+  timeperiod: TimePeriod,
+  chunks: [string, FullDesktopQueryResult][]
+): Record<string, { cat_events: IEvent[] }> {
+  const byPeriod: Record<string, { cat_events: IEvent[] }> = {};
+  const now = new Date();
+  for (const month of timeperiodsCalendarMonthsOfPeriod(timeperiod)) {
+    const key = timeperiodToStr(month);
+    const [start, end] = key.split('/').map(d => new Date(d));
+    if (start >= now) continue;
+    const events = chunks
+      .filter(([period]) => {
+        const chunkStart = new Date(period.split('/')[0]);
+        return chunkStart >= start && chunkStart < end;
+      })
+      .flatMap(([, result]) => (result.window && result.window.cat_events) || []);
+    byPeriod[key] = { cat_events: mergeEventsByKeys(events, ['$category']) };
+  }
+  return byPeriod;
 }
 
 function concatEvents(chunks: Array<IEvent[] | undefined>): IEvent[] {

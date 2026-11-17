@@ -1,9 +1,11 @@
 import {
   DESKTOP_QUERY_EVENT_LIMIT,
+  categoryByPeriodFromChunks,
   mergeEventsByKeys,
   mergeFullDesktopResults,
   periodsForFullDesktopQuery,
 } from '~/util/desktopQuerySplit';
+import moment from 'moment';
 import { IEvent } from '~/util/interfaces';
 
 function ev(
@@ -154,5 +156,50 @@ describe('mergeFullDesktopResults', () => {
     expect(merged.window?.duration).toBe(5);
     expect(merged.window?.app_events).toEqual([]);
     expect(merged.browser?.duration).toBe(0);
+  });
+});
+
+describe('categoryByPeriodFromChunks', () => {
+  test('groups daily chunks into contiguous calendar-month buckets without duplicates', () => {
+    const timeperiod = { start: '2026-01-01T04:00:00Z', length: [59, 'day'] };
+    const chunks: [string, any][] = [];
+    for (let day = 0; day < 59; day++) {
+      const start = moment('2026-01-01T04:00:00Z').add(day, 'day');
+      const end = start.clone().add(1, 'day');
+      chunks.push([
+        `${start.format()}/${end.format()}`,
+        {
+          window: {
+            cat_events: [ev({ $category: ['Work'] }, 60, start.toISOString())],
+          },
+        },
+      ]);
+    }
+
+    const byPeriod = categoryByPeriodFromChunks(timeperiod, chunks);
+    const keys = Object.keys(byPeriod);
+    expect(keys).toHaveLength(2);
+
+    // Jan and Feb, each with Work aggregated from its own days only
+    const jan = byPeriod[keys[0]];
+    const feb = byPeriod[keys[1]];
+    expect(jan.cat_events).toHaveLength(1);
+    expect(feb.cat_events).toHaveLength(1);
+    expect(jan.cat_events[0].duration).toBe(31 * 60);
+    expect(feb.cat_events[0].duration).toBe(28 * 60);
+
+    // Buckets cover the whole period with no overlap/gap in period keys
+    const starts = keys.map(k => k.split('/')[0]).sort();
+    expect(moment(starts[0]).month()).toBe(0);
+    expect(moment(starts[1]).month()).toBe(1);
+  });
+
+  test('produces an empty category list for chunks without category events', () => {
+    const timeperiod = { start: '2026-01-01T04:00:00Z', length: [31, 'day'] };
+    const byPeriod = categoryByPeriodFromChunks(timeperiod, [
+      ['2026-01-01T04:00:00Z/2026-01-02T04:00:00Z', { window: {} }],
+    ]);
+    expect(Object.keys(byPeriod)).toHaveLength(1);
+    expect(byPeriod[Object.keys(byPeriod)[0]].cat_events).toEqual([]);
   });
 });

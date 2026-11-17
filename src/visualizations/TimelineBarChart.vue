@@ -10,7 +10,6 @@ div.small(v-else, style="font-size: 16pt; color: #aaa;")
 
 <script lang="ts">
 import _ from 'lodash';
-import moment from 'moment';
 import { ChartOptions } from 'chart.js';
 import 'chart.js/auto';
 // NOTE: use the Vue 3 entry — the /legacy build is written against Vue 2's
@@ -22,7 +21,8 @@ import {
   get_hour_offset,
   get_short_month_labels,
 } from '~/util/time';
-import { timeperiodsForPeriod } from '~/util/timeperiod';
+import { MAX_DAILY_BUCKETS, timeperiodsCalendarMonthsOfPeriod } from '~/util/timeperiod';
+import { i18n } from '~/i18n';
 import { clampStackedHours } from '~/util/timelineClamp';
 
 function hourToTick(hours: number): string {
@@ -82,19 +82,19 @@ export default {
       if (resolution.startsWith('day') && count == 1) {
         const hourOffset = get_hour_offset();
         return _.range(0, 24).map(h => `${(h + hourOffset) % 24}`);
-      } else if (resolution.startsWith('day')) {
-        // Mirror the activity store's adaptive splitting so labels line up
-        // with the bars for long custom/all-time ranges.
-        const periods = timeperiodsForPeriod({
+      } else if (resolution.startsWith('day') && count > MAX_DAILY_BUCKETS) {
+        // Long custom ranges are bucketed by calendar month (see timeperiodsForBarchart)
+        const fmt = new Intl.DateTimeFormat(i18n.locale, { month: 'short', year: 'numeric' });
+        return timeperiodsCalendarMonthsOfPeriod({
           start,
-          length: this.timeperiod_length,
-        });
-        const firstDays = periods.length > 0 ? periods[0].length[0] : 1;
-        return periods.map(period => {
-          const date = moment(period.start);
-          if (firstDays > 300) return date.format('YYYY');
-          if (firstDays > 25) return date.format('YYYY-MM');
-          return date.format('MM-DD');
+          length: [count, resolution],
+        }).map(p => fmt.format(new Date(p.start)));
+      } else if (resolution.startsWith('day')) {
+        return _.range(count).map(d => {
+          const date = new Date(start);
+          date.setHours(12, 0, 0, 0);
+          date.setDate(date.getDate() + d);
+          return format_date_short(date, i18n.locale);
         });
       } else if (resolution.startsWith('week')) {
         // Look up days of the week from `start`
@@ -135,9 +135,10 @@ export default {
     },
     chartOptions(): ChartOptions {
       const [count, resolution] = this.timeperiod_length;
-      // Hourly bars are capped at 1h, daily bars at 24h. Longer adaptive
-      // ranges (monthly/yearly bars) need an auto-scaled axis.
+      // Hourly bars are capped at 1h, daily bars at 24h. Monthly buckets
+      // (long ranges) need an auto-scaled axis.
       const isHourly = resolution.startsWith('day') && count == 1;
+      const monthlyBuckets = resolution.startsWith('day') && count > MAX_DAILY_BUCKETS;
       const isDaily = resolution.startsWith('day') && count > 1 && count <= 62;
       return {
         responsive: true,
@@ -180,7 +181,7 @@ export default {
             max: isHourly ? 1 : isDaily ? 24 : undefined,
             ticks: {
               callback: hourToTick,
-              stepSize: isHourly ? 0.25 : isDaily ? 4 : 1,
+              stepSize: monthlyBuckets ? undefined : isHourly ? 0.25 : isDaily ? 4 : 1,
             },
           },
         },
