@@ -107,14 +107,18 @@ const LEGACY_DEFAULT_COLORS = new Map<string, string>([
 export const defaultCategories: Category[] = [
   {
     name: ['Work'],
-    rule: { type: 'regex', regex: 'Google Docs|libreoffice|ReText' },
+    rule: {
+      type: 'regex',
+      regex: 'Google Docs|Google Sheets|libreoffice|ReText|TextEdit|^Pages$|Obsidian',
+    },
     data: { color: '#4ADE80', score: 10 },
   },
   {
     name: ['Work', 'Programming'],
     rule: {
       type: 'regex',
-      regex: 'GitHub|Stack Overflow|BitBucket|Gitlab|vim|Spyder|^kate$|Ghidra|Scite',
+      regex:
+        'GitHub|Stack Overflow|BitBucket|Gitlab|vim|Spyder|^kate$|Ghidra|Scite|iTerm|Visual Studio Code',
     },
   },
   {
@@ -144,7 +148,7 @@ export const defaultCategories: Category[] = [
     name: ['Media', 'Social Media'],
     rule: {
       type: 'regex',
-      regex: 'reddit|Facebook|Twitter|Instagram|devRant',
+      regex: 'reddit|Facebook|Twitter|Instagram|devRant|LinkedIn|Hacker News',
       ignore_case: true,
     },
     data: { color: '#FACC15' },
@@ -153,7 +157,7 @@ export const defaultCategories: Category[] = [
     name: ['Media', 'Music'],
     rule: {
       type: 'regex',
-      regex: 'Spotify|Deezer',
+      regex: 'Spotify|Deezer|Amazon Music',
       ignore_case: true,
     },
     data: { color: '#A3E635' },
@@ -168,12 +172,35 @@ export const defaultCategories: Category[] = [
     rule: {
       type: 'regex',
       regex:
-        'Messenger|Telegram|Signal|WhatsApp|Rambox|Slack|Riot|Element|Discord|Nheko|NeoChat|Mattermost',
+        'Messenger|Telegram|Signal|WhatsApp|Rambox|Slack|Riot|Element|Discord|Nheko|NeoChat|Mattermost|^Texts$',
     },
   },
-  { name: ['Comms', 'Email'], rule: { type: 'regex', regex: 'Gmail|Thunderbird|mutt|alpine' } },
+  {
+    name: ['Comms', 'Email'],
+    rule: { type: 'regex', regex: 'Gmail|Thunderbird|mutt|alpine|Superhuman' },
+  },
   { name: ['Uncategorized'], rule: { type: null }, data: { color: COLOR_UNCAT } },
 ];
+
+// First-run settings saves persisted these exact rules before #495 (upstream
+// #1166). Recognize the complete old taxonomy for preset activation, without
+// rewriting user data or accepting arbitrary edits as defaults.
+// 预设集与内置默认使用同一份规则来源：旧规则只作为识别参照，不另存第二份树。
+const PRE_COMMON_APP_RULES = new Map<string, string>([
+  ['Work', 'Google Docs|libreoffice|ReText'],
+  ['Work>Programming', 'GitHub|Stack Overflow|BitBucket|Gitlab|vim|Spyder|kate|Ghidra|Scite'],
+  ['Media>Social Media', 'reddit|Facebook|Twitter|Instagram|devRant'],
+  ['Media>Music', 'Spotify|Deezer'],
+  [
+    'Comms>IM',
+    'Messenger|Telegram|Signal|WhatsApp|Rambox|Slack|Riot|Element|Discord|Nheko|NeoChat|Mattermost',
+  ],
+  ['Comms>Email', 'Gmail|Thunderbird|mutt|alpine'],
+]);
+const preCommonAppCategories = defaultCategories.map(cat => {
+  const regex = PRE_COMMON_APP_RULES.get(cat.name.join('>'));
+  return regex === undefined ? cat : { ...cat, rule: { ...cat.rule, regex } };
+});
 
 /**
  * The categories a set starts out with — what "restore defaults" restores.
@@ -362,6 +389,61 @@ export function saveCategories(sets: CategorySet[], activeIds: string[]) {
   });
 }
 
+function ruleSignature(c: Category): string {
+  // 优先级解析顺序与 #152（#968）categoryRank 保持一致：
+  // rule.priority → rule.weight 别名 → 顶层 priority；select_keys 纳入比对（#151 / #952）。
+  const effectivePriority = c.rule?.priority ?? c.rule?.weight ?? c.priority ?? null;
+  return JSON.stringify([
+    c.rule?.type === 'regex' ? 'regex' : 'none',
+    c.rule?.type === 'regex' ? c.rule?.regex ?? null : null,
+    Boolean(c.rule?.ignore_case),
+    effectivePriority,
+    normalizeSelectKeys(c.rule?.select_keys) ?? null,
+  ]);
+}
+
+/**
+ * True when `stored` is the same taxonomy as `reference`. A missing color or
+ * score counts as an install default; a color/score/regex/priority that
+ * differs from the reference is treated as a user customization.
+ *
+ * Duplicate stored names are treated as user edits (one-to-one name matching
+ * is required, mirroring the uniqueness check on the reference side).
+ */
+function matchesInstallDefault(stored: Category[], reference: Category[]): boolean {
+  if (stored.length !== reference.length) return false;
+  const refByName = new Map(reference.map(c => [categoryNameKey(c), c]));
+  if (refByName.size !== reference.length) return false;
+  const storedNames = stored.map(c => categoryNameKey(c));
+  if (new Set(storedNames).size !== stored.length) return false;
+  for (const cat of stored) {
+    const ref = refByName.get(categoryNameKey(cat));
+    if (!ref) return false;
+    if (ruleSignature(cat) !== ruleSignature(ref)) return false;
+    const storedColor = categoryColor(cat);
+    if (storedColor !== null && storedColor !== categoryColor(ref)) return false;
+    // Only treat score as a user edit if it is explicitly set to a different
+    // value; a missing/undefined score is indistinguishable from legacy data.
+    const storedScore = cat.data?.score;
+    if (storedScore !== undefined && storedScore !== ref.data?.score) return false;
+  }
+  return true;
+}
+
+/**
+ * True when the stored list is still an install default (the stock taxonomy,
+ * the pre-#495 common-app taxonomy, or a copy of a shipped preset), i.e. not
+ * a custom user categorization. An empty array is a deliberate save, not a
+ * default.
+ */
+export function classesLookUnconfigured(classes: Category[] | undefined | null): boolean {
+  if (classes == null) return true;
+  if (classes.length === 0) return false;
+  if (matchesInstallDefault(classes, defaultCategories)) return true;
+  if (matchesInstallDefault(classes, preCommonAppCategories)) return true;
+  return getPresetCategorySets().some(p => matchesInstallDefault(classes, p.categories));
+}
+
 /**
  * Load category sets and active set IDs from the settings store.
  * Falls back to the legacy flat `classes` setting if no sets are defined yet.
@@ -380,11 +462,23 @@ export function loadCategories(): { sets: CategorySet[]; activeIds: string[] } {
   let sets: CategorySet[];
   let activeIds: string[];
 
-  if (storedSets && storedSets.length > 0) {
+  const storedOwnSets = Boolean(storedSets && storedSets.length > 0);
+  // `hasStoredCategories` is true as soon as `classes` exists in storage,
+  // which first-run `settings.save()` always writes. Only a *custom* class
+  // list should suppress the shipped preset; persisted install defaults
+  // (current or pre-#495 taxonomy) still count as unconfigured.
+  const storedCustomClasses =
+    settingsStore.hasStoredCategories &&
+    !storedOwnSets &&
+    !classesLookUnconfigured(settingsStore.classes);
+
+  if (storedOwnSets) {
+    // Keep the current palette migration while preserving the #1166
+    // "install default vs. user customization" decision.
     sets = storedSets.map(s => ({ ...s, categories: migrateLegacyDefaultColors(s.categories) }));
     activeIds =
       storedActiveIds && storedActiveIds.length > 0 ? [...storedActiveIds] : [storedSets[0].id];
-  } else if (presets.length > 0 && !settingsStore.hasStoredCategories) {
+  } else if (presets.length > 0 && !storedCustomClasses) {
     // First run on a build that ships presets: activate the first preset only.
     //
     // We deliberately limit the initial selection to one set: syncToPrimarySet()
