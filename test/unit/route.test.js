@@ -21,4 +21,11 @@ describe('router', () => {
     expect(workReportRoute).toBeTruthy();
     expect(typeof workReportRoute.component).toBe('function');
   });
+
+  test('includes the billing route', () => {
+    const billingRoute = router.options.routes.find(route => route.path === '/billing');
+
+    expect(billingRoute).toBeTruthy();
+    expect(typeof billingRoute.component).toBe('function');
+  });
 });

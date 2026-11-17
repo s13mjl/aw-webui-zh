@@ -14,6 +14,7 @@ const Trends = () => import('./views/Trends.vue');
 const Settings = () => import('./views/settings/Settings.vue');
 const Stopwatch = () => import('./views/Stopwatch.vue');
 const WorkReport = () => import('./views/WorkReport.vue');
+const BillingView = () => import('./views/BillingView.vue');
 const Alerts = () => import('./views/Alerts.vue');
 const Search = () => import('./views/Search.vue');
 const Report = () => import('./views/Report.vue');
@@ -87,6 +88,7 @@ const router = createRouter({
     },
     { path: '/stopwatch', component: Stopwatch },
     { path: '/work-report', component: WorkReport },
+    { path: '/billing', component: BillingView },
     { path: '/search', component: Search },
     { path: '/graph', component: Graph },
     { path: '/dev', component: Dev },

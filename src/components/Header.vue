@@ -61,6 +61,9 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
           b-dropdown-item(to="/work-report")
             icon(name="briefcase")
             | {{ $t('nav.workReport') }}
+          b-dropdown-item(to="/billing")
+            icon(name="dollar-sign")
+            | {{ $t('nav.billing') }}
           b-dropdown-item(to="/trends" v-if="devmode")
             icon(name="chart-line")
             | {{ $t('nav.trends') }}
