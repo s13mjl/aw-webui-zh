@@ -250,6 +250,9 @@ export default {
     spreadFollow: '关注原开发者并传播：',
     spreadStar: '给原开发者加星：',
     supportTitle: '支持原开发者！',
+    subscribeIntro:
+      '订阅可以帮助 ActivityWatch 持续维护，每月 5 美元起。所有功能仍免费，也可以随时取消。',
+    subscribeCta: '支持 ActivityWatch →',
     support1:
       '你喜欢 ActivityWatch 吗？它帮到你了吗？通过捐赠帮助原开发者继续帮助你！你可以通过以下方式捐赠：',
     support2: '更多信息请访问',

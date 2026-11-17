@@ -188,6 +188,9 @@ export default {
     spreadFollow: 'Следите и делитесь в',
     spreadStar: 'Поставьте звезду на',
     supportTitle: 'Поддержите нас!',
+    subscribeIntro:
+      'Лучший способ поддержать развитие ActivityWatch — подписка от $5 в месяц: все функции остаются бесплатными, отменить можно в любой момент.',
+    subscribeCta: 'Поддержать ActivityWatch →',
     support1: 'Нравится ActivityWatch? Помогите нам помочь вам — пожертвование через:',
     support2: 'Подробнее — на',
     donationPage: 'странице пожертвований на сайте',

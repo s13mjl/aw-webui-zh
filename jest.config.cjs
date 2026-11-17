@@ -18,7 +18,7 @@ module.exports = {
         '^.+\\.vue$': '<rootDir>/scripts/jest-vue-pug-transform.cjs',
       },
       transformIgnorePatterns: ['/node_modules/(?!(vue-i18n|@intlify|@vue|vue|pinia|@pinia|@fullcalendar|vue-demi)/)'],
-      testMatch: ['**/test/**/*.test.js?(x)'],
+      testMatch: ['**/test/**/*.test.{js,ts}?(x)'],
       setupFiles: ['<rootDir>/test/setupI18n.ts'],
       moduleNameMapper: {
         '^~/(.+)$': '<rootDir>/src/$1',
