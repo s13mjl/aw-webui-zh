@@ -72,7 +72,34 @@ function parseRule(raw: unknown, context: string): Rule | null {
   }
   const rule: Rule = { type: 'regex', regex: raw.regex };
   if (raw.ignore_case === true) rule.ignore_case = true;
+  const priority = parsePresetPriority(raw, context);
+  if (priority === null) return null;
+  if (priority !== undefined) rule.priority = priority;
   return rule;
+}
+
+/**
+ * Resolve the explicit rule priority from a preset rule.
+ *
+ * Returns:
+ *  - `undefined`: no priority field was present (leave it unset),
+ *  - `null`: priority/weight was present but not an integer (drop the category),
+ *  - an integer: the priority to store on `rule.priority` (the legacy `weight`
+ *    alias is normalized onto `priority` and not copied through).
+ */
+function parsePresetPriority(
+  raw: Record<string, unknown>,
+  context: string
+): number | null | undefined {
+  const value = raw.priority !== undefined ? raw.priority : raw.weight;
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    console.warn(`[presets] ${context}: priority/weight must be an integer, skipping`);
+    return null;
+  }
+  return value;
 }
 
 function parseCategory(raw: unknown, context: string): Category | null {

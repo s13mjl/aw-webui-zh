@@ -14,6 +14,10 @@ export interface Rule {
   type: 'regex' | 'none';
   regex?: string;
   ignore_case?: boolean;
+  /** Explicit integer priority; higher wins when several categories match. */
+  priority?: number;
+  /** Legacy alias for `priority` (kept for backwards compatibility with old exports). */
+  weight?: number;
 }
 
 export interface Category {
@@ -26,9 +30,9 @@ export interface Category {
   depth?: number;
   parent?: string[];
   children?: Category[];
-  // User-defined priority for conflict resolution. When multiple categories
-  // match the same event, the one with the higher priority wins (among
-  // categories at the same depth). Defaults to 0 when unset.
+  // Legacy top-level priority kept for backwards compatibility. New rules store
+  // the integer on `rule.priority` (see Rule). When both are present, the rule
+  // level wins.
   priority?: number;
   // UI-facing list of literal match strings. Each entry is escaped and joined
   // with '|' into the regex stored on rule.regex. When present, the Category
@@ -347,8 +351,25 @@ export function loadCategories(): { sets: CategorySet[]; activeIds: string[] } {
   return { sets, activeIds };
 }
 
-function pickDeepest(categories: Category[]) {
-  return _.maxBy(categories, c => c.name.length);
+/**
+ * Conflict-resolution rank for a matching category.
+ *
+ * An explicit integer priority (`rule.priority`, falling back to the legacy
+ * `rule.weight` and then the legacy top-level `priority`) wins over depth.
+ * Without an explicit priority, the old depth rule applies: a deeper category
+ * outranks a shallower one. Depth is scaled by 10 so an explicit priority
+ * always dominates the depth fallback.
+ */
+function categoryRank(category: Category): number {
+  const explicit = category.rule.priority ?? category.rule.weight ?? category.priority;
+  if (typeof explicit === 'number' && Number.isInteger(explicit)) {
+    return explicit;
+  }
+  return category.name.length * 10;
+}
+
+function pickHighestRanked(categories: Category[]) {
+  return _.maxBy(categories, categoryRank);
 }
 
 /**
@@ -431,23 +452,10 @@ export function matchStrings(strs: string[], categories: Category[] | null): Cat
   });
 
   // Find the matching category.
-  // If several categories match the event, the one with the highest priority
-  // wins; ties are broken by depth (deeper wins), matching the server-side
-  // categorize() behaviour for same-depth categories.
+  // If several categories match, explicit priority wins; otherwise depth wins.
   const matchingCats: [Category, RegExp][] = regexes.filter(c => strs.some(s => s && c[1].test(s)));
   if (matchingCats.length > 0) {
-    const matched = matchingCats.map(c => c[0]);
-    // Sort by priority (asc), then by depth (asc), so the last element is the
-    // highest-priority deepest match — mirroring the server's
-    // _pick_highest_ranking_category which lets later entries override earlier
-    // ones at equal depth.
-    matched.sort((a, b) => {
-      const pa = a.priority ?? 0;
-      const pb = b.priority ?? 0;
-      if (pa !== pb) return pa - pb;
-      return a.name.length - b.name.length;
-    });
-    return matched[matched.length - 1];
+    return pickHighestRanked(matchingCats.map(c => c[0]));
   }
   return null;
 }
@@ -461,13 +469,13 @@ export function classifyEvents(events: IEvent[], categories: Category[]): IEvent
   });
 
   // Classify events using compiled regexes.
-  // If several categories match the event, the deepest category will be chosen.
+  // If several categories match, explicit priority wins; otherwise depth wins.
   return events.map((e: IEvent) => {
     const matchingCats: [Category, RegExp][] = regexes.filter(c => {
       return _.map(CLASSIFY_KEYS, key => c[1].test(e.data[key])).some(x => x);
     });
     if (matchingCats.length > 0) {
-      const category = pickDeepest(matchingCats.map(c => c[0]));
+      const category = pickHighestRanked(matchingCats.map(c => c[0]));
       e.data.$category = category.name;
     } else {
       e.data.$category = UNCATEGORIZED;

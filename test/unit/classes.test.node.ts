@@ -81,6 +81,42 @@ test('matches string to category', () => {
   expect(cat).toEqual(testClasses[1]);
 });
 
+test('explicit priority can override category depth when matching strings', () => {
+  const cats: Category[] = [
+    { name: ['Shallow'], rule: { type: 'regex', regex: 'vim', priority: 25 } },
+    { name: ['Group', 'Deep'], rule: { type: 'regex', regex: 'vim' } },
+  ];
+
+  expect(classes.matchString('vim', cats)?.name).toEqual(['Shallow']);
+});
+
+test('weight is accepted as a category priority alias', () => {
+  const cats: Category[] = [
+    { name: ['Shallow'], rule: { type: 'regex', regex: 'vim', weight: 25 } },
+    { name: ['Group', 'Deep'], rule: { type: 'regex', regex: 'vim' } },
+  ];
+
+  expect(classes.matchString('vim', cats)?.name).toEqual(['Shallow']);
+});
+
+test('legacy top-level priority is still honored', () => {
+  const cats: Category[] = [
+    { name: ['Shallow'], rule: { type: 'regex', regex: 'vim' }, priority: 25 },
+    { name: ['Group', 'Deep'], rule: { type: 'regex', regex: 'vim' } },
+  ];
+
+  expect(classes.matchString('vim', cats)?.name).toEqual(['Shallow']);
+});
+
+test('old unordered data falls back to depth (deeper wins)', () => {
+  const cats: Category[] = [
+    { name: ['Shallow'], rule: { type: 'regex', regex: 'vim' } },
+    { name: ['Group', 'Deep'], rule: { type: 'regex', regex: 'vim' } },
+  ];
+
+  expect(classes.matchString('vim', cats)?.name).toEqual(['Group', 'Deep']);
+});
+
 test('matches events to category', () => {
   let events: IEvent[] = [
     { timestamp: new Date().toISOString(), duration: 0, data: { title: 'subsubtest' } },
@@ -91,6 +127,30 @@ test('matches events to category', () => {
   expect(events[0].data.$category).toEqual(testClasses[1].name);
   expect(events[1].data.$category).toEqual(testClasses[0].name);
   expect(events[2].data.$category).toEqual(['Uncategorized']);
+});
+
+test('explicit priority can override category depth when classifying events', () => {
+  const cats: Category[] = [
+    { name: ['Shallow'], rule: { type: 'regex', regex: 'vim', priority: 25 } },
+    { name: ['Group', 'Deep'], rule: { type: 'regex', regex: 'vim' } },
+  ];
+  const events: IEvent[] = [
+    { timestamp: new Date().toISOString(), duration: 0, data: { title: 'vim' } },
+  ];
+
+  expect(classes.classifyEvents(events, cats)[0].data.$category).toEqual(['Shallow']);
+});
+
+test('weight alias can override category depth when classifying events', () => {
+  const cats: Category[] = [
+    { name: ['Shallow'], rule: { type: 'regex', regex: 'vim', weight: 25 } },
+    { name: ['Group', 'Deep'], rule: { type: 'regex', regex: 'vim' } },
+  ];
+  const events: IEvent[] = [
+    { timestamp: new Date().toISOString(), duration: 0, data: { title: 'vim' } },
+  ];
+
+  expect(classes.classifyEvents(events, cats)[0].data.$category).toEqual(['Shallow']);
 });
 
 // #382: a blank regex must not match everything client-side, matching how

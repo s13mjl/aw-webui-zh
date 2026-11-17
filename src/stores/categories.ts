@@ -119,7 +119,9 @@ export const useCategoryStore = defineStore('categories', {
       // The server-side categorize() iterates rules in order and, for matches
       // at equal depth, lets later entries override earlier ones — so placing
       // higher-priority categories last makes them win conflicts.
-      const sorted = _.sortBy(this.classes, [(c: Category) => c.priority ?? 0]);
+      // Rule-level priority wins; legacy top-level `priority` is a fallback.
+      const priorityOf = (c: Category) => c.rule.priority ?? c.rule.weight ?? c.priority ?? 0;
+      const sorted = _.sortBy(this.classes, [priorityOf]);
       return sorted
         .filter(c => c.rule.type !== null)
         .map(c => {
