@@ -228,13 +228,17 @@ div
 import { defineAsyncComponent } from 'vue';
 
 import _ from 'lodash';
-import Papa from 'papaparse';
 import moment from 'moment';
 
 import { useServerStore } from '~/stores/server';
 import { useBucketsStore } from '~/stores/buckets';
 import { downloadFile } from '~/util/export';
-import { exportBucketLong, exportAllBucketsLong, LONG_TIMEOUT_MS } from '~/util/awclient';
+import {
+  exportBucketLong,
+  exportAllBucketsLong,
+  getStoredApiToken,
+  LONG_TIMEOUT_MS,
+} from '~/util/awclient';
 
 // Kept outside component methods on purpose: the global asyncErrorCapturedMixin
 // wraps every async method so its rejection is swallowed and reported to the
@@ -516,25 +520,30 @@ export default {
     },
 
     async export_csv(bucketId: string) {
-      // Use extended timeout — fetching all events for CSV export can
-      // exceed the default requestTimeout for large buckets. See #847.
-      const bucket = await this.bucketsStore.getBucketWithEvents({
-        id: bucketId,
-        timeoutMs: LONG_TIMEOUT_MS,
+      const filename = `aw-events-export-${bucketId}.csv`;
+      const path = `/0/buckets/${encodeURIComponent(bucketId)}/export/csv`;
+      const url = `${this.$aw.req.defaults.baseURL || ''}${path}`;
+
+      // 未登录的普通浏览器直接交给服务端流式下载，避免把整份 CSV 读进 JS 内存。
+      // Tauri WebView 不支持 <a download>，带 token 的部署需要 Authorization，
+      // 这两种情况仍走 blob 客户端。
+      if (!('__TAURI__' in window) && !getStoredApiToken()) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      const response = await this.$aw.req.get(path, {
+        timeout: LONG_TIMEOUT_MS,
+        responseType: 'blob',
       });
-      const events = bucket.events;
-      const datakeys = events.length > 0 ? Object.keys(events[0].data) : [];
-      const columns = ['timestamp', 'duration'].concat(datakeys);
-      const data = events.map(e => {
-        return Object.assign(
-          { timestamp: e.timestamp, duration: e.duration },
-          Object.fromEntries(datakeys.map(k => [k, e.data[k]]))
-        );
-      });
-      const csv = Papa.unparse(data, { columns, header: true });
-      const filename = `aw-events-export-${bucketId}-${new Date()
-        .toISOString()
-        .substring(0, 10)}.csv`;
+      const blob = response.data as Blob;
+      const csv = typeof blob.text === 'function' ? await blob.text() : String(blob);
       await downloadFile(filename, csv, 'text/csv');
     },
   },
