@@ -102,7 +102,7 @@ div
     | {{ $t('timeline.categoryError') }}
 
   div(v-if="buckets !== null")
-    vis-timeline(:buckets="buckets", :categorizedEvents="categorizedEvents", :showRowLabels='true', :queriedInterval="daterange", :swimlane="swimlane", :updateTimelineWindow='updateTimelineWindow', @event-saved="getBuckets")
+    vis-timeline(:buckets="buckets", :categorizedEvents="categorizedEvents", :showRowLabels='true', :queriedInterval="daterange", :swimlane="swimlane", :groupGranularity="timelineGroupGranularity", :updateTimelineWindow='updateTimelineWindow', @event-saved="getBuckets")
 
     aw-devonly(:reason="$t('timeline.devReason')")
       aw-calendar(:buckets="buckets")
@@ -151,6 +151,9 @@ export default {
     timeintervalDefaultDuration() {
       const settingsStore = useSettingsStore();
       return Number(settingsStore.durationDefault);
+    },
+    timelineGroupGranularity() {
+      return Number(useSettingsStore().timelineGroupGranularity);
     },
     // This does not match the chartData which is rendered in the timeline, as chartData excludes short events.
     num_events() {

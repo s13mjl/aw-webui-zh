@@ -105,6 +105,9 @@ export default {
     timelineDuration: {
       title: '默认时长',
       help: '时间线视图中“显示最近”默认使用的时长。',
+      groupGranularity: '合并短事件（秒）',
+      groupGranularityHelp:
+        '将连续的短事件合并为此时长的组。设为 0 可关闭分组。时间线的时长过滤器独立生效，并在分组前移除事件。',
     },
     landingPage: {
       title: '打开页面',
@@ -500,6 +503,9 @@ export default {
     swimlaneNone: '无',
     swimlaneCategory: '按分类分组',
     swimlaneBucketType: '按存储桶类型分组',
+    groupedEvents: '{count} 个事件 · {duration}',
+    collapseGroups: '折叠分组',
+    groupBreakdown: '活动明细',
     filterAfkStatus: '已过滤 AFK',
     mergedByApp: '已按应用合并',
     mergedByCategory: '已按分类合并',
