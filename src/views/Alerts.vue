@@ -129,6 +129,11 @@ export default {
     );
     this.hostname = this.hostnames[0];
   },
+  beforeDestroy: function () {
+    // Stop auto-refresh when leaving the view, or check() keeps querying every 10s.
+    clearInterval(this.running_interval);
+    this.running_interval = null;
+  },
   methods: {
     addAlert: function () {
       // TODO: Persist to settings/localstorage
