@@ -92,6 +92,39 @@ AW_SERVER_URL="'http://localhost:5600'" npx vite build --watch --outDir=../aw-se
 python3 -m http.server --bind 127.0.0.1 27180 --directory ../aw-server/static
 ```
 
+### 在构建中内置预设分类集
+
+需要自带分类方案的发行版（研究构建、公司内部部署等）可以随包附带一个或多个**预设分类集**，而不必修改内置默认分类：
+
+```bash
+AW_PRESET_CATEGORY_SETS="$(cat mypreset.json)" npm run build
+```
+
+其中 `mypreset.json` 是一个分类集列表，结构与分类设置页导入/导出的格式一致：
+
+```json
+[
+  {
+    "id": "mypreset",
+    "categories": [
+      {
+        "name": ["Work"],
+        "rule": { "type": "regex", "regex": "^Work$" },
+        "data": { "color": "#0F0" }
+      }
+    ]
+  }
+]
+```
+
+随包附带预设时，**列表中的第一个**预设会在尚未保存过分类的安装上默认启用；其余预设出现在「设置 → 分类」中供用户手动启用。已经配置过分类的用户保留自己的分类，预设仅作为额外可选集合出现。用户编辑并保存过的同名分类集始终覆盖同名预设定义。
+
+能在应用启动前设置全局变量的嵌入方（Tauri、Android WebView、自定义启动器等）也可以把相同内容赋给 `window.__AW_PRESET_CATEGORY_SETS__`，无需重新构建包。
+
+**正则兼容性说明**：预设正则会按 JavaScript 语法校验，同时也会传给 Python 后端的分类引擎用于服务端查询。请使用两种引擎都兼容的写法：基础分组、量词、字符类和锚点是安全的；避免 JS 专属构造，例如命名分组语法（`(?<name>...)`）——请使用 Python 形式（`(?P<name>...)`）或省略命名分组。
+
+损坏的预设会被记录并忽略，不会导致界面崩溃。实现见 `src/util/presetCategories.ts`。
+
 ## 测试
 
 运行单元测试：
