@@ -87,13 +87,28 @@ export function mergeCategorySets(sets: CategorySet[]): Category[] {
 
 const COLOR_UNCAT = '#CCC';
 
+// 调色板柔化（上游 #1058）之前内置默认分类使用的旧色值。
+// 首次运行时 settings.save() 会把安装默认值持久化下来，因此从未改过颜色的
+// 用户本地仍存着这些旧色；它们仍属于安装默认（由 migrateLegacyDefaultColors
+// 迁到当前默认色），用户自己选过的颜色则保留。
+// 用 Map 而非对象字面量：名为 `constructor` 之类的用户分类名不能解析到继承属性。
+const LEGACY_DEFAULT_COLORS = new Map<string, string>([
+  ['Work', '#0F0'],
+  ['Media', '#F33'],
+  ['Media>Games', '#F80'],
+  ['Media>Video', '#F33'],
+  ['Media>Social Media', '#FCC400'],
+  ['Media>Music', '#A8FC00'],
+  ['Comms', '#9FF'],
+]);
+
 // The default categories
 // Should be run through createMissingParents before being used in most cases.
 export const defaultCategories: Category[] = [
   {
     name: ['Work'],
     rule: { type: 'regex', regex: 'Google Docs|libreoffice|ReText' },
-    data: { color: '#0F0', score: 10 },
+    data: { color: '#4ADE80', score: 10 },
   },
   {
     name: ['Work', 'Programming'],
@@ -113,17 +128,17 @@ export const defaultCategories: Category[] = [
   {
     name: ['Media'],
     rule: { type: 'none' },
-    data: { color: '#F33' },
+    data: { color: '#F87171' },
   },
   {
     name: ['Media', 'Games'],
     rule: { type: 'regex', regex: 'Minecraft|RimWorld' },
-    data: { color: '#F80' },
+    data: { color: '#FB923C' },
   },
   {
     name: ['Media', 'Video'],
     rule: { type: 'regex', regex: 'YouTube|Plex|VLC' },
-    data: { color: '#F33' },
+    data: { color: '#F87171' },
   },
   {
     name: ['Media', 'Social Media'],
@@ -132,7 +147,7 @@ export const defaultCategories: Category[] = [
       regex: 'reddit|Facebook|Twitter|Instagram|devRant',
       ignore_case: true,
     },
-    data: { color: '#FCC400' },
+    data: { color: '#FACC15' },
   },
   {
     name: ['Media', 'Music'],
@@ -141,12 +156,12 @@ export const defaultCategories: Category[] = [
       regex: 'Spotify|Deezer',
       ignore_case: true,
     },
-    data: { color: '#A8FC00' },
+    data: { color: '#A3E635' },
   },
   {
     name: ['Comms'],
     rule: { type: 'none' },
-    data: { color: '#9FF' },
+    data: { color: '#67E8F9' },
   },
   {
     name: ['Comms', 'IM'],
@@ -287,9 +302,39 @@ export function cleanCategory(cat: Category): Category {
   return cat;
 }
 
+function categoryNameKey(c: Category): string {
+  return c.name.join(level_sep);
+}
+
+function categoryColor(c: Category): string | null {
+  const color = c.data && c.data.color;
+  return typeof color === 'string' && color.length > 0 ? color : null;
+}
+
 export function loadClasses(): Category[] {
   const settingsStore = useSettingsStore();
-  return settingsStore.classes;
+  const classes = settingsStore.classes;
+  return classes ? migrateLegacyDefaultColors(classes) : classes;
+}
+
+function isLegacyDefaultColor(c: Category): boolean {
+  const legacy = LEGACY_DEFAULT_COLORS.get(categoryNameKey(c));
+  const color = categoryColor(c);
+  return legacy !== undefined && color !== null && color.toUpperCase() === legacy.toUpperCase();
+}
+
+/**
+ * 把仍在使用旧默认色、且未被用户改动过的分类迁到当前默认色；
+ * 用户自己选过的颜色（以及无对应默认色的分类）原样保留。
+ * 纯函数、表驱动：旧色→新色的对应关系以 defaultCategories 当前值为准，可重复执行、幂等。
+ */
+export function migrateLegacyDefaultColors(classes: Category[]): Category[] {
+  return classes.map(c => {
+    if (!isLegacyDefaultColor(c)) return c;
+    const ref = defaultCategories.find(d => categoryNameKey(d) === categoryNameKey(c));
+    const color = ref && categoryColor(ref);
+    return color ? { ...c, data: { ...c.data, color } } : c;
+  });
 }
 
 /**
@@ -334,7 +379,7 @@ export function loadCategories(): { sets: CategorySet[]; activeIds: string[] } {
   let activeIds: string[];
 
   if (storedSets && storedSets.length > 0) {
-    sets = [...storedSets];
+    sets = storedSets.map(s => ({ ...s, categories: migrateLegacyDefaultColors(s.categories) }));
     activeIds =
       storedActiveIds && storedActiveIds.length > 0 ? [...storedActiveIds] : [storedSets[0].id];
   } else if (presets.length > 0 && !settingsStore.hasStoredCategories) {
@@ -353,7 +398,7 @@ export function loadCategories(): { sets: CategorySet[]; activeIds: string[] } {
   } else {
     // Migration path: no sets defined yet — wrap the existing flat classes into a "default" set
     const legacyClasses = settingsStore.classes || defaultCategories;
-    sets = [{ id: DEFAULT_SET_ID, categories: legacyClasses }];
+    sets = [{ id: DEFAULT_SET_ID, categories: migrateLegacyDefaultColors(legacyClasses) }];
     activeIds = [DEFAULT_SET_ID];
   }
 
