@@ -200,6 +200,14 @@ export default {
       minShare: 'Minimum uncategorized share',
       minShareHelp: 'Show the hint when the uncategorized share of time exceeds this (0-1).',
     },
+    supporter: {
+      title: 'I already support ActivityWatch',
+      help: 'Hides the in-app prompts asking you to support ActivityWatch. Honor system: stored in your local server, never verified, nothing is sent.',
+      statusYes: 'Already marked as a supporter',
+      statusNo: 'Not marked yet',
+      saving: 'Saving…',
+      saveFailed: 'Failed to save supporter preference: {error}',
+    },
     backup: {
       title: 'Auto backup',
       help: 'Periodically export all buckets as a JSON file downloaded to your default download directory.',
@@ -261,6 +269,9 @@ export default {
     spreadFollow: 'Follow them and spread the word on',
     spreadStar: 'Star them on',
     supportTitle: 'Support the original developers!',
+    subscribeIntro:
+      'The best way to keep ActivityWatch maintained is a subscription — from $5/month, every feature stays free, cancel anytime.',
+    subscribeCta: 'Support ActivityWatch →',
     support1:
       'Do you like ActivityWatch? Has it helped you? Help the original developers keep helping you by donating! You can donate to them via:',
     support2: 'For more info, please visit the',

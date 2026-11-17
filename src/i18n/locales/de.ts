@@ -157,6 +157,14 @@ export default {
       hideBuilder: 'Builder ausblenden',
       openBuilderFullPage: 'Als eigene Seite öffnen',
     },
+    supporter: {
+      title: 'Ich unterstütze ActivityWatch bereits',
+      help: 'Blendet die Hinweise in der App aus, die um Unterstützung bitten. Auf Vertrauensbasis: nur im lokalen Server gespeichert, nie geprüft, es wird nichts gesendet.',
+      statusYes: 'Bereits als Unterstützer markiert',
+      statusNo: 'Noch nicht markiert',
+      saving: 'Wird gespeichert…',
+      saveFailed: 'Speichern der Unterstützer-Einstellung fehlgeschlagen: {error}',
+    },
     developer: {
       title: 'Entwicklereinstellungen',
       note: 'Hinweis:',
@@ -196,6 +204,9 @@ export default {
     spreadFollow: 'Folgen Sie uns und teilen Sie auf',
     spreadStar: 'Geben Sie uns einen Stern auf',
     supportTitle: 'Unterstützen Sie uns!',
+    subscribeIntro:
+      'Der beste Weg, ActivityWatch am Leben zu halten, ist ein Abonnement – ab 5 $/Monat, alle Funktionen bleiben kostenlos, jederzeit kündbar.',
+    subscribeCta: 'ActivityWatch unterstützen →',
     support1: 'Gefällt Ihnen ActivityWatch? Helfen Sie uns, Ihnen zu helfen — spenden Sie über:',
     support2: 'Mehr Infos auf der',
     donationPage: 'Spendenseite der Website',

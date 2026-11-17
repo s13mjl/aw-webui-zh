@@ -90,4 +90,74 @@ describe('settings 仅持久化显式更新的键', () => {
     expect(postedKeys()).toEqual(['newReleaseCheckData']);
     expect(server.newReleaseCheckData.timesChecked).toBe(2);
   });
+
+  test('a delayed read cannot undo a newer supporter save', async () => {
+    server.supporter = false;
+    const store = newSession();
+    await store.load();
+    let release;
+    const gate = new Promise(resolve => {
+      release = resolve;
+    });
+    const oldSettings = copy(server);
+    mockGetSettings.mockImplementationOnce(async () => {
+      await gate;
+      return oldSettings;
+    });
+
+    const homeReload = store.load();
+    await store.update({ supporter: true });
+    expect(store.supporter).toBe(true);
+    release();
+    await homeReload;
+
+    expect(server.supporter).toBe(true);
+    expect(store.supporter).toBe(true);
+  });
+
+  test('newer reads supersede older responses within a store, not across sessions', async () => {
+    const a = newSession();
+    const b = newSession();
+    let release;
+    const gate = new Promise(resolve => {
+      release = resolve;
+    });
+    const oldSettings = copy(server);
+    mockGetSettings.mockImplementationOnce(async () => {
+      await gate;
+      return oldSettings;
+    });
+    const older = a.load();
+    server.theme = 'dark';
+    await a.load();
+    // Loading another session must not invalidate a's latest response.
+    await b.load();
+    release();
+    await older;
+
+    expect(a.theme).toBe('dark');
+    expect(b.theme).toBe('dark');
+  });
+
+  test("a read in another session does not discard this session's pending refresh", async () => {
+    const a = newSession();
+    const b = newSession();
+    server.theme = 'dark';
+    let release;
+    const gate = new Promise(resolve => {
+      release = resolve;
+    });
+    mockGetSettings.mockImplementationOnce(async () => {
+      await gate;
+      return copy(server);
+    });
+    const pendingRead = a.load();
+    await b.load();
+    release();
+    await pendingRead;
+
+    expect(a.loaded).toBe(true);
+    expect(a.theme).toBe('dark');
+    expect(b.theme).toBe('dark');
+  });
 });
