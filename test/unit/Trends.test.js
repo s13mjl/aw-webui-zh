@@ -20,6 +20,7 @@ const STUBS = [
   'b-button-group',
   'b-button',
   'b-form-select',
+  'b-form-group',
   'b-alert',
   'b-spinner',
   'b-row',
@@ -438,6 +439,32 @@ describe('Trends refresh ownership', () => {
     expect(wrapper.vm.loading).toBe(false);
   });
 
+  test('changing category invalidates an in-flight unfiltered refresh', async () => {
+    await mount();
+    wrapper.vm.selectedCategory = ['Work'];
+    await flush();
+    expect(callsFor('a', 'trendsByDay')).toHaveLength(2);
+    const unresolved = calls.filter(call => !call.settled);
+    const selected = unresolved.filter(call => call.query.join(' ').includes('[["Work"]]'));
+    expect(selected.map(call => call.name).sort()).toEqual(['trendsByDay', 'trendsTotals']);
+
+    const stale = unresolved.filter(call => !selected.includes(call));
+    for (const call of stale) {
+      call.settled = true;
+      call.deferred.resolve([{ cat_events: [workEvent(999)] }]);
+    }
+    await flush();
+    expect(wrapper.vm.currentTotals).toEqual({});
+    expect(wrapper.vm.loading).toBe(true);
+    await resolveNewest(7, {
+      dayEvents: [workEvent(10)],
+      totalsEvents: [workEvent(8)],
+    });
+    expect(wrapper.vm.currentTotals).toEqual({ '["Work"]': 10 });
+    expect(wrapper.vm.previousTotals).toEqual({ '["Work"]': 8 });
+    expect(wrapper.vm.loading).toBe(false);
+  });
+
   test('a response from a host that was dropped is ignored', async () => {
     route.params.host = 'b';
     await mount();
@@ -503,5 +530,41 @@ describe('Trends refresh ownership', () => {
     expect(wrapper.vm.currentTotals).toEqual({});
     expect(wrapper.vm.byPeriod).toBeNull();
     expect(wrapper.vm.loading).toBe(false);
+  });
+});
+
+describe('Trends category selection', () => {
+  test('selecting a parent includes descendants but not similarly named siblings', () => {
+    const vm = {
+      selectedCategory: ['Work'],
+      categoryStore: { all_categories: [['Work'], ['Work', 'Coding'], ['Workload'], ['Play']] },
+    };
+    expect(Trends.computed.filterCategories.call(vm)).toEqual([['Work'], ['Work', 'Coding']]);
+  });
+
+  test('All leaves the query unfiltered and Uncategorized remains selectable', () => {
+    expect(Trends.computed.filterCategories.call({ selectedCategory: null })).toBeNull();
+    expect(
+      Trends.computed.filterCategories.call({
+        selectedCategory: ['Uncategorized'],
+        categoryStore: { all_categories: [['Work']] },
+      })
+    ).toEqual([['Uncategorized']]);
+  });
+
+  test('category changes use the existing refresh generation boundary', () => {
+    const refresh = jest.fn();
+    Trends.watch.selectedCategory.call({ refresh });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  test('both daily and comparison queries receive the selected category filter', () => {
+    const vm = {
+      categoryStore: { classes_for_query: [[], []] },
+      settingsStore: { always_active_pattern: '' },
+      filterCategories: [['Work'], ['Work', 'Coding']],
+    };
+    const query = Trends.methods.buildCategoryQuery.call(vm, 'a').join(' ');
+    expect(query).toContain('[["Work"],["Work","Coding"]]');
   });
 });
