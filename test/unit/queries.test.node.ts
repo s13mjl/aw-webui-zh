@@ -372,7 +372,9 @@ describe('querystr_to_array', () => {
 describe('canonicalEvents select_keys serialization (#952)', () => {
   test('serializes select_keys into categorize()', () => {
     const query = canonicalEvents({
-      bid_android: 'aw-watcher-android_test',
+      bid_window: 'aw-watcher-window_testhost',
+      bid_afk: 'aw-watcher-afk_testhost',
+      filter_afk: true,
       categories: [[['Work'], { type: 'regex', regex: 'Firefox', select_keys: ['app'] }]],
       filter_categories: [],
     });
@@ -382,7 +384,9 @@ describe('canonicalEvents select_keys serialization (#952)', () => {
 
   test('legacy rules without select_keys serialize unchanged', () => {
     const query = canonicalEvents({
-      bid_android: 'aw-watcher-android_test',
+      bid_window: 'aw-watcher-window_testhost',
+      bid_afk: 'aw-watcher-afk_testhost',
+      filter_afk: true,
       categories: [[['Work'], { type: 'regex', regex: 'Firefox' }]],
       filter_categories: [],
     });
