@@ -106,7 +106,6 @@ app.mixin(asyncErrorCapturedMixin);
 const globalProperties = app.config.globalProperties;
 globalProperties.PRODUCTION = PRODUCTION;
 globalProperties.COMMIT_HASH = COMMIT_HASH;
-globalProperties.$isAndroid = process.env.VUE_APP_ON_ANDROID;
 globalProperties.$filters = filters;
 globalProperties.$aw = getClient();
 globalProperties.$showModal = showModal;

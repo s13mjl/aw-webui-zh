@@ -54,21 +54,7 @@ const desktopViews: View[] = [
   },
 ];
 
-export const androidViews: View[] = [
-  {
-    id: 'summary',
-    name: 'Summary',
-    elements: [
-      { type: 'top_apps', size: 3 },
-      { type: 'top_categories', size: 3 },
-      { type: 'timeline_barchart', size: 3 },
-      { type: 'category_tree', size: 3 },
-      { type: 'category_sunburst', size: 3 },
-    ],
-  },
-];
-
-export const defaultViews = !process.env.VUE_APP_ON_ANDROID ? desktopViews : androidViews;
+export const defaultViews = desktopViews;
 
 interface State {
   views: View[];

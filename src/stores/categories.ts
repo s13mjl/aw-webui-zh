@@ -244,7 +244,7 @@ export const useCategoryStore = defineStore('categories', {
       const write = (async () => {
         if (previous) await previous.catch(() => undefined);
         // saveCategories 已经写入旧版 `classes` 字段；再次调用 saveClasses
-        // 会与本次 update 竞态，可能持久化空/默认快照（aw-android#247）。
+        // 会与本次 update 竞态，可能持久化空/默认快照。
         await saveCategories(snapshot.category_sets, snapshot.active_set_ids);
       })();
       pendingSaves.set(this, write);
