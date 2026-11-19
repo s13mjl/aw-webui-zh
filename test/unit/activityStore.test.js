@@ -23,7 +23,6 @@ function setupStores() {
   useSettingsStore().$patch({
     _loaded: true,
     startOfDay: '00:00',
-    useMultidevice: false,
     requestTimeout: 30,
   });
 

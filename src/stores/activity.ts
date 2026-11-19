@@ -5,7 +5,7 @@ import { map, filter, values, groupBy, sortBy, flow, reverse } from 'lodash/fp';
 import { IEvent } from '~/util/interfaces';
 
 import { window_events } from '~/util/fakedata';
-import queries from '~/queries';
+import queries, { MultiQueryParams } from '~/queries';
 import { get_day_start_with_offset } from '~/util/time';
 import {
   TimePeriod,
@@ -25,6 +25,13 @@ import {
   mergeFullDesktopResults,
   periodsForFullDesktopQuery,
 } from '~/util/desktopQuerySplit';
+import {
+  buildMultideviceHostParams,
+  eligibleMultideviceHosts,
+  isMultiHostSelection,
+  parseHostParam,
+  resolveHostSelection,
+} from '~/util/multidevice';
 
 function timeperiodStrsAroundTimeperiod(timeperiod: TimePeriod): string[] {
   return timeperiodsAroundTimeperiod(timeperiod).map(timeperiodToStr);
@@ -72,6 +79,23 @@ async function queryDesktopPeriods(
     }
   }
   return mergeFullDesktopResults(results);
+}
+
+/**
+ * Periods around `timeperiod` whose active history still needs querying:
+ * not started yet periods are skipped, cached ones are reused, except the
+ * period containing now, which is still growing.
+ */
+export function uncachedHistoryPeriods(
+  periods: string[],
+  cachedHistory: Record<string, unknown>,
+  now: Date = new Date()
+): string[] {
+  return periods.filter(tp_str => {
+    const [start, end] = tp_str.split('/').map(t => new Date(t));
+    if (start >= now) return false;
+    return !_.has(cachedHistory, tp_str) || end > now;
+  });
 }
 
 export interface QueryOptions {
@@ -129,6 +153,8 @@ interface State {
     events: IEvent[];
     // Aggregated events for current and past periods
     history: Record<any, IEvent[]>;
+    // The devices/buckets the cached history was computed from
+    history_key?: string;
   };
 
   android: {
@@ -141,6 +167,10 @@ interface State {
   };
 
   query_options?: QueryOptions;
+
+  // Hosts included in the current query: a single host, or several when the
+  // route selects multiple devices / "all devices" (see util/multidevice.ts).
+  query_hosts: string[];
 
   // Incremented for every load attempt (and on reset) so that a failing
   // superseded load can't clear the guard set by a newer one.
@@ -199,6 +229,7 @@ export const useActivityStore = defineStore('activity', {
       events: [],
       // Aggregated events for current and past periods
       history: {},
+      history_key: undefined,
     },
 
     android: {
@@ -211,6 +242,8 @@ export const useActivityStore = defineStore('activity', {
     },
 
     query_options: null,
+
+    query_hosts: [],
 
     loadId: 0,
 
@@ -305,33 +338,31 @@ export const useActivityStore = defineStore('activity', {
 
     async run_queries(query_options: QueryOptions) {
       const bucketsStore = useBucketsStore();
-      const settingsStore = useSettingsStore();
 
       await bucketsStore.ensureLoaded();
+
+      // The `host` option is the Activity route's `:host` param: a single
+      // hostname, a comma-separated list, or "@all" (see util/multidevice.ts).
+      const multiHosts = this.resolve_multidevice_hosts(query_options.host);
+      if (multiHosts.length > 1) {
+        await this.ensure_loaded_multidevice(query_options, multiHosts);
+        return;
+      }
+      // A selection that resolves to a single device (e.g. "all devices"
+      // when only one host has data) uses the full single-device view.
+      if (multiHosts.length === 1) {
+        query_options = { ...query_options, host: multiHosts[0] };
+      }
+      this.query_hosts = [query_options.host];
+
       await this.get_buckets(query_options);
+      this.set_history_key();
 
       // TODO: These queries can actually run in parallel, but since server won't process them in parallel anyway we won't.
       this.set_available();
 
       if (this.window.available) {
-        console.info(
-          settingsStore.useMultidevice ? 'Querying multiple devices' : 'Querying a single device'
-        );
-        if (settingsStore.useMultidevice) {
-          const hostnames = bucketsStore.hosts.filter(
-            // require that the host has window buckets,
-            // and that the host is not a fakedata host,
-            // unless we're explicitly querying fakedata
-            host =>
-              host &&
-              bucketsStore.bucketsWindow(host).length > 0 &&
-              (!host.startsWith('fakedata') || query_options.host.startsWith('fakedata'))
-          );
-          console.info('Including hosts in multiquery: ', hostnames);
-          await this.query_multidevice_full(query_options, hostnames);
-        } else {
-          await this.query_desktop_full(query_options);
-        }
+        await this.query_desktop_full(query_options);
       } else if (this.android.available) {
         await this.query_android(query_options);
       } else {
@@ -391,23 +422,143 @@ export const useActivityStore = defineStore('activity', {
       this.query_category_time_by_period_completed({});
     },
 
-    async query_multidevice_full(
-      { timeperiod, filter_categories, filter_afk, always_active_pattern }: QueryOptions,
-      hosts: string[]
-    ) {
-      const periods = periodsForFullDesktopQuery(timeperiod);
-      const categories = useCategoryStore().classes_for_query;
+    /**
+     * Hosts to include when the `host` param selects several devices.
+     * Returns [] for a plain single-host param (the regular single-device
+     * path), and the resolved host list otherwise.
+     */
+    resolve_multidevice_hosts(host: string): string[] {
+      const bucketsStore = useBucketsStore();
+      const selection = parseHostParam(host, bucketsStore.hosts);
+      if (!isMultiHostSelection(selection)) {
+        return [];
+      }
+      const eligible = eligibleMultideviceHosts(
+        bucketsStore.hosts,
+        bucketsStore.bucketsWindow,
+        bucketsStore.bucketsAFK,
+        // fakedata hosts only take part when explicitly selected
+        { includeFakedata: selection.hosts.some(h => h.startsWith('fakedata')) }
+      );
+      return resolveHostSelection(selection, eligible);
+    },
 
-      const q = queries.multideviceQuery({
+    async ensure_loaded_multidevice(query_options: QueryOptions, hosts: string[]) {
+      console.info('Querying multiple devices: ', hosts);
+      this.query_hosts = hosts;
+      this.get_buckets_multidevice(hosts);
+      this.set_history_key();
+
+      // The multidevice query supports window/app, category and active-time
+      // data. Browser (and audible-as-active) and stopwatch data are
+      // single-device only: browser buckets often have no usable hostname, so
+      // they can't be attributed to a device.
+      this.window.available = true;
+      this.browser.available = false;
+      this.active.available = true;
+      this.editor.available = this.buckets.editor.length > 0;
+      this.android.available = false;
+      this.category.available = true;
+      this.stopwatch.available = false;
+
+      await this.query_multidevice_full(query_options, hosts);
+
+      if (query_options.skip_active_history) {
+        await this.query_active_history_completed();
+      } else {
+        await this.query_active_history_multidevice(query_options, hosts);
+      }
+
+      if (this.editor.available) {
+        await this.query_editor(query_options);
+      } else {
+        await this.query_editor_completed();
+      }
+
+      if (this.window.available) {
+        await this.query_category_time_by_period(query_options);
+      }
+    },
+
+    get_buckets_multidevice(this: State, hosts: string[]) {
+      const bucketsStore = useBucketsStore();
+      const collect = (f: (host: string) => string[]) => _.uniq(_.flatMap(hosts, f));
+      this.buckets.afk = collect(bucketsStore.bucketsAFK);
+      this.buckets.window = collect(bucketsStore.bucketsWindow);
+      this.buckets.android = [];
+      this.buckets.browser = [];
+      this.buckets.editor = collect(bucketsStore.bucketsEditor);
+      this.buckets.stopwatch = [];
+      this.buckets.loaded = true;
+    },
+
+    multidevice_params(
+      { filter_categories, filter_afk, always_active_pattern }: QueryOptions,
+      hosts: string[]
+    ): MultiQueryParams {
+      const bucketsStore = useBucketsStore();
+      // Pass each host's actual bucket IDs (see buildMultideviceHostParams),
+      // so that buckets synced from another host — whose IDs carry an
+      // "-synced-from-<host>" suffix — are queried instead of the
+      // reconstructed "aw-watcher-window_<host>" IDs which don't exist in
+      // the local datastore.
+      const { host_params, hosts_with_buckets } = buildMultideviceHostParams(
         hosts,
+        host => bucketsStore.bucketsWindow(host),
+        host => bucketsStore.bucketsAFK(host)
+      );
+      return {
+        hosts: hosts_with_buckets,
         filter_afk,
-        categories,
+        categories: useCategoryStore().classes_for_query,
         filter_categories,
-        host_params: {},
+        host_params,
         always_active_pattern,
-      });
+      };
+    },
+
+    async query_multidevice_full({ timeperiod, ...rest }: QueryOptions, hosts: string[]) {
+      const periods = periodsForFullDesktopQuery(timeperiod);
+      const params = this.multidevice_params(rest, hosts);
+      const q = queries.multideviceQuery(params);
       const merged = await queryDesktopPeriods(periods, q, 'multidevice');
       this.query_window_completed(merged.window || {});
+    },
+
+    async query_active_history_multidevice({ timeperiod }: QueryOptions, hosts: string[]) {
+      const bucketsStore = useBucketsStore();
+      const periods = uncachedHistoryPeriods(
+        timeperiodStrsAroundTimeperiod(timeperiod),
+        this.active.history
+      );
+      const { host_params } = buildMultideviceHostParams(
+        hosts,
+        host => bucketsStore.bucketsWindow(host),
+        host => bucketsStore.bucketsAFK(host)
+      );
+      const afk_buckets: string[] = _.values(host_params).map(p => p.bid_afk);
+      const query = queries.multideviceActivityQuery(afk_buckets);
+      const client = getClient();
+      const signal = client.controller.signal;
+      const data: number[] = [];
+      for (const period of periods) {
+        if (signal.aborted) {
+          throw signal['reason'] || 'unknown reason';
+        }
+        data.push(
+          ...(await client.query([period], query, {
+            name: 'multideviceActivityQuery',
+            verbose: true,
+          }))
+        );
+      }
+      const active_history = _.zipObject(
+        periods,
+        _.map(data, (duration: number, i: number): IEvent[] => [
+          { timestamp: periods[i].split('/')[0], duration, data: { status: 'not-afk' } },
+        ])
+      );
+      this.query_active_history_completed({ active_history });
     },
 
     async query_desktop_full({
@@ -455,32 +606,13 @@ export const useActivityStore = defineStore('activity', {
       this.query_editor_completed(data[0]);
     },
 
-    async query_active_history({ timeperiod, ...query_options }: QueryOptions) {
-      const settingsStore = useSettingsStore();
-      const bucketsStore = useBucketsStore();
+    async query_active_history({ timeperiod }: QueryOptions) {
       // Filter out periods that are already in the history, and that are in the future
-      const periods = timeperiodStrsAroundTimeperiod(timeperiod).filter(tp_str => {
-        return (
-          !_.includes(this.active.history, tp_str) && new Date(tp_str.split('/')[0]) < new Date()
-        );
-      });
-      let afk_buckets: string[] = [];
-      if (settingsStore.useMultidevice) {
-        // get all hostnames that qualify for the multidevice query
-        const hostnames = bucketsStore.hosts.filter(
-          // require that the host has afk buckets,
-          // and that the host is not a fakedata host,
-          // unless we're explicitly querying fakedata
-          host =>
-            host &&
-            bucketsStore.bucketsAFK(host).length > 0 &&
-            (!host.startsWith('fakedata') || query_options.host.startsWith('fakedata'))
-        );
-        // get all afk buckets for all hosts
-        afk_buckets = _.flatten(hostnames.map(bucketsStore.bucketsAFK));
-      } else {
-        afk_buckets = [this.buckets.afk[0]];
-      }
+      const periods = uncachedHistoryPeriods(
+        timeperiodStrsAroundTimeperiod(timeperiod),
+        this.active.history
+      );
+      const afk_buckets = [this.buckets.afk[0]];
       const query = queries.activityQuery(afk_buckets);
       const data = await getClient().query(periods, query, {
         name: 'activityQuery',
@@ -493,14 +625,22 @@ export const useActivityStore = defineStore('activity', {
       this.query_active_history_completed({ active_history });
     },
 
-    async query_category_time_by_period({
-      timeperiod,
-      filter_categories,
-      filter_afk,
-      include_stopwatch,
-      dontQueryInactive,
-      always_active_pattern,
-    }: QueryOptions & { dontQueryInactive: boolean }) {
+    async query_category_time_by_period(
+      query_options: QueryOptions & { dontQueryInactive?: boolean }
+    ) {
+      const {
+        timeperiod,
+        filter_categories,
+        filter_afk,
+        include_stopwatch,
+        dontQueryInactive,
+        always_active_pattern,
+      } = query_options;
+      // Several devices selected: categorize the combined multidevice timeline.
+      const multideviceParams =
+        this.query_hosts.length > 1
+          ? this.multidevice_params(query_options, this.query_hosts)
+          : null;
       // TODO: Needs to be adapted for Android
       // Choose an appropriate granularity for the period. Adaptive splitting
       // keeps custom/all-time ranges (which can span years) from issuing
@@ -547,25 +687,27 @@ export const useActivityStore = defineStore('activity', {
         const categories = useCategoryStore().classes_for_query;
         // TODO: Clean up call, pass QueryParams in fullDesktopQuery as well
         // TODO: Unify QueryOptions and QueryParams
-        const query = queries.categoryQuery({
-          bid_browsers: this.buckets.browser,
-          bid_stopwatch:
-            include_stopwatch && this.buckets.stopwatch.length > 0
-              ? this.buckets.stopwatch[0]
-              : undefined,
-          categories,
-          filter_categories,
-          filter_afk,
-          always_active_pattern,
-          ...(isAndroid
-            ? {
-                bid_android: this.buckets.android[0],
-              }
-            : {
-                bid_afk: this.buckets.afk[0],
-                bid_window: this.buckets.window[0],
-              }),
-        });
+        const query = multideviceParams
+          ? queries.categoryQuery(multideviceParams)
+          : queries.categoryQuery({
+              bid_browsers: this.buckets.browser,
+              bid_stopwatch:
+                include_stopwatch && this.buckets.stopwatch.length > 0
+                  ? this.buckets.stopwatch[0]
+                  : undefined,
+              categories,
+              filter_categories,
+              filter_afk,
+              always_active_pattern,
+              ...(isAndroid
+                ? {
+                    bid_android: this.buckets.android[0],
+                  }
+                : {
+                    bid_afk: this.buckets.afk[0],
+                    bid_window: this.buckets.window[0],
+                  }),
+            });
         const result = await getClient().query([period], query, {
           verbose: true,
           name: 'categoryQuery',
@@ -582,9 +724,10 @@ export const useActivityStore = defineStore('activity', {
     },
 
     async query_active_history_android({ timeperiod }: QueryOptions) {
-      const periods = timeperiodStrsAroundTimeperiod(timeperiod).filter(tp_str => {
-        return !_.includes(this.active.history, tp_str);
-      });
+      const periods = uncachedHistoryPeriods(
+        timeperiodStrsAroundTimeperiod(timeperiod),
+        this.active.history
+      );
       const data = await getClient().query(
         periods,
         queries.activityQueryAndroid(this.buckets.android[0])
@@ -737,11 +880,22 @@ export const useActivityStore = defineStore('activity', {
 
       this.active.duration = null;
 
-      // Ensures that active history isn't being fully reloaded on every date change
-      // (see caching done in query_active_history and query_active_history_android)
-      // FIXME: Better detection of when to actually clear (such as on force reload, hostname change)
+      // The active history cache is invalidated by set_history_key once the
+      // resolved hosts/buckets are known (see caching done in
+      // query_active_history and query_active_history_android).
       if (Object.keys(this.active.history).length === 0) {
         this.active.history = {};
+      }
+    },
+
+    // Clear the cached active history if it was computed from other
+    // devices/buckets: another host, a changed selection, or a new device
+    // showing up under "all devices".
+    set_history_key(this: State) {
+      const key = JSON.stringify([this.query_hosts, this.buckets.afk]);
+      if (this.active.history_key !== key) {
+        this.active.history = {};
+        this.active.history_key = key;
       }
     },
 

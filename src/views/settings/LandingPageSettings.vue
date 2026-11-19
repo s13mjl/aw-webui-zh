@@ -6,7 +6,8 @@ div
     div
       b-select.landingpage(v-if="loaded" size="sm" :value="landingpage", @change="landingpage = $event")
         option(value="/home") {{ $t('settings.landingPage.home') }}
-        option(:value="'/activity/' + hostname + '/view/'" v-for="hostname in hostnames") {{ $t('settings.landingPage.activity', { hostname: hostname }) }}
+        option(:value="'/activity/@all/view/'" v-if="hostnames.length > 1") {{ $t('activity.allDevices') }}
+        option(:value="'/activity/' + formatHostParam({ all: false, hosts: [hostname] }) + '/view/'" v-for="hostname in hostnames") {{ $t('settings.landingPage.activity', { hostname: hostname }) }}
         option(value="/timeline") {{ $t('settings.landingPage.timeline') }}
       span(v-else)
         .aw-loading {{ $t('common.loading') }}
@@ -17,6 +18,7 @@ div
 <script lang="ts">
 import { useSettingsStore } from '~/stores/settings';
 import { useBucketsStore } from '~/stores/buckets';
+import { formatHostParam } from '~/util/multidevice';
 
 export default {
   name: 'LandingPageSettings',
@@ -45,6 +47,9 @@ export default {
   async mounted() {
     await this.bucketsStore.ensureLoaded();
     this.loaded = true;
+  },
+  methods: {
+    formatHostParam,
   },
 };
 </script>

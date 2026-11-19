@@ -74,18 +74,25 @@ interface AndroidQueryParams extends BaseQueryParams {
   bid_android: string;
 }
 
-interface MultiQueryParams extends BaseQueryParams {
+export interface MultiQueryParams extends BaseQueryParams {
   hosts: string[];
   filter_afk: boolean;
   always_active_pattern: string;
   // This can be used to override params on a per-host basis
-  host_params: { [host: string]: DesktopQueryParams | AndroidQueryParams };
+  host_params: { [host: string]: DesktopQueryParams };
 }
 
-function get_params(
-  params: MultiQueryParams,
-  host: string
-): DesktopQueryParams | AndroidQueryParams {
+// Query-variable suffix for the i-th host of a multidevice query. The index
+// keeps it unique: different hostnames can map to the same safeHostname()
+// (e.g. "work-laptop" and "worklaptop"), and would otherwise overwrite each
+// other's events.
+function hostVariableSuffix(params: MultiQueryParams, i: number): string {
+  return `${safeHostname(params.hosts[i])}_${i}`;
+}
+
+function get_params(params: MultiQueryParams, i: number): DesktopQueryParams {
+  const host = params.hosts[i];
+
   // Return the params for a given host, based on the self params and any overrides in host_params.
   // If no overrides are found, return the base params.
   const new_params: DesktopQueryParams = {
@@ -93,7 +100,7 @@ function get_params(
     bid_window: 'aw-watcher-window_' + host,
     bid_afk: 'aw-watcher-afk_' + host,
     bid_browsers: [],
-    return_variable_suffix: safeHostname(host),
+    return_variable_suffix: hostVariableSuffix(params, i),
   };
 
   const host_params = params.host_params[host];
@@ -202,8 +209,8 @@ export function canonicalEvents(params: DesktopQueryParams | AndroidQueryParams)
 
 export function canonicalMultideviceEvents(params: MultiQueryParams): string {
   // First, query each device individually
-  const queries: string[] = _.map(params.hosts, hostname => {
-    return canonicalEvents(get_params(params, hostname));
+  const queries: string[] = _.map(params.hosts, (_hostname, i) => {
+    return canonicalEvents(get_params(params, i));
   });
 
   // Now we need to combine the queries to get a single series of events.
@@ -214,8 +221,8 @@ export function canonicalMultideviceEvents(params: MultiQueryParams): string {
   query += 'not_afk = [];';
   for (let i = 0; i < queries.length; i++) {
     query += `
-    events = union_no_overlap(events, events_${safeHostname(params.hosts[i])});
-    not_afk = union_no_overlap(not_afk, not_afk_${safeHostname(params.hosts[i])});
+    events = union_no_overlap(events, events_${hostVariableSuffix(params, i)});
+    not_afk = union_no_overlap(not_afk, not_afk_${hostVariableSuffix(params, i)});
     `;
   }
 
@@ -498,6 +505,23 @@ export function activityQueryAndroid(androidbucket: string): string[] {
   return [`events = query_bucket("${androidbucket}");`, 'RETURN = sum_durations(events);'];
 }
 
+// Active-time query across several desktop devices, used for the period-usage
+// bars in multidevice mode. Each host contributes its not-afk periods;
+// period_union makes simultaneous use of two devices count once.
+// Returns the total active duration (seconds).
+export function multideviceActivityQuery(afkbuckets: string[]): string[] {
+  let q = ['not_afk = [];'];
+  for (const afkbucket of afkbuckets) {
+    q = q.concat([
+      `not_afk_curr = query_bucket("${escape_doublequote(afkbucket)}");`,
+      `not_afk_curr = filter_keyvals(not_afk_curr, "status", ["not-afk"]);`,
+      `not_afk = period_union(not_afk, not_afk_curr);`,
+    ]);
+  }
+  q = q.concat(['RETURN = sum_durations(not_afk);']);
+  return q;
+}
+
 // Returns a query that yields a dict with a key "cat_events" which is an
 // array of one event per category, with the duration of each event set to the sum of the category durations.
 export function categoryQuery(
@@ -517,6 +541,7 @@ export default {
   appQuery,
   activityQuery,
   activityQueryAndroid,
+  multideviceActivityQuery,
   categoryQuery,
   editorActivityQuery,
 };

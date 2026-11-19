@@ -60,6 +60,16 @@ describe('settings store locale loading', () => {
     expect(i18n.locale).toBe('zh-CN');
   });
 
+  test('load ignores removed settings keys', async () => {
+    mockGetSettings.mockResolvedValue({ useMultidevice: true });
+    localStorage.setItem('useMultidevice', 'true');
+
+    await settingsStore.load();
+
+    expect('useMultidevice' in settingsStore.$state).toBe(false);
+    expect(settingsStore._storedKeys).not.toContain('useMultidevice');
+  });
+
   test('load ignores invalid locale from localStorage', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(jest.fn());
     localStorage.setItem('locale', 'xx');

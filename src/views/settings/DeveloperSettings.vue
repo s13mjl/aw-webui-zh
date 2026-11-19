@@ -10,14 +10,6 @@ div
   small.text-muted
     | {{ $t('settings.developer.forceDevmodeHelp') }}
 
-  div.mt-3.d-flex.justify-content-between.align-items-center
-    div
-      h5.mb-0#multidevice-label {{ $t('settings.developer.multidevice') }}
-    div
-      b-form-checkbox(v-model="useMultidevice" switch aria-labelledby="multidevice-label")
-  small.text-muted
-    | {{ $t('settings.developer.multideviceHelp') }}
-
   div.mt-3.d-sm-flex.justify-content-between
     div
       h5.mt-1.mb-2.mb-sm-0#request-timeout-label {{ $t('settings.developer.requestTimeout') }}
@@ -54,14 +46,6 @@ export default {
       },
       set(devmode) {
         useSettingsStore().update({ devmode });
-      },
-    },
-    useMultidevice: {
-      get() {
-        return useSettingsStore().useMultidevice;
-      },
-      set(useMultidevice) {
-        useSettingsStore().update({ useMultidevice });
       },
     },
     requestTimeout: {

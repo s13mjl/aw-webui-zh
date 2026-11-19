@@ -226,9 +226,6 @@ export default {
         'These settings are meant for developers who (hopefully) know what they are doing, and as such, may break things unexpectedly.',
       forceDevmode: 'Force devmode',
       forceDevmodeHelp: 'Devmode enables some features that are still work-in-progress.',
-      multidevice: 'Use multidevice query',
-      multideviceHelp:
-        'Multidevice query is where events are collected from several hosts in the Activity view. It is an early experiment, that currently does not support browser buckets (or the audible-as-active feature).',
       requestTimeout: 'Request timeout',
       requestTimeoutHelp:
         'The maximum amount of time a server request can take before timing out. Setting this to a high value can be useful for large queries. Note that you need to reload the web UI for it to apply.',
@@ -345,6 +342,11 @@ export default {
     title: 'Activity',
     for: 'for',
     host: 'Host:',
+    devices: 'Devices:',
+    allDevices: 'All devices',
+    allDevicesCount: 'All devices ({count})',
+    onlyThisDevice: 'only',
+    multideviceNote: 'Browser and stopwatch data are only available when viewing a single device.',
     timeActive: 'Time active:',
     queryRange: 'Query range:',
     filters: 'Filters',

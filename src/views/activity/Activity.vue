@@ -8,11 +8,53 @@ div
   div.mb-3.text-muted(style="font-size: 0.9em;")
     ul.list-group.list-group-horizontal-md
       li.list-group-item.pl-0.pr-3.py-0.border-0
-        b.mr-1 {{ $t('activity.host') }}
-        span {{ host }}
+        b.mr-1 {{ isMultidevice ? $t('activity.devices') : $t('activity.host') }}
+        span(v-if="selectableHosts.length <= 1 && !isMultidevice") {{ host }}
+        b-dropdown.host-selector(
+          v-else
+          size="sm"
+          variant="link"
+          toggle-class="p-0 text-muted host-selector-toggle"
+          data-testid="host-selector"
+        )
+          template(v-slot:button-content)
+            span {{ hostLabel }}
+          b-dropdown-item(
+            :to="routeForHost(allDevicesParam)"
+            :active="hostSelection.all"
+            data-testid="host-selector-all"
+          )
+            icon.mr-1(name="layer-group")
+            | {{ $t('activity.allDevices') }}
+          b-dropdown-divider
+          b-dropdown-form.host-selector-form
+            div.d-flex.align-items-center.justify-content-between.host-selector-row(
+              v-for="h in selectableHosts"
+              :key="h"
+            )
+              b-form-checkbox.mr-3(
+                :checked="selectedHosts.includes(h)"
+                :disabled="selectedHosts.length === 1 && selectedHosts.includes(h)"
+                @change="toggleHost(h)"
+                :data-testid="'host-selector-host-' + h"
+              )
+                icon.mr-1(name="desktop" scale="0.8")
+                | {{ h }}
+              router-link.small(:to="routeForHost(hostParamFor([h]))")
+                | {{ $t('activity.onlyThisDevice') }}
+            // Devices named in the URL that have no activity data (e.g. removed
+            // buckets): shown, but not as selected, since they aren't queried.
+            div.host-selector-row.text-muted(
+              v-for="h in unavailableHosts"
+              :key="'unavailable-' + h"
+              :data-testid="'host-selector-unavailable-' + h"
+            )
+              b-form-checkbox.mr-3(:checked="false" disabled)
+                | {{ h }} {{ $t('visualizations.noData') }}
       li.list-group-item.pl-0.pr-3.py-0.border-0
         b.mr-1 {{ $t('activity.timeActive') }}
         span {{ $filters.friendlyduration(activityStore.active.duration) }}
+    div(v-if="isMultidevice") {{ $t('activity.multideviceNote') }}
     ul.list-group.list-group-horizontal-md(v-if="periodLength != 'day'")
       li.list-group-item.pl-0.pr-3.py-0.border-0
         b.mr-1 {{ $t('activity.queryRange') }}
@@ -246,17 +288,27 @@ import { get_day_start_with_offset, get_today_with_offset } from '~/util/time';
 import { periodStartDate } from '~/util/timeperiod';
 import _ from 'lodash';
 
-
 import { useSettingsStore } from '~/stores/settings';
 import { useCategoryStore } from '~/stores/categories';
 import { useActivityStore, QueryOptions } from '~/stores/activity';
 import { useBucketsStore } from '~/stores/buckets';
 import { useViewsStore } from '~/stores/views';
+import {
+  ALL_DEVICES,
+  eligibleMultideviceHosts,
+  formatHostParam,
+  isMultiHostSelection,
+  parseHostParam,
+  resolveHostSelection,
+  toggleHostInSelection,
+} from '~/util/multidevice';
 
 export default {
   name: 'Activity',
   components: {
-    'aw-uncategorized-notification': defineAsyncComponent(() => import('~/components/UncategorizedNotification.vue')),
+    'aw-uncategorized-notification': defineAsyncComponent(
+      () => import('~/components/UncategorizedNotification.vue')
+    ),
   },
   props: {
     host: String,
@@ -304,6 +356,52 @@ export default {
     },
     views(): import('~/stores/views').View[] {
       return this.viewsStore.viewsForHost(this.host);
+    },
+    hostSelection() {
+      return parseHostParam(this.host || '', this.bucketsStore.hosts);
+    },
+    isMultidevice() {
+      return isMultiHostSelection(this.hostSelection);
+    },
+    eligibleHosts() {
+      return eligibleMultideviceHosts(
+        this.bucketsStore.hosts,
+        h => this.bucketsStore.bucketsWindow(h),
+        h => this.bucketsStore.bucketsAFK(h),
+        // Keep fakedata hosts available when the current URL already selects one
+        { includeFakedata: this.hostSelection.hosts.some(h => h.startsWith('fakedata')) }
+      );
+    },
+    selectableHosts() {
+      const hosts = [...this.eligibleHosts];
+      // A single host is queried whatever buckets it has, so keep it listed
+      if (!this.isMultidevice) {
+        this.hostSelection.hosts.forEach(h => {
+          if (!hosts.includes(h)) hosts.push(h);
+        });
+      }
+      return hosts;
+    },
+    // Hosts named in a multi-device URL that have no activity data
+    // (and are therefore left out of the query)
+    unavailableHosts() {
+      if (!this.isMultidevice) return [];
+      return this.hostSelection.hosts.filter(h => !this.selectableHosts.includes(h));
+    },
+    selectedHosts() {
+      return resolveHostSelection(this.hostSelection, this.selectableHosts);
+    },
+    hostLabel() {
+      if (this.hostSelection.all) {
+        return this.$t('activity.allDevicesCount', { count: this.selectedHosts.length }).toString();
+      }
+      return this.hostSelection.hosts.join(', ');
+    },
+    allDevicesParam() {
+      return ALL_DEVICES;
+    },
+    hostParam() {
+      return formatHostParam(this.hostSelection);
     },
     ...mapState(useSettingsStore, ['devmode']),
     ...mapState(useSettingsStore, ['always_active_pattern']),
@@ -390,7 +488,7 @@ export default {
       // In multidevice mode the activity view aggregates several hosts, so the
       // earliest date should consider all of them. Otherwise stick to buckets
       // belonging to the selected host.
-      const buckets = this.settingsStore.useMultidevice ? this.bucketsStore.buckets : hostBuckets;
+      const buckets = this.isMultidevice ? this.bucketsStore.buckets : hostBuckets;
       const dates: moment.Moment[] = [];
       buckets.forEach(b => {
         [b.created, b.first_seen, b.metadata && b.metadata.start].forEach(d => {
@@ -486,7 +584,7 @@ export default {
       }
     },
     link_prefix: function () {
-      return `/activity/${this.host}/${this.periodLength}`;
+      return `/activity/${this.hostParam}/${this.periodLength}`;
     },
     periodusage: function () {
       return this.activityStore.getActiveHistoryAroundTimeperiod(this.timeperiod);
@@ -600,6 +698,21 @@ export default {
   },
 
   methods: {
+    routeForHost(hostParam: string) {
+      const datePart = this.date ? `/${this.date}` : '';
+      return `/activity/${hostParam}/${this.periodLength}${datePart}/${this.subview}/${this.currentViewId}`;
+    },
+    hostParamFor(hosts: string[]) {
+      return formatHostParam({ all: false, hosts });
+    },
+    toggleHost(host: string) {
+      const next = toggleHostInSelection(this.hostSelection, host, this.eligibleHosts);
+      this.$router.push({
+        path: this.routeForHost(formatHostParam(next)),
+        query: this.$route.query,
+      });
+    },
+
     // Clicking the pressed extended-period pill goes back to "day". Custom
     // ranges keep their pill (and inline date inputs) until the user picks
     // another period.
@@ -670,7 +783,7 @@ export default {
       if (endStr > this.today) endStr = this.today;
       if (endStr < startStr) endStr = startStr;
 
-      const path = `/activity/${this.host}/custom/${startStr}/${this.subview}/${this.currentViewId}`;
+      const path = `/activity/${this.hostParam}/custom/${startStr}/${this.subview}/${this.currentViewId}`;
       if (this.$route.path === path && this.$route.query.end === endStr) {
         return;
       }
@@ -751,7 +864,7 @@ export default {
       } else {
         new_date = periodStartDate(anchorDate.format('YYYY-MM-DD'), periodLength);
       }
-      const path = `/activity/${this.host}/${periodLength}/${new_date}/${this.subview}/${this.currentViewId}`;
+      const path = `/activity/${this.hostParam}/${periodLength}/${new_date}/${this.subview}/${this.currentViewId}`;
       // Leaving a custom range behind also means dropping its end date.
       const query = { ...this.$route.query };
       delete query.end;

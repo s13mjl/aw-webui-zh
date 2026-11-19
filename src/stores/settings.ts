@@ -14,6 +14,11 @@ function jsonEq(a: any, b: any) {
   return isEqual(jsonA, jsonB);
 }
 
+// Settings that no longer exist. The server has no delete endpoint, so stale
+// values may still be stored; skip them on load so they don't get patched
+// back into state.
+const REMOVED_KEYS = new Set(['useMultidevice']);
+
 let settingsLoadPromise: Promise<void> | null = null;
 
 // Backoffs for NewReleaseNotification
@@ -64,7 +69,6 @@ interface State {
 
   // Whether to show certain WIP features
   devmode: boolean;
-  useMultidevice: boolean;
   requestTimeout: number;
 
   // Whether to hide visualizations that lack required data (default: off)
@@ -123,7 +127,6 @@ export const useSettingsStore = defineStore('settings', {
     // Developer settings
     // NOTE: PRODUCTION might be undefined (in tests, for example)
     devmode: typeof PRODUCTION === 'undefined' ? true : !PRODUCTION,
-    useMultidevice: false,
     requestTimeout: 30,
     hideUnsupportedVisualizations: false,
 
@@ -178,7 +181,7 @@ export const useSettingsStore = defineStore('settings', {
 
       // 1. Server settings take priority
       for (const key of Object.keys(server_settings)) {
-        if (key.startsWith('_')) continue;
+        if (key.startsWith('_') || REMOVED_KEYS.has(key)) continue;
         if (key === 'locale' && !isAppLocale(server_settings[key])) {
           console.warn('Ignoring invalid locale from server:', server_settings[key]);
           continue;
@@ -189,7 +192,7 @@ export const useSettingsStore = defineStore('settings', {
 
       // 2. localStorage fills in gaps, but skip missing keys (null)
       for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('_') || used.has(key)) continue;
+        if (key.startsWith('_') || used.has(key) || REMOVED_KEYS.has(key)) continue;
         const raw = localStorage.getItem(key);
         if (raw === null || raw === 'null') continue; // key absent or stored as null → keep state() default
 

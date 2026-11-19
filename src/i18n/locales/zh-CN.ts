@@ -222,9 +222,6 @@ export default {
       noteBody: '这些设置面向知道自己在做什么的开发者，可能会意外破坏功能。',
       forceDevmode: '强制开发模式',
       forceDevmodeHelp: '开发模式会启用一些仍在开发中的功能。',
-      multidevice: '使用多设备查询',
-      multideviceHelp:
-        '多设备查询会在活动视图中收集多个主机的事件。这是早期实验功能，目前不支持浏览器存储桶或有声即活跃功能。',
       requestTimeout: '请求超时时间',
       requestTimeoutHelp:
         '服务器请求超时前允许等待的最长时间。较高的值可用于大型查询。注意：需要重新加载 Web UI 后才会生效。',
@@ -337,6 +334,11 @@ export default {
     title: '活动',
     for: '查看',
     host: '主机：',
+    devices: '设备：',
+    allDevices: '所有设备',
+    allDevicesCount: '所有设备（{count}）',
+    onlyThisDevice: '仅此',
+    multideviceNote: '仅在查看单个设备时显示浏览器和秒表数据。',
     timeActive: '活跃时间：',
     queryRange: '查询范围：',
     filters: '筛选',

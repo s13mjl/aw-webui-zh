@@ -33,6 +33,10 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
           b-dropdown-item(v-for="view in activityViews", :key="view.name", :to="view.pathUrl")
             icon(:name="view.icon")
             | {{ view.name }}
+          b-dropdown-divider(v-if="activityViews && activityViews.length > 1")
+          b-dropdown-item(v-if="activityViews && activityViews.length > 1", to="/activity/@all")
+            icon(name="layer-group")
+            | {{ $t('activity.allDevices') }}
 
         b-nav-item(to="/timeline" style="font-color: #000;")
           div.px-2.px-lg-1
