@@ -4,11 +4,14 @@ import { useSettingsStore } from '~/stores/settings';
 import { getPresetCategorySets } from '~/util/presetCategories';
 
 const level_sep = '>';
-const CLASSIFY_KEYS = ['app', 'title'];
+export const CLASSIFY_KEYS = ['app', 'title'] as const;
 const UNCATEGORIZED = ['Uncategorized'];
 
 /** ID of the implicit set holding a user's own (non-preset) categories. */
 export const DEFAULT_SET_ID = 'default';
+
+/** Canonical event fields offered in the category-rule editor. */
+export const CANONICAL_SELECT_KEYS = CLASSIFY_KEYS;
 
 export interface Rule {
   type: 'regex' | 'none';
@@ -18,6 +21,22 @@ export interface Rule {
   priority?: number;
   /** Legacy alias for `priority` (kept for backwards compatibility with old exports). */
   weight?: number;
+  /** When set, only these event.data keys are tested. Absent = all string fields. */
+  select_keys?: string[];
+}
+
+/** Drop empty/invalid/duplicate select_keys so the rust parser never sees `[]`. */
+export function normalizeSelectKeys(keys?: string[] | null): string[] | undefined {
+  if (!keys || keys.length === 0) {
+    return undefined;
+  }
+  const unique: string[] = [];
+  for (const key of keys) {
+    if (typeof key === 'string' && key && !unique.includes(key)) {
+      unique.push(key);
+    }
+  }
+  return unique.length > 0 ? unique : undefined;
 }
 
 export interface Category {
@@ -257,6 +276,13 @@ export function cleanCategory(cat: Category): Category {
   // we also want to strip any excess properties that may have belonged to another rule type
   if (cat.rule && (cat.rule.type === null || cat.rule.type === 'none')) {
     cat.rule = { type: 'none' };
+  } else if (cat.rule && cat.rule.type === 'regex') {
+    const keys = normalizeSelectKeys(cat.rule.select_keys);
+    if (keys) {
+      cat.rule.select_keys = keys;
+    } else {
+      delete cat.rule.select_keys;
+    }
   }
   return cat;
 }
@@ -425,8 +451,12 @@ export function hasMatchableRegex(c: Category): boolean {
   return c.rule.type == 'regex' && !!c.rule.regex;
 }
 
-export function matchString(str: string, categories: Category[] | null): Category | null {
-  return matchStrings([str], categories);
+export function matchString(
+  str: string,
+  categories: Category[] | null,
+  event?: IEvent
+): Category | null {
+  return matchStrings([str], categories, event);
 }
 
 /**
@@ -435,8 +465,16 @@ export function matchString(str: string, categories: Category[] | null): Categor
  * regex matches ANY of the provided strings. This mirrors the server-side
  * categorize() behaviour, which tests each data field separately, instead of
  * concatenating them into one string. See #646.
+ *
+ * When the rule carries `select_keys` and the event is supplied, matching is
+ * restricted to those named event.data fields; an absent list keeps the legacy
+ * "test every provided string" semantics (同步上游 #952).
  */
-export function matchStrings(strs: string[], categories: Category[] | null): Category | null {
+export function matchStrings(
+  strs: string[],
+  categories: Category[] | null,
+  event?: IEvent
+): Category | null {
   if (!categories) {
     console.log(
       'Categories not passed, loading... (if you see this outside of a test, you should probably pass them)'
@@ -452,8 +490,19 @@ export function matchStrings(strs: string[], categories: Category[] | null): Cat
   });
 
   // Find the matching category.
-  // If several categories match, explicit priority wins; otherwise depth wins.
-  const matchingCats: [Category, RegExp][] = regexes.filter(c => strs.some(s => s && c[1].test(s)));
+  // If several categories match the event, the one with the highest priority
+  // wins; ties are broken by depth (deeper wins), matching the server-side
+  // categorize() behaviour for same-depth categories.
+  const matchingCats: [Category, RegExp][] = regexes.filter(([category, re]) => {
+    const selectKeys = normalizeSelectKeys(category.rule.select_keys);
+    if (event && selectKeys) {
+      return selectKeys.some(key => {
+        const value = event.data[key];
+        return typeof value === 'string' && re.test(value);
+      });
+    }
+    return strs.some(s => s && re.test(s));
+  });
   if (matchingCats.length > 0) {
     return pickHighestRanked(matchingCats.map(c => c[0]));
   }
@@ -471,8 +520,12 @@ export function classifyEvents(events: IEvent[], categories: Category[]): IEvent
   // Classify events using compiled regexes.
   // If several categories match, explicit priority wins; otherwise depth wins.
   return events.map((e: IEvent) => {
-    const matchingCats: [Category, RegExp][] = regexes.filter(c => {
-      return _.map(CLASSIFY_KEYS, key => c[1].test(e.data[key])).some(x => x);
+    const matchingCats: [Category, RegExp][] = regexes.filter(([category, re]) => {
+      const keys = normalizeSelectKeys(category.rule.select_keys) || [...CLASSIFY_KEYS];
+      return keys.some(key => {
+        const value = e.data[key];
+        return typeof value === 'string' && re.test(value);
+      });
     });
     if (matchingCats.length > 0) {
       const category = pickHighestRanked(matchingCats.map(c => c[0]));

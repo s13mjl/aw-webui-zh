@@ -61,6 +61,7 @@
 
 import {
   browser_appname_regex,
+  canonicalEvents,
   editorActivityQuery,
   fullDesktopQuery,
   querystr_to_array,
@@ -365,5 +366,27 @@ describe('querystr_to_array', () => {
     const query = '\n  events = query_bucket("bucket");\n  RETURN = events;\n';
     const result = querystr_to_array(query);
     expect(result).toHaveLength(2);
+  });
+});
+
+describe('canonicalEvents select_keys serialization (#952)', () => {
+  test('serializes select_keys into categorize()', () => {
+    const query = canonicalEvents({
+      bid_android: 'aw-watcher-android_test',
+      categories: [[['Work'], { type: 'regex', regex: 'Firefox', select_keys: ['app'] }]],
+      filter_categories: [],
+    });
+    expect(query).toContain('"select_keys":["app"]');
+    expect(query).toContain('"regex":"Firefox"');
+  });
+
+  test('legacy rules without select_keys serialize unchanged', () => {
+    const query = canonicalEvents({
+      bid_android: 'aw-watcher-android_test',
+      categories: [[['Work'], { type: 'regex', regex: 'Firefox' }]],
+      filter_categories: [],
+    });
+    expect(query).toContain('"regex":"Firefox"');
+    expect(query).not.toContain('select_keys');
   });
 });

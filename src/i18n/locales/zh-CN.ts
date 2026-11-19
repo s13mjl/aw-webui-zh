@@ -728,6 +728,11 @@ export default {
     none: '无',
     regex: '正则表达式',
     rule: '规则',
+    matchFields: '匹配字段',
+    matchFieldsHelp: '留空则匹配全部文本字段（默认）。',
+    fieldApp: '应用',
+    fieldTitle: '标题',
+    errorInvalidField: '所选匹配字段无法识别，请选择「应用」或「标题」。',
   },
   eventEditor: {
     title: '编辑事件',
