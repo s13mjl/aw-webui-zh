@@ -1,15 +1,42 @@
 import _ from 'lodash';
 import { IEvent } from './interfaces';
 import { useSettingsStore } from '~/stores/settings';
+import { getPresetCategorySets } from '~/util/presetCategories';
 
 const level_sep = '>';
-const CLASSIFY_KEYS = ['app', 'title'];
+export const CLASSIFY_KEYS = ['app', 'title'] as const;
 const UNCATEGORIZED = ['Uncategorized'];
+
+/** ID of the implicit set holding a user's own (non-preset) categories. */
+export const DEFAULT_SET_ID = 'default';
+
+/** Canonical event fields offered in the category-rule editor. */
+export const CANONICAL_SELECT_KEYS = CLASSIFY_KEYS;
 
 export interface Rule {
   type: 'regex' | 'none';
   regex?: string;
   ignore_case?: boolean;
+  /** Explicit integer priority; higher wins when several categories match. */
+  priority?: number;
+  /** Legacy alias for `priority` (kept for backwards compatibility with old exports). */
+  weight?: number;
+  /** When set, only these event.data keys are tested. Absent = all string fields. */
+  select_keys?: string[];
+}
+
+/** Drop empty/invalid/duplicate select_keys so the rust parser never sees `[]`. */
+export function normalizeSelectKeys(keys?: string[] | null): string[] | undefined {
+  if (!keys || keys.length === 0) {
+    return undefined;
+  }
+  const unique: string[] = [];
+  for (const key of keys) {
+    if (typeof key === 'string' && key && !unique.includes(key)) {
+      unique.push(key);
+    }
+  }
+  return unique.length > 0 ? unique : undefined;
 }
 
 export interface Category {
@@ -22,9 +49,9 @@ export interface Category {
   depth?: number;
   parent?: string[];
   children?: Category[];
-  // User-defined priority for conflict resolution. When multiple categories
-  // match the same event, the one with the higher priority wins (among
-  // categories at the same depth). Defaults to 0 when unset.
+  // Legacy top-level priority kept for backwards compatibility. New rules store
+  // the integer on `rule.priority` (see Rule). When both are present, the rule
+  // level wins.
   priority?: number;
   // UI-facing list of literal match strings. Each entry is escaped and joined
   // with '|' into the regex stored on rule.regex. When present, the Category
@@ -133,6 +160,31 @@ export const defaultCategories: Category[] = [
   { name: ['Uncategorized'], rule: { type: null }, data: { color: COLOR_UNCAT } },
 ];
 
+/**
+ * The categories a set starts out with — what "restore defaults" restores.
+ *
+ * Normally the built-in `defaultCategories`, but builds/deployments that ship
+ * preset category sets (see `~/util/presetCategories`) start from those instead.
+ *
+ * `setId` is the set the categories are destined for, so that restoring never
+ * writes one set's categories into another:
+ *  - a preset set restores its own categories,
+ *  - a user-owned set restores the built-in defaults,
+ *  - omitting it (install default) uses the first preset, which is the one
+ *    `loadCategories()` activates on a fresh install.
+ */
+export function getDefaultClasses(setId?: string): Category[] {
+  const presets = getPresetCategorySets();
+  if (presets.length === 0) {
+    return _.cloneDeep(defaultCategories);
+  }
+  if (setId === undefined) {
+    return presets[0].categories;
+  }
+  const preset = presets.find(p => p.id === setId);
+  return preset ? preset.categories : _.cloneDeep(defaultCategories);
+}
+
 export function annotate(c: Category) {
   const ch = c.name;
   c.name_pretty = ch.join(level_sep);
@@ -224,6 +276,13 @@ export function cleanCategory(cat: Category): Category {
   // we also want to strip any excess properties that may have belonged to another rule type
   if (cat.rule && (cat.rule.type === null || cat.rule.type === 'none')) {
     cat.rule = { type: 'none' };
+  } else if (cat.rule && cat.rule.type === 'regex') {
+    const keys = normalizeSelectKeys(cat.rule.select_keys);
+    if (keys) {
+      cat.rule.select_keys = keys;
+    } else {
+      delete cat.rule.select_keys;
+    }
   }
   return cat;
 }
@@ -259,26 +318,84 @@ export function saveCategories(sets: CategorySet[], activeIds: string[]) {
 /**
  * Load category sets and active set IDs from the settings store.
  * Falls back to the legacy flat `classes` setting if no sets are defined yet.
+ *
+ * Preset sets shipped by the build/deployment (see `~/util/presetCategories`)
+ * are always appended as *available* sets, but are only active by default when
+ * the user has no stored categorization of their own. A stored set with the
+ * same id always wins over the preset definition, so user edits stick.
  */
 export function loadCategories(): { sets: CategorySet[]; activeIds: string[] } {
   const settingsStore = useSettingsStore();
-  const sets: CategorySet[] = settingsStore.category_sets;
-  const activeIds: string[] = settingsStore.active_set_ids;
+  const storedSets: CategorySet[] = settingsStore.category_sets;
+  const storedActiveIds: string[] = settingsStore.active_set_ids;
+  const presets = getPresetCategorySets();
 
-  if (sets && sets.length > 0) {
-    return { sets, activeIds: activeIds && activeIds.length > 0 ? activeIds : [sets[0].id] };
+  let sets: CategorySet[];
+  let activeIds: string[];
+
+  if (storedSets && storedSets.length > 0) {
+    sets = [...storedSets];
+    activeIds =
+      storedActiveIds && storedActiveIds.length > 0 ? [...storedActiveIds] : [storedSets[0].id];
+  } else if (presets.length > 0 && !settingsStore.hasStoredCategories) {
+    // First run on a build that ships presets: activate the first preset only.
+    //
+    // We deliberately limit the initial selection to one set: syncToPrimarySet()
+    // in the category store cannot split state.classes back into individual sets
+    // when multiple sets are active, so it skips the sync entirely. Activating
+    // more than one preset on first run would therefore cause any category edit
+    // the user makes to be lost on the next reload.
+    //
+    // The remaining presets are still appended below and are available in the UI
+    // for the user to activate manually.
+    sets = [];
+    activeIds = [presets[0].id];
+  } else {
+    // Migration path: no sets defined yet — wrap the existing flat classes into a "default" set
+    const legacyClasses = settingsStore.classes || defaultCategories;
+    sets = [{ id: DEFAULT_SET_ID, categories: legacyClasses }];
+    activeIds = [DEFAULT_SET_ID];
   }
 
-  // Migration path: no sets defined yet — wrap the existing flat classes into a "default" set
-  const legacyClasses = settingsStore.classes || defaultCategories;
-  return {
-    sets: [{ id: 'default', categories: legacyClasses }],
-    activeIds: ['default'],
-  };
+  // Presets are always offered as sets the user can switch to/combine,
+  // unless a set with the same id is already stored (that one is authoritative).
+  for (const preset of presets) {
+    if (!sets.some(s => s.id === preset.id)) {
+      sets.push(preset);
+    }
+  }
+
+  // Never return a dangling or empty selection
+  if (sets.length === 0) {
+    sets = [{ id: DEFAULT_SET_ID, categories: defaultCategories }];
+  }
+  activeIds = activeIds.filter(id => sets.some(s => s.id === id));
+  if (activeIds.length === 0) {
+    activeIds = [sets[0].id];
+  }
+
+  return { sets, activeIds };
 }
 
-function pickDeepest(categories: Category[]) {
-  return _.maxBy(categories, c => c.name.length);
+/**
+ * Conflict-resolution rank for a matching category.
+ *
+ * An explicit integer priority (`rule.priority`, falling back to the legacy
+ * `rule.weight` and then the legacy top-level `priority`) wins over depth.
+ * Without an explicit priority, the old depth rule applies: a deeper category
+ * outranks a shallower one. Depth is scaled by 10 so an explicit priority
+ * always dominates the depth fallback.
+ */
+function categoryRank(category: Category): number {
+  const explicit = category.rule.priority ?? category.rule.weight ?? category.priority;
+  if (typeof explicit === 'number' && Number.isInteger(explicit)) {
+    return explicit;
+  }
+  return category.name.length * 10;
+}
+
+function pickHighestRanked(categories: Category[]) {
+  return _.maxBy(categories, categoryRank);
 }
 
 /**
@@ -334,8 +451,12 @@ export function hasMatchableRegex(c: Category): boolean {
   return c.rule.type == 'regex' && !!c.rule.regex;
 }
 
-export function matchString(str: string, categories: Category[] | null): Category | null {
-  return matchStrings([str], categories);
+export function matchString(
+  str: string,
+  categories: Category[] | null,
+  event?: IEvent
+): Category | null {
+  return matchStrings([str], categories, event);
 }
 
 /**
@@ -344,8 +465,16 @@ export function matchString(str: string, categories: Category[] | null): Categor
  * regex matches ANY of the provided strings. This mirrors the server-side
  * categorize() behaviour, which tests each data field separately, instead of
  * concatenating them into one string. See #646.
+ *
+ * When the rule carries `select_keys` and the event is supplied, matching is
+ * restricted to those named event.data fields; an absent list keeps the legacy
+ * "test every provided string" semantics (同步上游 #952).
  */
-export function matchStrings(strs: string[], categories: Category[] | null): Category | null {
+export function matchStrings(
+  strs: string[],
+  categories: Category[] | null,
+  event?: IEvent
+): Category | null {
   if (!categories) {
     console.log(
       'Categories not passed, loading... (if you see this outside of a test, you should probably pass them)'
@@ -364,20 +493,18 @@ export function matchStrings(strs: string[], categories: Category[] | null): Cat
   // If several categories match the event, the one with the highest priority
   // wins; ties are broken by depth (deeper wins), matching the server-side
   // categorize() behaviour for same-depth categories.
-  const matchingCats: [Category, RegExp][] = regexes.filter(c => strs.some(s => s && c[1].test(s)));
+  const matchingCats: [Category, RegExp][] = regexes.filter(([category, re]) => {
+    const selectKeys = normalizeSelectKeys(category.rule.select_keys);
+    if (event && selectKeys) {
+      return selectKeys.some(key => {
+        const value = event.data[key];
+        return typeof value === 'string' && re.test(value);
+      });
+    }
+    return strs.some(s => s && re.test(s));
+  });
   if (matchingCats.length > 0) {
-    const matched = matchingCats.map(c => c[0]);
-    // Sort by priority (asc), then by depth (asc), so the last element is the
-    // highest-priority deepest match — mirroring the server's
-    // _pick_highest_ranking_category which lets later entries override earlier
-    // ones at equal depth.
-    matched.sort((a, b) => {
-      const pa = a.priority ?? 0;
-      const pb = b.priority ?? 0;
-      if (pa !== pb) return pa - pb;
-      return a.name.length - b.name.length;
-    });
-    return matched[matched.length - 1];
+    return pickHighestRanked(matchingCats.map(c => c[0]));
   }
   return null;
 }
@@ -391,13 +518,17 @@ export function classifyEvents(events: IEvent[], categories: Category[]): IEvent
   });
 
   // Classify events using compiled regexes.
-  // If several categories match the event, the deepest category will be chosen.
+  // If several categories match, explicit priority wins; otherwise depth wins.
   return events.map((e: IEvent) => {
-    const matchingCats: [Category, RegExp][] = regexes.filter(c => {
-      return _.map(CLASSIFY_KEYS, key => c[1].test(e.data[key])).some(x => x);
+    const matchingCats: [Category, RegExp][] = regexes.filter(([category, re]) => {
+      const keys = normalizeSelectKeys(category.rule.select_keys) || [...CLASSIFY_KEYS];
+      return keys.some(key => {
+        const value = e.data[key];
+        return typeof value === 'string' && re.test(value);
+      });
     });
     if (matchingCats.length > 0) {
-      const category = pickDeepest(matchingCats.map(c => c[0]));
+      const category = pickHighestRanked(matchingCats.map(c => c[0]));
       e.data.$category = category.name;
     } else {
       e.data.$category = UNCATEGORIZED;

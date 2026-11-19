@@ -2,6 +2,7 @@
 export default {
   app: {
     name: 'ActivityWatch',
+    researchEdition: '研究版',
   },
   nav: {
     activity: '活动',
@@ -170,6 +171,9 @@ export default {
       discard: '放弃',
       addCategory: '添加分类',
       categories: '分类',
+      priority: '优先级',
+      priorityDefault: '默认',
+      priorityInteger: '优先级必须是整数。',
       builderTitle: '分类构建器',
       builderSubtitle: '从未分类活动生成规则',
       openBuilder: '打开构建器',
@@ -726,6 +730,11 @@ export default {
     none: '无',
     regex: '正则表达式',
     rule: '规则',
+    matchFields: '匹配字段',
+    matchFieldsHelp: '留空则匹配全部文本字段（默认）。',
+    fieldApp: '应用',
+    fieldTitle: '标题',
+    errorInvalidField: '所选匹配字段无法识别，请选择「应用」或「标题」。',
   },
   eventEditor: {
     title: '编辑事件',

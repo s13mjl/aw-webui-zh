@@ -1,6 +1,7 @@
 export default {
   app: {
     name: 'ActivityWatch',
+    researchEdition: 'Исследовательская версия',
   },
   nav: {
     activity: 'Активность',
@@ -146,6 +147,9 @@ export default {
       discard: 'Отбросить',
       addCategory: 'Добавить категорию',
       categories: 'Категории',
+      priority: 'Приоритет',
+      priorityDefault: 'По умолчанию',
+      priorityInteger: 'Приоритет должен быть целым числом.',
       builderTitle: 'Конструктор категорий',
       builderSubtitle: 'Создание правил из некатегоризированной активности',
       openBuilder: 'Открыть конструктор',
@@ -349,6 +353,13 @@ export default {
     score: 'Оценка',
     topStopwatches: 'Топ событий секундомера',
     topBucketData: 'Топ данных bucket',
+  },
+  categoryEdit: {
+    matchFields: 'Поля для сопоставления',
+    matchFieldsHelp: 'Оставьте пустым, чтобы сопоставлять все текстовые поля (по умолчанию).',
+    fieldApp: 'Приложение',
+    fieldTitle: 'Заголовок',
+    errorInvalidField: 'Одно или несколько выбранных полей не распознаны. Выберите «Приложение» или «Заголовок».',
   },
   timeline: {
     title: 'Хронология',

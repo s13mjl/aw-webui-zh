@@ -1,6 +1,7 @@
 export default {
   app: {
     name: 'ActivityWatch',
+    researchEdition: 'Research Edition',
   },
   nav: {
     activity: 'Activity',
@@ -173,6 +174,9 @@ export default {
       discard: 'Discard',
       addCategory: 'Add category',
       categories: 'Categories',
+      priority: 'Priority',
+      priorityDefault: 'Default',
+      priorityInteger: 'Priority must be an integer.',
       builderTitle: 'Category builder',
       builderSubtitle: 'Generate rules from uncategorized activity',
       openBuilder: 'Open builder',
@@ -741,6 +745,11 @@ export default {
     none: 'None',
     regex: 'Regular Expression',
     rule: 'Rule',
+    matchFields: 'Match fields',
+    matchFieldsHelp: 'Leave blank to match every string field (default).',
+    fieldApp: 'App',
+    fieldTitle: 'Title',
+    errorInvalidField: 'One or more selected match fields are not recognized. Please choose App or Title.',
   },
   eventEditor: {
     title: 'Edit event',

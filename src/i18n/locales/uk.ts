@@ -1,6 +1,7 @@
 export default {
   app: {
     name: 'ActivityWatch',
+    researchEdition: 'Дослідницька версія',
   },
   nav: {
     activity: 'Активність',
@@ -146,6 +147,9 @@ export default {
       discard: 'Відкинути',
       addCategory: 'Додати категорію',
       categories: 'Категорії',
+      priority: 'Пріоритет',
+      priorityDefault: 'Типовий',
+      priorityInteger: 'Пріоритет має бути цілим числом.',
       builderTitle: 'Конструктор категорій',
       builderSubtitle: 'Створення правил із некатегоризованої активності',
       openBuilder: 'Відкрити конструктор',
@@ -349,6 +353,13 @@ export default {
     score: 'Оцінка',
     topStopwatches: 'Топ подій секундоміра',
     topBucketData: 'Топ даних bucket',
+  },
+  categoryEdit: {
+    matchFields: 'Поля для зіставлення',
+    matchFieldsHelp: 'Залиште порожнім, щоб зіставляти всі текстові поля (за замовчуванням).',
+    fieldApp: 'Застосунок',
+    fieldTitle: 'Заголовок',
+    errorInvalidField: 'Одне або кілька вибраних полів не розпізнано. Виберіть «Застосунок» або «Заголовок».',
   },
   timeline: {
     title: 'Хронологія',

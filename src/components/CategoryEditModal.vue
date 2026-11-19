@@ -1,14 +1,22 @@
 <template lang="pug">
 // The category edit modal
-b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetModal" @hidden="hidden" @ok="handleOk" @keydown.enter="handleEnter" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
+b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetModal" @hidden="hidden" @ok="handleOk" @keydown.enter="handleEnter" :ok-disabled="!canSubmit" :ok-title="$t('common.confirm')" :cancel-title="$t('common.cancel')")
   div.my-1
     b-input-group.my-1(:prepend="$t('categoryEdit.name')")
       b-form-input(v-model="editing.name")
     b-input-group(:prepend="$t('categoryEdit.parent')")
       b-select(v-model="editing.parent", :options="allCategories")
     b-input-group.my-1(:prepend="$t('categoryEdit.priority')")
-      b-form-input(v-model.number="editing.priority" type="number" :placeholder="$t('categoryEdit.priorityPlaceholder')")
+      b-form-input(
+        v-model="editing.priority"
+        type="number"
+        step="1"
+        :placeholder="$t('categoryEdit.priorityPlaceholder')"
+        :state="priorityState"
+      )
     small.text-muted {{ $t('categoryEdit.priorityHint') }}
+    small.text-danger(v-if="!validPriority")
+      | {{ $t('settings.categorization.priorityInteger') }}
     //| ID: {{editing.id}}
 
   hr
@@ -37,6 +45,16 @@ b-modal(id="edit" ref="edit" :title="$t('categoryEdit.editTitle')" @show="resetM
             div.text-danger(v-if="!validPattern") {{ $t('categoryEdit.invalidPattern') }}
             div.text-warning(v-if="validPattern && broad_pattern") {{ $t('categoryEdit.patternTooBroad') }}
       small.text-muted {{ $t('categoryEdit.patternHelp') }}
+      div.mt-2
+        small.text-muted {{ $t('categoryEdit.matchFields') }}
+        div.d-flex.flex-wrap
+          b-form-checkbox.mr-3(
+            v-for="key in fieldOptions"
+            :key="key"
+            v-model="editing.match_fields"
+            :value="key"
+          ) {{ fieldLabel(key) }}
+        small.text-muted {{ $t('categoryEdit.matchFieldsHelp') }}
 
   hr
   div.my-1
@@ -73,8 +91,12 @@ import _ from 'lodash';
 import ColorPicker from '~/components/ColorPicker.vue';
 import { useCategoryStore } from '~/stores/categories';
 import { validateRegex, isRegexBroad } from '~/util/validate';
-import { patternsToRegex, regexToPatterns } from '~/util/classes';
-
+import {
+  patternsToRegex,
+  regexToPatterns,
+  CANONICAL_SELECT_KEYS,
+  normalizeSelectKeys,
+} from '~/util/classes';
 
 export default {
   name: 'CategoryEditModal',
@@ -97,8 +119,9 @@ export default {
         color: null,
         inherit_score: true,
         score: null,
-        priority: 0,
+        priority: null,
         patterns: [] as string[],
+        match_fields: [] as string[],
       },
       // Error message shown in the modal when validation fails on submit.
       // Cleared every time the modal is reopened and every time a new submit
@@ -129,13 +152,41 @@ export default {
       return patternsToRegex(patterns) || '';
     },
     valid: function () {
-      return this.editing.rule.type !== 'none' && this.validPattern;
+      return this.canSubmit;
+    },
+    canSubmit: function () {
+      if (this.editing.rule.type === 'regex') {
+        return this.validPattern && this.validPriority;
+      }
+      return true;
     },
     validPattern: function () {
       return this.editing.rule.type === 'regex' && validateRegex(this.computedRegex);
     },
     broad_pattern: function () {
       return this.editing.rule.type === 'regex' && isRegexBroad(this.computedRegex);
+    },
+    validPriority: function () {
+      if (this.editing.rule.type !== 'regex') {
+        return true;
+      }
+      return this.priorityFromInput(this.editing.priority) !== undefined;
+    },
+    priorityState: function () {
+      if (
+        this.editing.priority === null ||
+        this.editing.priority === undefined ||
+        this.editing.priority === ''
+      ) {
+        return null;
+      }
+      return this.validPriority;
+    },
+    fieldOptions: function () {
+      const extra = (this.editing.match_fields || []).filter(
+        k => !(CANONICAL_SELECT_KEYS as readonly string[]).includes(k)
+      );
+      return [...CANONICAL_SELECT_KEYS, ...extra];
     },
   },
   watch: {
@@ -181,6 +232,10 @@ export default {
         this.submitError = this.$t('categoryEdit.errorNameRequired');
         return false;
       }
+      if (this.editing.rule.type === 'regex' && !this.validPriority) {
+        this.submitError = this.$t('settings.categorization.priorityInteger');
+        return false;
+      }
       // Validate regex pattern when rule type is 'regex' (prevents invalid
       // patterns like "Notepad++" from being saved and causing 500 errors
       // from the query engine — see https://github.com/ActivityWatch/activitywatch/issues/1340).
@@ -197,8 +252,25 @@ export default {
           this.submitError = this.$t('categoryEdit.errorInvalidPattern');
           return false;
         }
+        // Reject unknown match fields: only the canonical event.data keys are
+        // understood by the client matcher and the server-side categorize().
+        const selectedFields = normalizeSelectKeys(this.editing.match_fields);
+        if (
+          selectedFields &&
+          selectedFields.some(k => !(CANONICAL_SELECT_KEYS as readonly string[]).includes(k))
+        ) {
+          this.submitError = this.$t('categoryEdit.errorInvalidField');
+          return false;
+        }
       }
       return true;
+    },
+    fieldLabel(key: string): string {
+      const labels: Record<string, string> = {
+        app: this.$t('categoryEdit.fieldApp'),
+        title: this.$t('categoryEdit.fieldTitle'),
+      };
+      return labels[key] ?? key;
     },
     handleEnter(event) {
       // Enter submits the modal, same as pressing OK (#232).
@@ -209,7 +281,7 @@ export default {
         return;
       }
       // Mirrors the validation the OK button goes through
-      if (this.editing.rule.type === 'regex' && !this.validPattern) {
+      if (!this.canSubmit) {
         return;
       }
       event.preventDefault();
@@ -269,9 +341,22 @@ export default {
           regex: patternsToRegex(patterns),
           ignore_case: this.editing.rule.ignore_case === true,
         };
+        const priority = this.priorityFromInput(this.editing.priority);
+        delete rule.weight;
+        if (priority === null) {
+          delete rule.priority;
+        } else {
+          rule.priority = priority;
+        }
+        const selectedFields = normalizeSelectKeys(this.editing.match_fields);
+        if (selectedFields) {
+          rule.select_keys = selectedFields;
+        }
       } else {
         rule = { type: 'none' as const };
         patterns = [];
+        delete rule.priority;
+        delete rule.weight;
       }
 
       const new_class = {
@@ -279,7 +364,7 @@ export default {
         name: clean_name,
         rule,
         patterns,
-        priority: Number(this.editing.priority) || 0,
+        priority: this.priorityFromRule(rule),
         data: {
           color: this.editing.inherit_color === true ? undefined : this.editing.color,
           score: this.editing.inherit_score === true ? undefined : this.editing.score,
@@ -297,6 +382,20 @@ export default {
           this.$refs.edit.hide();
         }
       });
+    },
+    priorityFromInput(value) {
+      if (value === null || value === undefined || value === '') {
+        return null;
+      }
+      if (typeof value === 'string' && value.trim() === '') {
+        return null;
+      }
+      const priority = Number(value);
+      return Number.isInteger(priority) ? priority : undefined;
+    },
+    priorityFromRule(rule) {
+      const value = rule && rule.priority !== undefined ? rule.priority : rule && rule.weight;
+      return typeof value === 'number' && Number.isInteger(value) ? value : null;
     },
     resetModal() {
       const cat = this.categoryStore.get_category_by_id(this.categoryId);
@@ -316,17 +415,24 @@ export default {
       }
       // Ensure there's always at least one editable field
       if (patterns.length === 0) patterns = [''];
+      const rule = _.cloneDeep(cat.rule) || {};
+      const storedKeys = normalizeSelectKeys(rule.select_keys);
       this.editing = {
         id: cat.id,
         name: cat.subname,
-        rule: _.cloneDeep(cat.rule),
+        rule,
         parent: cat.parent ? cat.parent : [],
         color,
         inherit_color,
         score,
         inherit_score,
-        priority: cat.priority ?? 0,
+        priority:
+          this.priorityFromRule(cat.rule) ??
+          (typeof cat.priority === 'number' && Number.isInteger(cat.priority)
+            ? cat.priority
+            : null),
         patterns,
+        match_fields: storedKeys ? [...storedKeys] : [],
       };
       // Clear any error from a previous submit attempt when the modal reopens
       this.submitError = null;

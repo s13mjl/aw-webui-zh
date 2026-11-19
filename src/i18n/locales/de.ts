@@ -1,6 +1,7 @@
 export default {
   app: {
     name: 'ActivityWatch',
+    researchEdition: 'Forschungsedition',
   },
   nav: {
     activity: 'Aktivität',
@@ -147,6 +148,9 @@ export default {
       discard: 'Verwerfen',
       addCategory: 'Kategorie hinzufügen',
       categories: 'Kategorien',
+      priority: 'Priorität',
+      priorityDefault: 'Standard',
+      priorityInteger: 'Die Priorität muss eine ganze Zahl sein.',
       builderTitle: 'Kategorie-Builder',
       builderSubtitle: 'Regeln aus unkategorisierter Aktivität erzeugen',
       openBuilder: 'Builder öffnen',
@@ -352,6 +356,13 @@ export default {
     score: 'Score',
     topStopwatches: 'Top-Stoppuhr-Ereignisse',
     topBucketData: 'Top-Bucket-Daten',
+  },
+  categoryEdit: {
+    matchFields: 'Felder',
+    matchFieldsHelp: 'Leer lassen, um alle Textfelder zu prüfen (Standard).',
+    fieldApp: 'App',
+    fieldTitle: 'Titel',
+    errorInvalidField: 'Ein oder mehrere ausgewählte Felder sind unbekannt. Bitte „App“ oder „Titel“ wählen.',
   },
   timeline: {
     title: 'Zeitleiste',
