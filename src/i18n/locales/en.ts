@@ -740,6 +740,11 @@ export default {
     none: 'None',
     regex: 'Regular Expression',
     rule: 'Rule',
+    matchFields: 'Match fields',
+    matchFieldsHelp: 'Leave blank to match every string field (default).',
+    fieldApp: 'App',
+    fieldTitle: 'Title',
+    errorInvalidField: 'One or more selected match fields are not recognized. Please choose App or Title.',
   },
   eventEditor: {
     title: 'Edit event',

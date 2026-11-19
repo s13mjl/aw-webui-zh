@@ -349,6 +349,13 @@ export default {
     topStopwatches: 'Топ подій секундоміра',
     topBucketData: 'Топ даних bucket',
   },
+  categoryEdit: {
+    matchFields: 'Поля для зіставлення',
+    matchFieldsHelp: 'Залиште порожнім, щоб зіставляти всі текстові поля (за замовчуванням).',
+    fieldApp: 'Застосунок',
+    fieldTitle: 'Заголовок',
+    errorInvalidField: 'Одне або кілька вибраних полів не розпізнано. Виберіть «Застосунок» або «Заголовок».',
+  },
   timeline: {
     title: 'Хронологія',
     eventsShown: 'Показано подій:',
