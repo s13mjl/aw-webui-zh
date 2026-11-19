@@ -131,10 +131,6 @@ interface State {
     history: Record<any, IEvent[]>;
   };
 
-  android: {
-    available: boolean;
-  };
-
   stopwatch: {
     available: boolean;
     top_stopwatches: IEvent[];
@@ -153,7 +149,6 @@ interface State {
     window: string[];
     editor: string[];
     browser: string[];
-    android: string[];
     stopwatch: string[];
   };
 }
@@ -201,10 +196,6 @@ export const useActivityStore = defineStore('activity', {
       history: {},
     },
 
-    android: {
-      available: false,
-    },
-
     stopwatch: {
       available: false,
       top_stopwatches: [],
@@ -220,7 +211,6 @@ export const useActivityStore = defineStore('activity', {
       window: [],
       editor: [],
       browser: [],
-      android: [],
       stopwatch: [],
     },
   }),
@@ -332,12 +322,8 @@ export const useActivityStore = defineStore('activity', {
         } else {
           await this.query_desktop_full(query_options);
         }
-      } else if (this.android.available) {
-        await this.query_android(query_options);
       } else {
-        console.log(
-          'Cannot query windows as we are missing either an afk/window bucket pair or an android bucket'
-        );
+        console.log('Cannot query windows as we are missing an afk/window bucket pair');
         this.query_window_completed();
         this.query_category_time_by_period_completed();
       }
@@ -346,8 +332,6 @@ export const useActivityStore = defineStore('activity', {
         await this.query_active_history_completed();
       } else if (this.active.available) {
         await this.query_active_history(query_options);
-      } else if (this.android.available) {
-        await this.query_active_history_android(query_options);
       } else {
         console.log('Cannot call query_active_history as we do not have an afk bucket');
         await this.query_active_history_completed();
@@ -361,21 +345,9 @@ export const useActivityStore = defineStore('activity', {
       }
 
       // Perform this last, as it takes the longest
-      if (this.window.available || this.android.available) {
+      if (this.window.available) {
         await this.query_category_time_by_period(query_options);
       }
-    },
-
-    async query_android({ timeperiod, filter_categories }: QueryOptions) {
-      const periods = [timeperiodToStr(timeperiod)];
-      const categoryStore = useCategoryStore();
-      const q = queries.appQuery(
-        this.buckets.android[0],
-        categoryStore.classes_for_query,
-        filter_categories
-      );
-      const data = await getClient().query(periods, q).catch(this.errorHandler);
-      this.query_window_completed(data[0]);
     },
 
     async reset() {
@@ -501,7 +473,6 @@ export const useActivityStore = defineStore('activity', {
       dontQueryInactive,
       always_active_pattern,
     }: QueryOptions & { dontQueryInactive: boolean }) {
-      // TODO: Needs to be adapted for Android
       // Choose an appropriate granularity for the period. Adaptive splitting
       // keeps custom/all-time ranges (which can span years) from issuing
       // thousands of sequential per-day queries.
@@ -543,7 +514,6 @@ export const useActivityStore = defineStore('activity', {
           }
         }
 
-        const isAndroid = this.buckets.android[0] !== undefined;
         const categories = useCategoryStore().classes_for_query;
         // TODO: Clean up call, pass QueryParams in fullDesktopQuery as well
         // TODO: Unify QueryOptions and QueryParams
@@ -557,14 +527,8 @@ export const useActivityStore = defineStore('activity', {
           filter_categories,
           filter_afk,
           always_active_pattern,
-          ...(isAndroid
-            ? {
-                bid_android: this.buckets.android[0],
-              }
-            : {
-                bid_afk: this.buckets.afk[0],
-                bid_window: this.buckets.window[0],
-              }),
+          bid_afk: this.buckets.afk[0],
+          bid_window: this.buckets.window[0],
         });
         const result = await getClient().query([period], query, {
           verbose: true,
@@ -581,24 +545,6 @@ export const useActivityStore = defineStore('activity', {
       this.query_category_time_by_period_completed({ by_period });
     },
 
-    async query_active_history_android({ timeperiod }: QueryOptions) {
-      const periods = timeperiodStrsAroundTimeperiod(timeperiod).filter(tp_str => {
-        return !_.includes(this.active.history, tp_str);
-      });
-      const data = await getClient().query(
-        periods,
-        queries.activityQueryAndroid(this.buckets.android[0])
-      );
-      const active_history = _.zipObject(periods, data);
-      const active_history_events = _.mapValues(
-        active_history,
-        (duration: number, key): [IEvent] => {
-          return [{ timestamp: key.split('/')[0], duration, data: { status: 'not-afk' } }];
-        }
-      );
-      this.query_active_history_completed({ active_history: active_history_events });
-    },
-
     set_available(this: State) {
       // TODO: Move to bucketStore on a per-host basis?
       this.window.available = this.buckets.afk.length > 0 && this.buckets.window.length > 0;
@@ -608,8 +554,7 @@ export const useActivityStore = defineStore('activity', {
         this.buckets.browser.length > 0;
       this.active.available = this.buckets.afk.length > 0;
       this.editor.available = this.buckets.editor.length > 0;
-      this.android.available = this.buckets.android.length > 0;
-      this.category.available = this.window.available || this.android.available;
+      this.category.available = this.window.available;
       this.stopwatch.available = this.buckets.stopwatch.length > 0;
     },
 
@@ -618,7 +563,6 @@ export const useActivityStore = defineStore('activity', {
       const bucketsStore = useBucketsStore();
       this.buckets.afk = bucketsStore.bucketsAFK(host);
       this.buckets.window = bucketsStore.bucketsWindow(host);
-      this.buckets.android = bucketsStore.bucketsAndroid(host);
       this.buckets.browser = bucketsStore.bucketsBrowser(host);
       this.buckets.editor = bucketsStore.bucketsEditor(host);
       this.buckets.stopwatch = bucketsStore.bucketsStopwatch(host);
@@ -738,7 +682,7 @@ export const useActivityStore = defineStore('activity', {
       this.active.duration = null;
 
       // Ensures that active history isn't being fully reloaded on every date change
-      // (see caching done in query_active_history and query_active_history_android)
+      // (see caching done in query_active_history)
       // FIXME: Better detection of when to actually clear (such as on force reload, hostname change)
       if (Object.keys(this.active.history).length === 0) {
         this.active.history = {};

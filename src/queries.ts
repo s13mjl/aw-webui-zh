@@ -70,22 +70,15 @@ interface DesktopQueryParams extends BaseQueryParams {
   always_active_pattern?: string;
 }
 
-interface AndroidQueryParams extends BaseQueryParams {
-  bid_android: string;
-}
-
 interface MultiQueryParams extends BaseQueryParams {
   hosts: string[];
   filter_afk: boolean;
   always_active_pattern: string;
   // This can be used to override params on a per-host basis
-  host_params: { [host: string]: DesktopQueryParams | AndroidQueryParams };
+  host_params: { [host: string]: DesktopQueryParams };
 }
 
-function get_params(
-  params: MultiQueryParams,
-  host: string
-): DesktopQueryParams | AndroidQueryParams {
+function get_params(params: MultiQueryParams, host: string): DesktopQueryParams {
   // Return the params for a given host, based on the self params and any overrides in host_params.
   // If no overrides are found, return the base params.
   const new_params: DesktopQueryParams = {
@@ -98,9 +91,6 @@ function get_params(
 
   const host_params = params.host_params[host];
   if (host_params) {
-    if (!isDesktopParams(host_params)) {
-      console.error(`Invalid host_params for host ${host}: ${JSON.stringify(host_params)}`);
-    }
     // Only override the params if they are defined and set to a truthy value
     Object.keys(host_params).forEach(key => {
       if (host_params[key] && host_params[key].length > 0) {
@@ -109,14 +99,6 @@ function get_params(
     });
   }
   return new_params;
-}
-
-function isDesktopParams(object: any): object is DesktopQueryParams {
-  return 'bid_window' in object;
-}
-
-function isAndroidParams(object: any): object is AndroidQueryParams {
-  return 'bid_android' in object;
 }
 
 function isMultiParams(object: any): object is MultiQueryParams {
@@ -140,37 +122,28 @@ function queryBucket(bid: string): string {
 //  - Categorization (if categories specified)
 //  - Filters by category (if filter_categories set)
 // Puts it's results in `events` and `not_afk` (if not_afk available for platform).
-export function canonicalEvents(params: DesktopQueryParams | AndroidQueryParams): string {
+export function canonicalEvents(params: DesktopQueryParams): string {
   // Needs escaping for regex patterns like '\w' to work (JSON.stringify adds extra unnecessary escaping)
   const categories_str = params.categories
     ? JSON.stringify(params.categories).replace(/\\\\/g, '\\')
     : '';
-  const always_active_pattern_str = isDesktopParams(params)
-    ? params.always_active_pattern
-    : undefined;
+  const always_active_pattern_str = params.always_active_pattern;
   const cat_filter_str = JSON.stringify(params.filter_categories);
-
-  // For simplicity, we assume that bid_window and bid_android are exchangeable (note however it needs special treatment)
-  const bid_window = isDesktopParams(params) ? params.bid_window : params.bid_android;
 
   return [
     // Fetch window/app events
-    `events = flood(${queryBucket(bid_window)});`,
-    // On Android, merge events to avoid overload of events
-    isAndroidParams(params) ? 'events = merge_events_by_keys(events, ["app"]);' : '',
+    `events = flood(${queryBucket(params.bid_window)});`,
     // Fetch not-afk events
-    isDesktopParams(params)
-      ? `not_afk = flood(${queryBucket(params.bid_afk)});
+    `not_afk = flood(${queryBucket(params.bid_afk)});
          not_afk = filter_keyvals(not_afk, "status", ["not-afk"]);` +
-        (always_active_pattern_str
-          ? `not_treat_as_afk = filter_keyvals_regex(events, "app", "${always_active_pattern_str}");
+      (always_active_pattern_str
+        ? `not_treat_as_afk = filter_keyvals_regex(events, "app", "${always_active_pattern_str}");
              not_afk = period_union(not_afk, not_treat_as_afk);
              not_treat_as_afk = filter_keyvals_regex(events, "title", "${always_active_pattern_str}");
              not_afk = period_union(not_afk, not_treat_as_afk);`
-          : '')
-      : '',
+        : ''),
     // Fetch browser events
-    isDesktopParams(params) && params.bid_browsers
+    params.bid_browsers
       ? browserEvents(params) +
         // Include audible browser events as indications of not-afk.
         // audible_events was collected from ALL browser events (including
@@ -179,9 +152,7 @@ export function canonicalEvents(params: DesktopQueryParams | AndroidQueryParams)
         (params.include_audible ? `not_afk = period_union(not_afk, audible_events);` : '')
       : '',
     // Filter out window events when the user was afk
-    isDesktopParams(params) && params.filter_afk
-      ? 'events = filter_period_intersect(events, not_afk);'
-      : '',
+    params.filter_afk ? 'events = filter_period_intersect(events, not_afk);' : '',
     params.bid_stopwatch
       ? `stopwatch_events = query_bucket("${params.bid_stopwatch}");
          events = union_no_overlap(stopwatch_events, events);`
@@ -223,34 +194,6 @@ export function canonicalMultideviceEvents(params: MultiQueryParams): string {
 }
 
 export const default_limit = 100; // Hardcoded limit per group
-
-export function appQuery(
-  appbucket: string,
-  categories: Category[],
-  filter_categories: string[][]
-): string[] {
-  appbucket = escape_doublequote(appbucket);
-  const params: AndroidQueryParams = {
-    bid_android: appbucket,
-    categories,
-    filter_categories,
-  };
-
-  const code = `
-    ${canonicalEvents(params)}
-
-    title_events = sort_by_duration(merge_events_by_keys(events, ["app", "classname"]));
-    app_events   = sort_by_duration(merge_events_by_keys(title_events, ["app"]));
-    cat_events   = sort_by_duration(merge_events_by_keys(events, ["$category"]));
-
-    events = sort_by_timestamp(events);
-    app_events  = limit_events(app_events, ${default_limit});
-    title_events  = limit_events(title_events, ${default_limit});
-    duration = sum_durations(events);
-    RETURN  = {"app_events": app_events, "title_events": title_events, "cat_events": cat_events, "duration": duration, "active_events": app_events};
-  `;
-  return querystr_to_array(code);
-}
 
 // Exact app names (Flatpak app IDs and similar reverse-domain identifiers) used for bucket discovery and as a
 // fallback for names that don't match the regex patterns below. Process name
@@ -492,17 +435,9 @@ export function activityQuery(afkbuckets: string[]): string[] {
   return q;
 }
 
-// Equivalent function to activityQuery, but for Android (which doesn't have an afk bucket)
-export function activityQueryAndroid(androidbucket: string): string[] {
-  androidbucket = escape_doublequote(androidbucket);
-  return [`events = query_bucket("${androidbucket}");`, 'RETURN = sum_durations(events);'];
-}
-
 // Returns a query that yields a dict with a key "cat_events" which is an
 // array of one event per category, with the duration of each event set to the sum of the category durations.
-export function categoryQuery(
-  params: MultiQueryParams | DesktopQueryParams | AndroidQueryParams
-): string[] {
+export function categoryQuery(params: MultiQueryParams | DesktopQueryParams): string[] {
   const q = `
   ${isMultiParams(params) ? canonicalMultideviceEvents(params) : canonicalEvents(params)}
   cat_events   = sort_by_duration(merge_events_by_keys(events, ["$category"]));
@@ -514,9 +449,7 @@ export function categoryQuery(
 export default {
   fullDesktopQuery,
   multideviceQuery,
-  appQuery,
   activityQuery,
-  activityQueryAndroid,
   categoryQuery,
   editorActivityQuery,
 };

@@ -12,7 +12,7 @@
  * Two sources are supported, checked in this order:
  *
  *  1. `globalThis.__AW_PRESET_CATEGORY_SETS__` — set by an embedder (Tauri,
- *     Android WebView, a custom launcher) before the app boots. Useful for
+ *     a custom launcher) before the app boots. Useful for
  *     deployments that ship presets without rebuilding the bundle.
  *  2. `AW_PRESET_CATEGORY_SETS` — a compile-time constant, defined by webpack
  *     (`vue.config.js`) and Vite (`vite.config.js`) from the environment

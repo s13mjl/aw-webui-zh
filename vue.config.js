@@ -1,7 +1,6 @@
 import path from 'path';
 import webpack from 'webpack';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
-import argv from 'yargs';
 import child_process from 'child_process';
 import { fileURLToPath } from 'url';
 
@@ -21,12 +20,6 @@ export default {
         cspDefaultSrc: process.env.NODE_ENV === 'production' ? '' : '*:5600 *:5666 ws://*:27180',
       },
     },
-  },
-  chainWebpack: config => {
-    config.plugin('define').tap(options => {
-      options[0]['process.env'].VUE_APP_ON_ANDROID = argv.os == 'android';
-      return options;
-    });
   },
   configureWebpack: {
     // sourcemaps are not enabled when `--watch` is used https://github.com/vuejs/vue-cli/issues/1806#issuecomment-832111894

@@ -1,7 +1,7 @@
 <template lang="pug">
 div(:class="{'fixed-top-padding': fixedTopMenu}")
   b-navbar.aw-navbar(toggleable="lg" :fixed="fixedTopMenu ? 'top' : null")
-    // Brand on mobile
+    // Brand on small screens
     b-navbar-nav.d-block.d-lg-none
       b-navbar-brand(to="/" style="background-color: transparent;")
         img.aligh-middle(src="/logo.png" style="height: 1.5em;")
@@ -138,19 +138,10 @@ export default {
       types_by_host[v.hostname] = types_by_host[v.hostname] || {};
       types_by_host[v.hostname].afk ||= v.type == 'afkstatus';
       types_by_host[v.hostname].window ||= v.type == 'currentwindow';
-      types_by_host[v.hostname].android ||= v.type == 'currentwindow' && v.id.includes('android');
     });
 
     _.each(types_by_host, (types, hostname) => {
-      if (types['android']) {
-        activityViews.push({
-          name: `${hostname} (Android)`,
-          hostname: hostname,
-          type: 'android',
-          pathUrl: `/activity/${hostname}`,
-          icon: 'mobile',
-        });
-      } else if (hostname != 'unknown') {
+      if (hostname != 'unknown') {
         activityViews.push({
           name: hostname,
           hostname: hostname,

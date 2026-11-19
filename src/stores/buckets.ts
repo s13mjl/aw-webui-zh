@@ -72,26 +72,23 @@ export const useBucketsStore = defineStore('buckets', {
       window: boolean;
       browser: boolean;
       editor: boolean;
-      android: boolean;
       category: boolean;
       stopwatch: boolean;
     } {
       // Returns a map of which kinds of buckets are available
       //
-      // 'window' requires ((currentwindow + afkstatus) or android) buckets
+      // 'window' requires (currentwindow + afkstatus) buckets
       // 'browser' requires (currentwindow + afk + browser) buckets
       // 'editor' requires editor buckets
       return hostname => {
         const windowAvail =
           this.bucketsWindow(hostname).length > 0 && this.bucketsAFK(hostname).length > 0;
-        const androidAvail = this.bucketsAndroid(hostname).length > 0;
 
         return {
           window: windowAvail,
           browser: windowAvail && this.bucketsBrowser(hostname).length > 0,
           editor: this.bucketsEditor(hostname).length > 0,
-          android: androidAvail,
-          category: windowAvail || androidAvail,
+          category: windowAvail,
           stopwatch: this.bucketsStopwatch(hostname).length > 0,
         };
       };
@@ -115,16 +112,7 @@ export const useBucketsStore = defineStore('buckets', {
       return host => this.bucketsByType(host, 'afkstatus');
     },
     bucketsWindow(): (host: string) => string[] {
-      return host =>
-        this.bucketsByType(host, 'currentwindow').filter(
-          (id: string) => !id.startsWith('aw-watcher-android')
-        );
-    },
-    bucketsAndroid(): (host: string) => string[] {
-      return host =>
-        this.bucketsByType(host, 'currentwindow').filter((id: string) =>
-          id.startsWith('aw-watcher-android')
-        );
+      return host => this.bucketsByType(host, 'currentwindow');
     },
     bucketsEditor(): (host: string) => string[] {
       // fallback to a bucket with 'unknown' host, if one exists.

@@ -54,7 +54,7 @@ export function formatTimelineBucketLabelHtml(
   // rather than using an underscore-split regex. The old regex
   //   /^([^_]+)_.*-synced-from-(.+)$/
   // failed for bucket ids where the origin hostname contains underscores
-  // (e.g. 'aw-watcher-android-synced-from-my_phone'), because [^_]+ stopped
+  // (e.g. 'aw-watcher-window-synced-from-my_phone'), because [^_]+ stopped
   // at the underscore inside the hostname, leaving no room for '-synced-from-'
   // to match in the remaining string.
   const syncMarker = '-synced-from-';
