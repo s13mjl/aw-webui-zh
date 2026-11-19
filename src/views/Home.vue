@@ -45,7 +45,7 @@ div
       h4 {{ $t('home.supportTitle') }}
       p
         | {{ $t('home.subscribeIntro') }}
-        |  #[a(:href="subscribeUrl") {{ $t('home.subscribeCta') }}]
+        |  #[a(href="https://activitywatch.net/go/?src=inapp-home") {{ $t('home.subscribeCta') }}]
       p
         | {{ $t('home.support1') }}
       ul
@@ -118,12 +118,6 @@ export default {
     apiBrowserUrl(): string {
       const base = window.location.pathname.replace(/[^/]*$/, '');
       return base + 'api/';
-    },
-    // $isAndroid 是构建时常量（VUE_APP_ON_ANDROID）：桌面端用 inapp-home，
-    // Android 用独立 src，以便 /go/ 跳转区分两类来源。
-    subscribeUrl(): string {
-      const src = this.$isAndroid ? 'inapp-home-android' : 'inapp-home';
-      return `https://activitywatch.net/go/?src=${src}`;
     },
   },
 };

@@ -4,7 +4,6 @@ import i18nInstance from '~/i18n';
 import { installBootstrapVue } from '~/compat/bootstrap-vue';
 import HomeComponent from '~/views/Home.vue';
 
-// Tests call Options API members directly, which the Vue constructor type doesn't expose.
 const Home: any = HomeComponent;
 
 describe('Home subscribe CTA src', () => {
@@ -17,11 +16,11 @@ describe('Home subscribe CTA src', () => {
     }
   });
 
-  function mountHome(isAndroid: boolean) {
+  function mountHome() {
     wrapper = shallowMount(Home, {
       global: {
         plugins: [createTestingPinia(), i18nInstance, { install: installBootstrapVue }],
-        mocks: { $isAndroid: isAndroid },
+        mocks: { $isAndroid: false },
         stubs: ['b-alert', 'b-button', 'router-link'],
       },
     });
@@ -37,14 +36,7 @@ describe('Home subscribe CTA src', () => {
   }
 
   test('desktop href uses inapp-home', () => {
-    const mounted = mountHome(false);
-    expect(mounted.vm.subscribeUrl).toBe('https://activitywatch.net/go/?src=inapp-home');
+    const mounted = mountHome();
     expect(subscribeHref(mounted)).toBe('https://activitywatch.net/go/?src=inapp-home');
-  });
-
-  test('android href uses inapp-home-android', () => {
-    const mounted = mountHome(true);
-    expect(mounted.vm.subscribeUrl).toBe('https://activitywatch.net/go/?src=inapp-home-android');
-    expect(subscribeHref(mounted)).toBe('https://activitywatch.net/go/?src=inapp-home-android');
   });
 });
