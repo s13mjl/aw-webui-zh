@@ -339,6 +339,9 @@ export default {
     allDevicesCount: '所有设备（{count}）',
     onlyThisDevice: '仅此',
     multideviceNote: '仅在查看单个设备时显示浏览器和秒表数据。',
+    deviceBreakdownTooltip:
+      '每台设备的活跃时间。设备时间重叠时，该时间只计算一次，计入列表中排在前面的设备。',
+    overlap: '重叠',
     timeActive: '活跃时间：',
     queryRange: '查询范围：',
     filters: '筛选',

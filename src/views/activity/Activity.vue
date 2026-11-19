@@ -54,6 +54,39 @@ div
       li.list-group-item.pl-0.pr-3.py-0.border-0
         b.mr-1 {{ $t('activity.timeActive') }}
         span {{ $filters.friendlyduration(activityStore.active.duration) }}
+      // One compact stacked bar whatever the device count; click it for a
+      // per-device table, which grows vertically instead of wrapping.
+      li.list-group-item.pl-0.pr-3.py-0.border-0(
+        v-if="isMultidevice && hostDurations.length > 1"
+        data-testid="device-breakdown"
+      )
+        a.device-breakdown-toggle(
+          href="#"
+          role="button"
+          :aria-expanded="showDeviceBreakdown ? 'true' : 'false'"
+          :title="$t('activity.deviceBreakdownTooltip')"
+          @click.prevent="showDeviceBreakdown = !showDeviceBreakdown"
+          data-testid="device-breakdown-toggle"
+        )
+          span.device-breakdown-bar
+            span.device-breakdown-segment(
+              v-for="(d, i) in hostDurations"
+              :key="d.host"
+              :style="{ width: deviceShare(d) + '%', backgroundColor: deviceColor(i) }"
+              :title="d.host + ': ' + secondsToDuration(d.duration)"
+            )
+          icon.ml-1(:name="showDeviceBreakdown ? 'caret-down' : 'caret-right'" scale="0.8")
+        table.table.table-sm.table-borderless.small.mb-1.device-breakdown-table(
+          v-if="showDeviceBreakdown"
+          data-testid="device-breakdown-table"
+        )
+          tr(v-for="(d, i) in hostDurations" :key="d.host")
+            td.pl-0.text-truncate.device-breakdown-host(:title="d.host")
+              span.device-breakdown-swatch.mr-1(:style="{ backgroundColor: deviceColor(i) }")
+              | {{ d.host }}
+            td.text-right.text-nowrap {{ d.duration | friendlyduration }}
+            td.text-muted.text-nowrap
+              span(v-if="d.overlap >= 60") ({{ secondsToDuration(d.overlap) }} {{ $t('activity.overlap') }})
     div(v-if="isMultidevice") {{ $t('activity.multideviceNote') }}
     ul.list-group.list-group-horizontal-md(v-if="periodLength != 'day'")
       li.list-group-item.pl-0.pr-3.py-0.border-0
@@ -243,6 +276,45 @@ div
   color: #6c757d;
 }
 
+.device-breakdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+}
+
+.device-breakdown-bar {
+  display: inline-flex;
+  width: 10rem;
+  height: 0.6rem;
+  border-radius: 0.2rem;
+  overflow: hidden;
+  background-color: $lightBorderColor;
+}
+
+.device-breakdown-segment {
+  height: 100%;
+}
+
+.device-breakdown-table {
+  width: auto;
+
+  td {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+.device-breakdown-host {
+  max-width: 14rem;
+}
+
+.device-breakdown-swatch {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 0.1rem;
+}
+
 .nav {
   border-bottom: 1px solid $lightBorderColor;
 
@@ -284,7 +356,7 @@ div
 import { defineAsyncComponent } from 'vue';
 import { mapState } from 'pinia';
 import moment from 'moment';
-import { get_day_start_with_offset, get_today_with_offset } from '~/util/time';
+import { get_day_start_with_offset, get_today_with_offset, seconds_to_duration } from '~/util/time';
 import { periodStartDate } from '~/util/timeperiod';
 import _ from 'lodash';
 
@@ -302,6 +374,8 @@ import {
   resolveHostSelection,
   toggleHostInSelection,
 } from '~/util/multidevice';
+import type { HostDuration } from '~/util/multidevice';
+import * as d3 from 'd3';
 
 export default {
   name: 'Activity',
@@ -334,6 +408,7 @@ export default {
       settingsStore: useSettingsStore(),
 
       showOptions: false,
+      showDeviceBreakdown: false,
 
       include_audible: true,
       // Include stopwatch events when a stopwatch bucket exists. The
@@ -359,6 +434,9 @@ export default {
     },
     hostSelection() {
       return parseHostParam(this.host || '', this.bucketsStore.hosts);
+    },
+    hostDurations(): HostDuration[] {
+      return this.activityStore.window.host_durations;
     },
     isMultidevice() {
       return isMultiHostSelection(this.hostSelection);
@@ -698,6 +776,18 @@ export default {
   },
 
   methods: {
+    secondsToDuration(seconds: number): string {
+      return seconds_to_duration(seconds);
+    },
+    // By position rather than a hash of the hostname, so neighbouring
+    // segments never share a colour (up to ten devices).
+    deviceColor(index: number): string {
+      return d3.schemeTableau10[index % d3.schemeTableau10.length];
+    },
+    deviceShare(d: HostDuration): number {
+      const total = this.hostDurations.reduce((sum, h) => sum + h.duration, 0);
+      return total > 0 ? (100 * d.duration) / total : 0;
+    },
     routeForHost(hostParam: string) {
       const datePart = this.date ? `/${this.date}` : '';
       return `/activity/${hostParam}/${this.periodLength}${datePart}/${this.subview}/${this.currentViewId}`;

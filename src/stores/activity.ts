@@ -28,6 +28,8 @@ import {
 import {
   buildMultideviceHostParams,
   eligibleMultideviceHosts,
+  hostDurationBreakdown,
+  HostDuration,
   isMultiHostSelection,
   parseHostParam,
   resolveHostSelection,
@@ -122,6 +124,8 @@ interface State {
     available: boolean;
     top_apps: IEvent[];
     top_titles: IEvent[];
+    // Multidevice only: active time credited to each selected device.
+    host_durations: HostDuration[];
   };
 
   browser: {
@@ -198,6 +202,7 @@ export const useActivityStore = defineStore('activity', {
       available: false,
       top_apps: [],
       top_titles: [],
+      host_durations: [],
     },
 
     browser: {
@@ -522,7 +527,13 @@ export const useActivityStore = defineStore('activity', {
       const params = this.multidevice_params(rest, hosts);
       const q = queries.multideviceQuery(params);
       const merged = await queryDesktopPeriods(periods, q, 'multidevice');
-      this.query_window_completed(merged.window || {});
+      const windowResult: Record<string, any> = merged.window || {};
+      windowResult.host_durations = hostDurationBreakdown(
+        params.hosts,
+        windowResult.host_cumulative_durations,
+        windowResult.host_raw_durations
+      );
+      this.query_window_completed(windowResult);
     },
 
     async query_active_history_multidevice({ timeperiod }: QueryOptions, hosts: string[]) {
@@ -864,6 +875,7 @@ export const useActivityStore = defineStore('activity', {
       // Resets the store state while waiting for new query to finish
       this.window.top_apps = null;
       this.window.top_titles = null;
+      this.window.host_durations = [];
 
       this.browser.duration = 0;
       this.browser.top_domains = null;
@@ -911,6 +923,7 @@ export const useActivityStore = defineStore('activity', {
 
       this.window.top_apps = data.app_events;
       this.window.top_titles = data.title_events;
+      this.window.host_durations = data.host_durations || [];
       this.category.top = data.cat_events;
       this.active.duration = data.duration;
       this.active.events = data.active_events;

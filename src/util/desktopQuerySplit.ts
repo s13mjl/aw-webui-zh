@@ -12,6 +12,9 @@ export interface WindowQueryResult {
   cat_events?: IEvent[];
   active_events?: IEvent[];
   duration?: number;
+  // Multidevice only, indexed by host (see canonicalMultideviceEvents).
+  host_cumulative_durations?: number[];
+  host_raw_durations?: number[];
 }
 
 export interface BrowserQueryResult {
@@ -122,6 +125,14 @@ function sumDurations(values: Array<number | undefined>): number {
   return values.reduce((acc: number, value) => acc + (value || 0), 0);
 }
 
+// Element-wise sum of per-host duration lists from the period chunks.
+function sumDurationLists(lists: Array<number[] | undefined>): number[] | undefined {
+  const present = lists.filter(Boolean) as number[][];
+  if (present.length === 0) return undefined;
+  const hostCount = Math.max(...present.map(l => l.length));
+  return Array.from({ length: hostCount }, (_v, i) => sumDurations(present.map(l => l[i])));
+}
+
 export function mergeFullDesktopResults(results: FullDesktopQueryResult[]): FullDesktopQueryResult {
   const windows = results.map(r => r.window).filter(Boolean) as WindowQueryResult[];
   const browsers = results.map(r => r.browser).filter(Boolean) as BrowserQueryResult[];
@@ -143,6 +154,8 @@ export function mergeFullDesktopResults(results: FullDesktopQueryResult[]): Full
       cat_events: mergeEventsByKeys(concatEvents(windows.map(w => w.cat_events)), ['$category']),
       active_events: concatEvents(windows.map(w => w.active_events)),
       duration: sumDurations(windows.map(w => w.duration)),
+      host_cumulative_durations: sumDurationLists(windows.map(w => w.host_cumulative_durations)),
+      host_raw_durations: sumDurationLists(windows.map(w => w.host_raw_durations)),
     },
     browser: {
       domains: mergeEventsByKeys(

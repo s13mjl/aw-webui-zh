@@ -7,7 +7,7 @@ import {
   toggleHostInSelection,
 } from '~/util/multidevice';
 
-const hosts = ['phone', 'desktop', 'laptop'];
+const hosts = ['server', 'desktop', 'laptop'];
 
 function bucketsWindow(host: string): string[] {
   return host === 'desktop' || host === 'laptop' ? [`aw-watcher-window_${host}`] : [];

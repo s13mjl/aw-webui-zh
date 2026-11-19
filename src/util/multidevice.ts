@@ -3,8 +3,8 @@
 // in isolation.
 //
 // Windows-only policy: the multidevice query combines desktop hosts that each
-// carry a window + afkstatus bucket pair. Mobile (android/ScreenTime) hosts
-// are not part of this port.
+// carry a window + afkstatus bucket pair. Hosts without such a pair (e.g. the
+// Android watcher) are not part of this multidevice query.
 
 type HostParamOverride = { bid_window: string; bid_afk: string };
 
@@ -213,4 +213,29 @@ export function eligibleMultideviceHosts(
       bucketsAFK(host).length > 0 &&
       (includeFakedata || !host.startsWith('fakedata'))
   );
+}
+
+export interface HostDuration {
+  host: string;
+  // Time credited to this host after overlap resolution. The credited
+  // durations of all hosts add up to the merged total.
+  duration: number;
+  // Time this host had that overlapped a higher-priority host.
+  overlap: number;
+}
+
+// Per-device breakdown from the multidevice query's per-host durations.
+// cumulative[i] is the merged duration after host i was added in priority
+// order, so host i's credited share is cumulative[i] - cumulative[i - 1].
+export function hostDurationBreakdown(
+  hosts: string[],
+  cumulative: number[] | undefined,
+  raw: number[] | undefined
+): HostDuration[] {
+  if (!cumulative || cumulative.length !== hosts.length) return [];
+  return hosts.map((host, i) => {
+    const duration = Math.max(0, (cumulative[i] || 0) - (i > 0 ? cumulative[i - 1] || 0 : 0));
+    const own = raw && raw[i] !== undefined ? raw[i] : duration;
+    return { host, duration, overlap: Math.max(0, own - duration) };
+  });
 }

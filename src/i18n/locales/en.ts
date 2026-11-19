@@ -347,6 +347,9 @@ export default {
     allDevicesCount: 'All devices ({count})',
     onlyThisDevice: 'only',
     multideviceNote: 'Browser and stopwatch data are only available when viewing a single device.',
+    deviceBreakdownTooltip:
+      'Active time per device. When devices overlap, the time is counted once, for the device listed first.',
+    overlap: 'overlap',
     timeActive: 'Time active:',
     queryRange: 'Query range:',
     filters: 'Filters',

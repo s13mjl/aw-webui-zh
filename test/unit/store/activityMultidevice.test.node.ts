@@ -164,3 +164,37 @@ describe('uncachedHistoryPeriods', () => {
     ]);
   });
 });
+
+describe('per-device duration loading lifecycle', () => {
+  test('clears the previous breakdown when a new selection starts loading', () => {
+    const { activity } = setupStores();
+    activity.query_window_completed({
+      app_events: [],
+      title_events: [],
+      duration: 15,
+      host_durations: [
+        { host: 'desktop', duration: 10, overlap: 0 },
+        { host: 'laptop', duration: 5, overlap: 3 },
+      ],
+    });
+    expect(activity.window.host_durations).toHaveLength(2);
+
+    activity.start_loading({ host: 'desktop,laptop' } as any);
+
+    expect(activity.active.duration).toBeNull();
+    expect(activity.window.host_durations).toEqual([]);
+
+    // Only a completed query may populate the replacement devices/durations.
+    activity.query_window_completed({
+      app_events: [],
+      title_events: [],
+      duration: 7,
+      host_durations: [
+        { host: 'desktop', duration: 4, overlap: 0 },
+        { host: 'laptop', duration: 3, overlap: 0 },
+      ],
+    });
+    expect(activity.window.host_durations.map(row => row.host)).toEqual(['desktop', 'laptop']);
+    expect(activity.active.duration).toBe(7);
+  });
+});
