@@ -234,13 +234,9 @@ export default {
     },
   },
   home: {
-    note: '注意：',
-    androidNote:
-      'ActivityWatch Android 版仍在积极开发中。此处展示的电脑使用数据完全独立于你的 Android 设备。',
     greeting: '欢迎使用 ActivityWatch',
     intro1:
-      '原开发者团队已经走了很远{android}，但仍然需要用户（比如你！）提供反馈，帮助他们把 ActivityWatch 做成一个成功的项目。他们很想听听你的改进想法。',
-    introAndroid: '（尤其是在 Android 上！）',
+      '原开发者团队已经走了很远，但仍然需要用户（比如你！）提供反馈，帮助他们把 ActivityWatch 做成一个成功的项目。他们很想听听你的改进想法。',
     intro3:
       '如果你是开发者，原开发者希望你能编写 watcher、可视化或其他东西，并在论坛上分享给他们！',
     thanks: '感谢你使用 ActivityWatch！',

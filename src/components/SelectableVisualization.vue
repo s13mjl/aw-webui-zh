@@ -29,7 +29,7 @@ div(v-if="editable || !activityStore.buckets.loaded || has_prerequisites || !set
                  :namefunc="e => e.data.app",
                  :colorfunc="e => e.data.app",
                  with_limit)
-    div(v-if="type == 'top_titles' && !activityStore.android.available")
+    div(v-if="type == 'top_titles'")
       aw-summary(:fields="activityStore.window.top_titles",
                  :namefunc="e => e.data.title",
                  :colorfunc="e => e.data['$category']",
@@ -206,7 +206,7 @@ export default {
       return {
         top_apps: {
           title: this.$t('visualizations.topApps'),
-          available: this.activityStore.window.available || this.activityStore.android.available,
+          available: this.activityStore.window.available,
         },
         top_titles: {
           title: this.$t('visualizations.topTitles'),

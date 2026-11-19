@@ -239,13 +239,9 @@ export default {
     },
   },
   home: {
-    note: 'Note:',
-    androidNote:
-      'ActivityWatch on Android is in a very early stage of development. There will be bugs, but the original developers hope you bear with them as they refine things and get it on par with the desktop version of ActivityWatch (which you should try!).',
     greeting: 'Welcome to ActivityWatch',
     intro1:
-      "The original developers have come a long way{android} but they still need users (like you!) to provide feedback and help them turn ActivityWatch into a successful project. They'd love to hear any ideas you have for improvements.",
-    introAndroid: ' (especially on Android!)',
+      "The original developers have come a long way but they still need users (like you!) to provide feedback and help them turn ActivityWatch into a successful project. They'd love to hear any ideas you have for improvements.",
     intro3:
       'If you are a developer, the original developers hope you can contribute by writing a watcher, visualization, or something else, and share it with them on the forum!',
     thanks: 'Thank you for using ActivityWatch!',

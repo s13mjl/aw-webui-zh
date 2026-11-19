@@ -96,7 +96,7 @@ export default {
           { name: 'LandingPageSettings' },
           { name: 'UncategorizedHintSettings' },
           { name: 'BackupSettings' },
-          ...(this.$isAndroid ? [] : [{ name: 'ReleaseNotificationSettings' }]),
+          { name: 'ReleaseNotificationSettings' },
         ],
       };
       const appearance: Group = {

@@ -1,8 +1,5 @@
 <template lang="pug">
 div
-  b-alert(v-if="$isAndroid" show)
-    | #[b {{ $t('home.note') }}] {{ $t('home.androidNote') }}
-
   div.d-flex.align-items-center.mb-3
     img(src="/logo.png" alt="ActivityWatch" style="height: 64px; width: auto; margin-right: 16px;")
     div
@@ -109,8 +106,7 @@ export default {
   computed: {
     ...mapState(useServerStore, ['info']),
     homeIntro1() {
-      const android = this.$isAndroid ? this.$t('home.introAndroid') : '';
-      return this.$t('home.intro1', { android });
+      return this.$t('home.intro1');
     },
     apiBrowserUrl(): string {
       const base = window.location.pathname.replace(/[^/]*$/, '');

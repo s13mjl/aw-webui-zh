@@ -174,13 +174,9 @@ export default {
     },
   },
   home: {
-    note: 'Hinweis:',
-    androidNote:
-      'ActivityWatch auf Android befindet sich in einem sehr frühen Entwicklungsstadium. Es gibt Fehler, aber wir arbeiten an Parität mit der Desktop-Version (probieren Sie sie!).',
     greeting: 'Willkommen bei ActivityWatch',
     intro1:
-      'Wir sind schon weit gekommen{android}, brauchen aber weiterhin Nutzer (wie Sie!), um ActivityWatch zu einem erfolgreichen Projekt zu machen. Wir freuen uns über Ihre Ideen zur Verbesserung.',
-    introAndroid: ' (besonders auf Android!)',
+      'Wir sind schon weit gekommen, brauchen aber weiterhin Nutzer (wie Sie!), um ActivityWatch zu einem erfolgreichen Projekt zu machen. Wir freuen uns über Ihre Ideen zur Verbesserung.',
     intro3:
       'Als Entwickler können Sie mit einem Watcher, einer Visualisierung o. Ä. beitragen und im Forum teilen!',
     thanks: 'Danke, dass Sie ActivityWatch nutzen!',
