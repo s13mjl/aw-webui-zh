@@ -8,6 +8,7 @@ describe('CategoryEditModal handleEnter', () => {
     const vm = {
       editing: { rule: { type: ruleType } },
       validPattern,
+      canSubmit: ruleType !== 'regex' || validPattern,
       handleSubmit: jest.fn(),
       $emit: jest.fn(),
     };
@@ -48,6 +49,125 @@ describe('CategoryEditModal handleEnter', () => {
   });
 });
 
+describe('CategoryEditModal rule priority', () => {
+  const handleSubmit = vm => CategoryEditModal.methods.handleSubmit.call(vm);
+
+  function ctx({ rule = { type: 'regex', regex: 'Firefox', weight: 7 }, priority = null } = {}) {
+    const updateClass = jest.fn();
+    const vm = {
+      editing: {
+        id: 1,
+        name: 'Browser',
+        parent: ['Work'],
+        rule,
+        patterns: [],
+        match_fields: [],
+        inherit_color: true,
+        color: null,
+        inherit_score: true,
+        score: null,
+        priority,
+      },
+      checkFormValidity: () => true,
+      categoryStore: { updateClass },
+      $nextTick: callback => callback(),
+      $refs: { edit: { hide: jest.fn() } },
+      priorityFromInput: CategoryEditModal.methods.priorityFromInput,
+      priorityFromRule: CategoryEditModal.methods.priorityFromRule,
+    };
+    return { vm, updateClass };
+  }
+
+  test('saves an integer priority on regex rules', () => {
+    const { vm, updateClass } = ctx({ priority: '25' });
+    handleSubmit(vm);
+    expect(updateClass.mock.calls[0][0].rule.priority).toBe(25);
+    expect(updateClass.mock.calls[0][0].rule.weight).toBeUndefined();
+    expect(updateClass.mock.calls[0][0].priority).toBe(25);
+  });
+
+  test('blank priority removes existing priority aliases', () => {
+    const { vm, updateClass } = ctx({
+      rule: { type: 'regex', regex: 'Firefox', priority: 3, weight: 7 },
+      priority: '',
+    });
+    handleSubmit(vm);
+    expect(updateClass.mock.calls[0][0].rule.priority).toBeUndefined();
+    expect(updateClass.mock.calls[0][0].rule.weight).toBeUndefined();
+    expect(updateClass.mock.calls[0][0].priority).toBeNull();
+  });
+
+  test('resetModal shows the weight alias as priority', () => {
+    const { vm } = ctx();
+    vm.categoryId = 1;
+    vm.categoryStore.get_category_by_id = () => ({
+      id: 1,
+      subname: 'Browser',
+      parent: ['Work'],
+      rule: { type: 'regex', regex: 'Firefox', weight: 7 },
+      data: {},
+    });
+
+    CategoryEditModal.methods.resetModal.call(vm);
+
+    expect(vm.editing.priority).toBe(7);
+  });
+
+  test('resetModal shows the rule priority when present', () => {
+    const { vm } = ctx();
+    vm.categoryId = 1;
+    vm.categoryStore.get_category_by_id = () => ({
+      id: 1,
+      subname: 'Browser',
+      parent: ['Work'],
+      rule: { type: 'regex', regex: 'Firefox', priority: 3 },
+      data: {},
+    });
+
+    CategoryEditModal.methods.resetModal.call(vm);
+
+    expect(vm.editing.priority).toBe(3);
+  });
+
+  test('resetModal falls back to legacy top-level priority', () => {
+    const { vm } = ctx();
+    vm.categoryId = 1;
+    vm.categoryStore.get_category_by_id = () => ({
+      id: 1,
+      subname: 'Browser',
+      parent: ['Work'],
+      rule: { type: 'regex', regex: 'Firefox' },
+      priority: 9,
+      data: {},
+    });
+
+    CategoryEditModal.methods.resetModal.call(vm);
+
+    expect(vm.editing.priority).toBe(9);
+  });
+
+  test('decimal priorities are invalid and block submit', () => {
+    const vm = {
+      editing: { rule: { type: 'regex' }, priority: '1.5' },
+      validPattern: false,
+      priorityFromInput: CategoryEditModal.methods.priorityFromInput,
+    };
+
+    expect(CategoryEditModal.computed.validPriority.call(vm)).toBe(false);
+    expect(CategoryEditModal.computed.canSubmit.call(vm)).toBe(false);
+  });
+
+  test('none rules do not require a priority', () => {
+    const vm = {
+      editing: { rule: { type: 'none' }, priority: '1.5' },
+      priorityFromInput: CategoryEditModal.methods.priorityFromInput,
+    };
+
+    expect(CategoryEditModal.computed.validPriority.call(vm)).toBe(true);
+    expect(CategoryEditModal.computed.canSubmit.call(vm)).toBe(true);
+  });
+});
+
 describe('CategoryEditModal field-scoped rules', () => {
   const handleSubmit = vm => CategoryEditModal.methods.handleSubmit.call(vm);
 
@@ -69,10 +189,13 @@ describe('CategoryEditModal field-scoped rules', () => {
           score: null,
         },
         validPattern: true,
+        validPriority: true,
         checkFormValidity: () => true,
         categoryStore: { updateClass },
         $nextTick: callback => callback(),
         $refs: { edit: { hide: jest.fn() } },
+        priorityFromInput: CategoryEditModal.methods.priorityFromInput,
+        priorityFromRule: CategoryEditModal.methods.priorityFromRule,
         ...extra,
       },
       updateClass,
