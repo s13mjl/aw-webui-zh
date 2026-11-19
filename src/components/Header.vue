@@ -60,6 +60,9 @@ div(:class="{'fixed-top-padding': fixedTopMenu}")
           b-dropdown-item(to="/search")
             icon(name="search")
             | {{ $t('nav.search') }}
+          b-dropdown-item(to="/category-builder" data-testid="nav-category-builder")
+            icon(name="tags")
+            | {{ $t('nav.categoryBuilder') }}
           b-dropdown-item(to="/work-report")
             icon(name="briefcase")
             | {{ $t('nav.workReport') }}

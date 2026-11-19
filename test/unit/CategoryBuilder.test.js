@@ -1,9 +1,39 @@
 import { setActivePinia, createPinia } from 'pinia';
+import { createTestingPinia } from '@pinia/testing';
+import { mount } from '@vue/test-utils';
+import i18nInstance from '~/i18n';
+import { installBootstrapVue } from '~/compat/bootstrap-vue';
 import CategoryBuilder from '~/views/settings/CategoryBuilder.vue';
+import Settings from '~/views/settings/Settings.vue';
 import { useSettingsStore } from '~/stores/settings';
+import { useCategoryStore } from '~/stores/categories';
 import { getClient } from '~/util/awclient';
 
 jest.mock('~/util/awclient');
+jest.mock('~/stores/buckets', () => ({
+  useBucketsStore: () => ({
+    ensureLoaded: jest.fn().mockResolvedValue(undefined),
+    hosts: [],
+    buckets: [],
+  }),
+}));
+
+const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+
+function mountBuilder() {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const settingsStore = useSettingsStore(pinia);
+  settingsStore.ensureLoaded = jest.fn().mockResolvedValue(undefined);
+  const categoryStore = useCategoryStore(pinia);
+  categoryStore.load = jest.fn().mockResolvedValue(undefined);
+  return mount(CategoryBuilder, {
+    global: {
+      plugins: [pinia, i18nInstance, { install: installBootstrapVue }],
+      stubs: { icon: true, 'aw-query-options': true },
+    },
+  });
+}
 
 // "Ignore" used to only push to component state, so ignored words came back on
 // reload. They now persist via the settings store.
@@ -155,5 +185,111 @@ describe('CategoryBuilder ignored words with the real settings store', () => {
     await expect(call('ignoreWord', vm, 'foo')).rejects.toThrow('offline');
     await call('ignoreWord', vm, 'bar');
     expect(server[KEY]).toEqual(expect.arrayContaining(['bar']));
+  });
+});
+
+describe('CategoryBuilder unload listener', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test('the mounted unload listener uses the component state and is removed on destroy', async () => {
+    const addListener = jest.spyOn(window, 'addEventListener');
+    const removeListener = jest.spyOn(window, 'removeEventListener');
+    const wrapper = mountBuilder();
+    wrapper.vm.$t = key => key;
+    await flush();
+
+    const handler = addListener.mock.calls.find(([type]) => type === 'beforeunload')[1];
+    expect(handler).toBe(wrapper.vm.beforeUnload);
+
+    const categories = useCategoryStore();
+    categories.classes_unsaved_changes = false;
+    const clean = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(clean);
+    expect(clean.defaultPrevented).toBe(false);
+
+    wrapper.vm.categoryStore.classes_unsaved_changes = true;
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.classes_unsaved_changes).toBe(true);
+    const dirty = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(dirty);
+    expect(dirty.defaultPrevented).toBe(true);
+
+    wrapper.unmount();
+    expect(removeListener).toHaveBeenCalledWith('beforeunload', handler);
+    const afterDestroy = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(afterDestroy);
+    expect(afterDestroy.defaultPrevented).toBe(false);
+  });
+});
+
+describe('CategoryBuilder navigation guards', () => {
+  beforeEach(() => {
+    setActivePinia(createTestingPinia({ createSpy: jest.fn() }));
+  });
+
+  describe.each([
+    ['standalone CategoryBuilder', CategoryBuilder],
+    ['Settings parent of the embedded builder', Settings],
+  ])('%s beforeRouteLeave', (_name, component) => {
+    function makeVm(unsavedChanges) {
+      const categoryStore = useCategoryStore();
+      categoryStore.classes_unsaved_changes = unsavedChanges;
+      return { $t: key => key };
+    }
+
+    test('calls next() immediately when there are no unsaved changes', () => {
+      const vm = makeVm(false);
+      const next = jest.fn();
+      component.beforeRouteLeave.call(vm, {}, {}, next);
+      expect(next).toHaveBeenCalledWith();
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    test('calls next() when user confirms leaving with unsaved changes', () => {
+      const vm = makeVm(true);
+      const next = jest.fn();
+      jest.spyOn(window, 'confirm').mockReturnValue(true);
+      component.beforeRouteLeave.call(vm, {}, {}, next);
+      expect(window.confirm).toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    test('calls next(false) when user cancels leaving with unsaved changes', () => {
+      const vm = makeVm(true);
+      const next = jest.fn();
+      jest.spyOn(window, 'confirm').mockReturnValue(false);
+      component.beforeRouteLeave.call(vm, {}, {}, next);
+      expect(window.confirm).toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(false);
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+  });
+
+  describe('beforeUnload', () => {
+    function makeVm(unsavedChanges) {
+      return {
+        classes_unsaved_changes: unsavedChanges,
+        $t: key => key,
+      };
+    }
+
+    test('does nothing when there are no unsaved changes', () => {
+      const vm = makeVm(false);
+      const e = { preventDefault: jest.fn(), returnValue: '' };
+      const result = CategoryBuilder.methods.beforeUnload.call(vm, e);
+      expect(e.preventDefault).not.toHaveBeenCalled();
+      expect(e.returnValue).toBe('');
+      expect(result).toBeUndefined();
+    });
+
+    test('sets returnValue and returns the message when there are unsaved changes', () => {
+      const vm = makeVm(true);
+      const e = { preventDefault: jest.fn(), returnValue: '' };
+      const result = CategoryBuilder.methods.beforeUnload.call(vm, e);
+      expect(e.preventDefault).toHaveBeenCalled();
+      expect(e.returnValue).toBe('settings.unsavedCategoriesLeave');
+      expect(result).toBe('settings.unsavedCategoriesLeave');
+    });
   });
 });
