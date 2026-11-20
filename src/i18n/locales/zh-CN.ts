@@ -784,6 +784,9 @@ export default {
     modeRange: '日期范围',
     quickDurations: '快捷时长',
     startDate: '开始日期',
+    startTime: '开始时间',
+    endTime: '结束时间',
+    unresolvableTime: '所选时间因夏令时切换而不存在或出现两次，请调整。',
     endDate: '结束日期（可选）',
   },
   queryOptions: {

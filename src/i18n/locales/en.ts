@@ -799,6 +799,10 @@ export default {
     modeRange: 'Date range',
     quickDurations: 'Quick durations',
     startDate: 'Start date',
+    startTime: 'Start time',
+    endTime: 'End time',
+    unresolvableTime:
+      'One of the selected times does not exist, or happens twice, because of a daylight-saving change. Adjust it.',
     endDate: 'End date (optional)',
   },
   queryOptions: {
