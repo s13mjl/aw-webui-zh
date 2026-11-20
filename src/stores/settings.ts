@@ -16,6 +16,10 @@ function jsonEq(a: any, b: any) {
 
 let settingsLoadPromise: Promise<void> | null = null;
 
+// Per-store load sequence: a response arriving after a newer load must not
+// overwrite state with stale values.
+const settingsLoads = new WeakMap<object, { issued: number; applied: number }>();
+
 // Backoffs for NewReleaseNotification
 export const SHORT_BACKOFF_PERIOD = 24 * 60 * 60;
 export const LONG_BACKOFF_PERIOD = 5 * 24 * 60 * 60;
@@ -69,6 +73,12 @@ interface State {
 
   // Whether to hide visualizations that lack required data (default: off)
   hideUnsupportedVisualizations: boolean;
+
+  // Honor-system "I already support ActivityWatch" flag. Stored in the server's
+  // settings store (not localStorage) so every browser and the desktop clients
+  // (aw-qt, aw-tauri) see the same answer. It only suppresses in-app support
+  // prompts; it is never verified, and nothing is sent anywhere when it is set.
+  supporter: boolean;
 
   // Auto-export all buckets as JSON for backup. See #406.
   autoBackupEnabled: boolean;
@@ -127,6 +137,8 @@ export const useSettingsStore = defineStore('settings', {
     requestTimeout: 30,
     hideUnsupportedVisualizations: false,
 
+    supporter: false,
+
     // Auto-export backup (disabled by default, weekly). See #406.
     autoBackupEnabled: false,
     autoBackupIntervalHours: 24 * 7,
@@ -167,8 +179,18 @@ export const useSettingsStore = defineStore('settings', {
       }
       const client = getClient();
 
+      const loads = settingsLoads.get(this) || { issued: 0, applied: 0 };
+      settingsLoads.set(this, loads);
+      const request = ++loads.issued;
       // Fetch from server, fall back to localStorage
       const server_settings = await client.get_settings();
+      if (request < loads.applied) {
+        // A newer response already applied. The state is up-to-date, but if
+        // this call requested persistence we must still honour that intent.
+        if (save) await this.save();
+        return;
+      }
+      loads.applied = request;
 
       // Build a unified map: server value wins, localStorage is fallback.
       // Skip keys that are missing from BOTH sources — otherwise `null` from
@@ -224,7 +246,14 @@ export const useSettingsStore = defineStore('settings', {
           console.error('failed to parse', key, raw, e);
         }
       }
-      this.$patch({ ...storage, _loaded: true, _storedKeys: Object.keys(storage) });
+      // Missing supporter storage means the default, including when reconciling
+      // an optimistic first-ever choice after a rejected POST.
+      this.$patch({
+        supporter: false,
+        ...storage,
+        _loaded: true,
+        _storedKeys: Object.keys(storage),
+      });
 
       const localeFromServer = 'locale' in server_settings;
       const localeFromLocalStorage = localStorage.getItem('locale') != null;
