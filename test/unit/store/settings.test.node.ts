@@ -1,6 +1,7 @@
 import { setActivePinia, createPinia } from 'pinia';
 
 import { useSettingsStore } from '~/stores/settings';
+import * as awclient from '~/util/awclient';
 
 describe('settings store', () => {
   setActivePinia(createPinia());
@@ -9,6 +10,53 @@ describe('settings store', () => {
   beforeEach(() => {
     settingsStore.$reset();
     jest.restoreAllMocks();
+  });
+
+  test('load({save:true}) 在被并发加载取代后仍履行保存意图', async () => {
+    // 复现：先发起 load({save:true})，在首个响应到达前完成第二次 load()。
+    // 过期响应守卫仍需保留 save 意图，而不是静默丢弃。
+    (global as any).localStorage = {
+      getItem: () => null,
+      setItem: jest.fn(),
+      length: 0,
+      key: () => null,
+    };
+    Object.defineProperty(global.localStorage, Symbol.iterator, {
+      value: [][Symbol.iterator].bind([]),
+      configurable: true,
+    });
+
+    let resolveFirst!: (v: Record<string, unknown>) => void;
+    const fakeClient = {
+      get_settings: jest
+        .fn()
+        // 首次调用阻塞
+        .mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              resolveFirst = resolve;
+            })
+        )
+        // 第二次调用立即返回
+        .mockResolvedValueOnce({}),
+      req: { defaults: {} },
+    };
+    jest.spyOn(awclient, 'getClient').mockReturnValue(fakeClient as any);
+
+    const save = jest.spyOn(settingsStore, 'save').mockResolvedValue();
+
+    const firstLoad = settingsStore.load({ save: true });
+    // 让第二次加载先于第一次完成
+    await settingsStore.load();
+
+    expect(save).not.toHaveBeenCalled(); // 第二次加载没有保存意图
+
+    resolveFirst({});
+    await firstLoad;
+
+    expect(save).toHaveBeenCalledTimes(1);
+
+    delete (global as any).localStorage;
   });
 
   test('ensureLoaded coalesces concurrent loads', async () => {

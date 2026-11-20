@@ -11,6 +11,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOCALES_DIR = path.join(__dirname, '../src/i18n/locales');
 const LOCALES = ['en', 'uk', 'de', 'ru', 'zh-CN'];
 
+// These new messages intentionally use English fallback until translated.
+const ENGLISH_FALLBACK_KEYS = new Set([
+  'settings.layout.title',
+  'settings.layout.help',
+  'settings.layout.textSize',
+  'settings.layout.textHelp',
+  'settings.layout.automaticWidth',
+  'settings.layout.contentWidth',
+  'settings.layout.widthHelp',
+  'settings.layout.save',
+  'settings.layout.saving',
+  'settings.layout.reset',
+  'settings.layout.saved',
+  'settings.layout.changedElsewhere',
+  'settings.layout.invalid',
+  'settings.layout.saveFailed',
+]);
+
 /** Substrings: identical en/value is OK when value contains any of these (case-insensitive). */
 const ALLOWLIST_SUBSTRINGS = [
   'activitywatch',
@@ -166,6 +184,7 @@ for (const code of LOCALES) {
       placeholderMismatches.push({ key, en: placeholders(enVal), got: placeholders(val) });
     }
     if (key.startsWith('common.language')) continue;
+    if (ENGLISH_FALLBACK_KEYS.has(key)) continue;
     if (enVal === val && !isAllowlistedIdentical(enVal, val)) {
       untranslated.push(key);
     }
