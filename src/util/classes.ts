@@ -348,9 +348,11 @@ export function saveCategories(sets: CategorySet[], activeIds: string[]) {
   }
   const settingsStore = useSettingsStore();
   const cleanSets = sets.map(s => ({ ...s, categories: s.categories.map(cleanCategory) }));
-  const effectiveClasses = mergeCategorySets(sets.filter(s => activeIds.includes(s.id))).map(
-    cleanCategory
-  );
+  // Merge in active_set_ids priority order (first = highest), matching the store.
+  const orderedSets = activeIds
+    .map(id => sets.find(s => s.id === id))
+    .filter((s): s is CategorySet => !!s);
+  const effectiveClasses = mergeCategorySets(orderedSets).map(cleanCategory);
   // 返回 update 的 promise，让 category store 的 save() 能等待真正写入完成，
   // 从而只确认已保存的快照（同步上游 #1228）。
   return settingsStore.update({

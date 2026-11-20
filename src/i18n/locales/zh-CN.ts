@@ -167,6 +167,9 @@ export default {
       newSet: '新建分类集',
       deleteSet: '删除分类集',
       setsAvailable: '有 {count} 个分类集可用 — 切换分类集以使用不同的规则配置。',
+      alsoApply: '同时应用：',
+      alsoApplyHelp:
+        '勾选分类集的规则会叠加在“{primary}”之上；编辑会保存到“{primary}”，编辑其他分类集的分类会在“{primary}”中保存一条覆盖规则。',
       unsavedChanges: '你有未保存的更改！',
       discard: '放弃',
       addCategory: '添加分类',
