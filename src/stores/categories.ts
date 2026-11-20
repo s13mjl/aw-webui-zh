@@ -331,6 +331,24 @@ export const useCategoryStore = defineStore('categories', {
       this.category_sets.push({ id, categories: [] });
     },
 
+    importSetOnTop(this: State, id: string, categories: Category[]) {
+      // Preserve local edits against the old sets, before replacing any contents.
+      syncToPrimarySet(this);
+      const primaryId = this.active_set_ids[0];
+      if (id === primaryId) {
+        do {
+          id += '-imported';
+        } while (this.category_sets.some(s => s.id === id));
+      }
+      const existing = this.category_sets.find(s => s.id === id);
+      if (existing) existing.categories = categories;
+      else this.category_sets.push({ id, categories });
+      if (!this.active_set_ids.includes(id)) this.active_set_ids.push(id);
+      // Do not call setActiveSets: it would sync the stale pre-import view again.
+      this.classes = computeEffectiveClasses(this.category_sets, this.active_set_ids);
+      this.classes_unsaved_changes = true;
+    },
+
     /**
      * Delete a category set by ID.
      * The last remaining set cannot be deleted.
