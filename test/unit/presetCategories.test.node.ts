@@ -11,6 +11,7 @@ import {
   mergeCategorySets,
   getDefaultClasses,
   classifyEvents,
+  migrateLegacyDefaultColors,
   defaultCategories,
   Category,
   CategorySet,
@@ -522,5 +523,155 @@ describe('categories store with presets', () => {
     categoryStore.restoreDefaultClasses();
     expect(categoryStore.get_category(['Work'])).toBeTruthy();
     expect(categoryStore.classes.length).toBeGreaterThan(defaultCategories.length - 1);
+  });
+});
+
+describe('default palette change (#1058, upstream #1065)', () => {
+  // The colors the stock categories had before the palette was softened.
+  const OLD_COLORS: Record<string, string> = {
+    Work: '#0F0',
+    Media: '#F33',
+    'Media>Games': '#F80',
+    'Media>Video': '#F33',
+    'Media>Social Media': '#FCC400',
+    'Media>Music': '#A8FC00',
+    Comms: '#9FF',
+  };
+  const withOldColors = (overrides: Record<string, string> = {}): Category[] =>
+    defaultCategories.map(c => {
+      const key = c.name.join('>');
+      const color = overrides[key] ?? OLD_COLORS[key];
+      return color ? { ...c, data: { ...c.data, color } } : c;
+    });
+  const colorOf = (cats: Category[], key: string) =>
+    cats.find(c => c.name.join('>') === key)?.data?.color;
+
+  test('every legacy entry matches a built-in category and receives a new-palette color', () => {
+    for (const [key, oldColor] of Object.entries(OLD_COLORS)) {
+      const ref = defaultCategories.find(c => c.name.join('>') === key);
+      if (!ref) throw new Error(`built-in category missing for ${key}`);
+      const newColor = ref.data?.color;
+      expect(typeof newColor).toBe('string');
+      expect((newColor as string).length).toBeGreaterThan(0);
+      expect((newColor as string).toUpperCase()).not.toEqual(oldColor.toUpperCase());
+      // 新色以 defaultCategories 为唯一来源，迁移结果与参考默认分类一致。
+      const migrated = migrateLegacyDefaultColors([
+        { ...ref, data: { ...ref.data, color: oldColor } },
+      ]);
+      expect(migrated[0].data?.color).toBe(newColor);
+    }
+  });
+
+  test('the new palette has no unintended duplicate colors (parent/child sharing is allowed)', () => {
+    const byColor = new Map<string, string[]>();
+    for (const c of defaultCategories) {
+      const color = c.data?.color;
+      if (!color) continue;
+      byColor.set(color, [...(byColor.get(color) ?? []), c.name.join('>')]);
+    }
+    for (const [, names] of byColor) {
+      if (names.length < 2) continue;
+      for (const name of names) {
+        const ancestorPrefix = name.split('>').slice(0, -1).join('>');
+        const other = names.find(n => n !== name);
+        const ancestorSharesColor = ancestorPrefix !== '' && other.startsWith(ancestorPrefix);
+        const descendantSharesColor = other.startsWith(name + '>');
+        expect(ancestorSharesColor || descendantSharesColor).toBe(true);
+      }
+    }
+  });
+
+  test('migration is idempotent: running twice yields the same result', () => {
+    const once = migrateLegacyDefaultColors(withOldColors({ Media: '#123456' }));
+    const twice = migrateLegacyDefaultColors(once);
+    expect(twice).toEqual(once);
+  });
+
+  test('stored old default colors are shown in the new palette', () => {
+    const settingsStore = useSettingsStore();
+    settingsStore.$patch({ classes: withOldColors(), _storedKeys: ['classes'] });
+
+    const { sets } = loadCategories();
+    const cats = sets.find(s => s.id === 'default')!.categories;
+    for (const key of Object.keys(OLD_COLORS)) {
+      expect(colorOf(cats, key)).toBe(colorOf(defaultCategories, key));
+    }
+  });
+
+  test('a color the user picked is kept while untouched ones move to the new palette', () => {
+    const settingsStore = useSettingsStore();
+    settingsStore.$patch({
+      category_sets: [{ id: 'default', categories: withOldColors({ Media: '#123456' }) }],
+      active_set_ids: ['default'],
+      _storedKeys: ['category_sets', 'active_set_ids'],
+    });
+
+    const { sets } = loadCategories();
+    const cats = sets.find(s => s.id === 'default')!.categories;
+    expect(colorOf(cats, 'Media')).toBe('#123456');
+    expect(colorOf(cats, 'Work')).toBe(colorOf(defaultCategories, 'Work'));
+  });
+
+  test('legacy colors are matched case-insensitively', () => {
+    const upper = withOldColors();
+    upper.forEach(c => {
+      if (c.data?.color) c.data.color = c.data.color.toUpperCase();
+    });
+    const migrated = migrateLegacyDefaultColors(upper);
+    for (const key of Object.keys(OLD_COLORS)) {
+      expect(colorOf(migrated, key)).toBe(colorOf(defaultCategories, key));
+    }
+  });
+
+  test('category names that are Object.prototype keys load normally', () => {
+    const settingsStore = useSettingsStore();
+    const mine: Category[] = ['constructor', 'toString', '__proto__'].map(name => ({
+      name: [name],
+      rule: { type: 'regex', regex: name },
+      data: { color: '#123456' },
+    }));
+    settingsStore.$patch({ classes: mine, _storedKeys: ['classes'] });
+
+    const { sets } = loadCategories();
+    expect(sets.find(s => s.id === 'default')!.categories).toEqual(mine);
+  });
+
+  test('preset-provided colors are preserved and never overwritten by migration', () => {
+    const coloredPreset: CategorySet = {
+      id: 'study',
+      categories: [
+        { name: ['Work'], rule: { type: 'regex', regex: '^Work$' }, data: { color: '#123456' } },
+        { name: ['Media'], rule: { type: 'none' }, data: { color: '#ABCDEF' } },
+      ],
+    };
+    setPresetGlobal([coloredPreset]);
+    const presets = getPresetCategorySets();
+    expect(migrateLegacyDefaultColors(presets[0].categories)).toEqual(presets[0].categories);
+
+    // 内置默认色仍走新调色板，与预设色互不污染。
+    expect(colorOf(defaultCategories, 'Work')).toBe('#4ADE80');
+    setPresetGlobal(undefined);
+    expect(getDefaultClasses()).toEqual(defaultCategories);
+  });
+
+  test('stored legacy-default classes keep the default active set; the preset stays available', () => {
+    // 本地 #936 以 _storedKeys 判断是否已有用户分类（对应上游 classesLookUnconfigured），
+    // 因此只要 classes 被持久化过，就仍由 default 集接管；预设集仅作为可切换项追加。
+    setPresetGlobal([presetSet]);
+    const settingsStore = useSettingsStore();
+    settingsStore.$patch({
+      classes: withOldColors(),
+      category_sets: [],
+      active_set_ids: ['default'],
+      _storedKeys: ['classes', 'category_sets', 'active_set_ids'],
+    });
+
+    const { sets, activeIds } = loadCategories();
+    expect(activeIds).toEqual(['default']);
+    expect(sets.map(s => s.id)).toEqual(['default', 'study']);
+    const cats = sets.find(s => s.id === 'default')!.categories;
+    for (const key of Object.keys(OLD_COLORS)) {
+      expect(colorOf(cats, key)).toBe(colorOf(defaultCategories, key));
+    }
   });
 });
