@@ -360,6 +360,10 @@ export default {
   timeline: {
     title: 'Хронологія',
     eventsShown: 'Показано подій:',
+    list: 'Список',
+    listShowing: 'Показано {shown} з {total} подій',
+    showMore: 'Показати більше',
+    eventTitle: 'Заголовок',
     swimlanes: 'Доріжки:',
     filterAfk: 'Фільтр AFK',
     mergeByApp: 'Об’єднати за застосунком',

@@ -363,6 +363,10 @@ export default {
   timeline: {
     title: 'Zeitleiste',
     eventsShown: 'Angezeigte Ereignisse:',
+    list: 'Liste',
+    listShowing: '{shown} von {total} Ereignissen angezeigt',
+    showMore: 'Mehr anzeigen',
+    eventTitle: 'Titel',
     swimlanes: 'Schwimmbahnen:',
     filterAfk: 'AFK filtern',
     mergeByApp: 'Nach App zusammenführen',
