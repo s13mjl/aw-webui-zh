@@ -882,6 +882,13 @@ export default {
     seeAllBuckets: '查看全部存储桶',
     showingRecent: '所选时间范围内没有事件。此存储桶最近的事件在 {time}，改为显示最近的 {count} 个事件。',
   },
+  watcherLiveness: {
+    title: 'Watcher 已停止上报：',
+    messageOne: '{name} 已有 {minutes} 分钟没有上报数据。',
+    messageMany: '{name} 已有 {minutes} 分钟没有上报数据。',
+    checkTray: '请检查托盘图标，或',
+    restart: '重启 watcher',
+  },
   queryExplorer: {
     docsPrefix: '查看',
     docsLink: '文档',

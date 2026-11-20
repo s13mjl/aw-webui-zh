@@ -898,6 +898,13 @@ export default {
     showingRecent:
       'No events in the selected range. The last event in this bucket is from {time}, showing the {count} most recent events instead.',
   },
+  watcherLiveness: {
+    title: 'Watcher stopped:',
+    messageOne: '{name} last reported {minutes} minute ago.',
+    messageMany: '{name} last reported {minutes} minutes ago.',
+    checkTray: 'Check the tray icon or',
+    restart: 'restart the watcher',
+  },
   queryExplorer: {
     docsPrefix: 'See',
     docsLink: 'the documentation',
