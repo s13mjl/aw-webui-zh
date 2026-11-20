@@ -873,6 +873,7 @@ export default {
     data: '数据：',
     notFound: '未找到名为 "{id}" 的存储桶',
     seeAllBuckets: '查看全部存储桶',
+    showingRecent: '所选时间范围内没有事件。此存储桶最近的事件在 {time}，改为显示最近的 {count} 个事件。',
   },
   queryExplorer: {
     docsPrefix: '查看',

@@ -31,6 +31,9 @@ div
 
     input-timeinterval(v-model="daterange", :maxDuration="maxDuration")
 
+    b-alert(v-if="showingMostRecent", show, variant="info")
+      | {{ $t('bucket.showingRecent', { time: $filters.friendlytime(lastEventTime), count: events.length }) }}
+
     vis-timeline(:buckets="[bucket_with_events]", :showRowLabels="false")
 
     aw-eventlist(:bucket_id="id", @save="updateEvent", @deleted="removeEvent", :events="events" editable=true)
@@ -51,6 +54,8 @@ export default {
 
       events: [],
       eventcount: '?',
+      showingMostRecent: false,
+      lastEventTime: null,
       // Supersede in-flight loads so a stale snapshot cannot restore a
       // confirmed-deleted row or an already-obsolete total.
       eventsRequestId: 0,
@@ -103,6 +108,28 @@ export default {
       });
       if (requestId !== this.eventsRequestId) return;
       this.events = bucket.events;
+      this.showingMostRecent = false;
+
+      // 陈旧或导入的存储桶在所选区间内可能没有任何事件（上游 #136）：
+      // 回退到最近的事件，避免详情页空着无从排查。
+      const hasData = this.bucket.metadata && this.bucket.metadata.end;
+      if (this.events.length === 0 && hasData) {
+        try {
+          const recent = await this.bucketsStore.getBucketWithEvents({
+            id: bucket_id,
+            limit: 100,
+          });
+          if (requestId !== this.eventsRequestId) return;
+          if (recent.events.length > 0) {
+            this.events = recent.events;
+            // The API returns newest first.
+            this.lastEventTime = recent.events[0].timestamp;
+            this.showingMostRecent = true;
+          }
+        } catch (e) {
+          console.warn('[bucket] Failed to load most recent events:', e);
+        }
+      }
     },
     getEventCount: async function (bucket_id) {
       const requestId = ++this.countRequestId;

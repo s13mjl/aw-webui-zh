@@ -888,6 +888,8 @@ export default {
     data: 'Data:',
     notFound: 'No bucket named "{id}".',
     seeAllBuckets: 'See all buckets',
+    showingRecent:
+      'No events in the selected range. The last event in this bucket is from {time}, showing the {count} most recent events instead.',
   },
   queryExplorer: {
     docsPrefix: 'See',
