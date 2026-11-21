@@ -568,3 +568,190 @@ describe('Trends category selection', () => {
     expect(query).toContain('[["Work"],["Work","Coding"]]');
   });
 });
+
+describe('Trends weekly grouping', () => {
+  const byPeriod = {};
+  // Thu 2026-10-15 .. Sat 2026-10-24 (ten days, two Monday-start weeks)
+  for (let d = 15; d <= 24; d++) {
+    byPeriod[`2026-10-${d}T04:00:00+02:00/2026-10-${d + 1}T04:00:00+02:00`] = {
+      cat_events: [{ duration: 3600, data: { $category: ['Work'] } }],
+    };
+  }
+  const vm = groupBy => {
+    const ctx = {
+      groupBy,
+      byPeriod,
+      loading: false,
+      periodDays: 10,
+      currentStart: moment('2026-10-15'),
+      settingsStore: { startOfWeek: 'Monday' },
+      categoryStore: { classes: [] },
+    };
+    ctx.weekly = Trends.computed.weekly.call(ctx);
+    return ctx;
+  };
+
+  test('day grouping keeps one bar per queried day', () => {
+    const ctx = vm('day');
+    expect(Trends.computed.barchartLength.call(ctx)).toEqual([10, 'days']);
+    expect(Trends.computed.barchartStart.call(ctx)).toBe(moment('2026-10-15').toISOString());
+  });
+
+  test('week grouping sums days into start-of-week buckets without re-querying', () => {
+    const ctx = vm('week');
+    expect(Trends.computed.barchartLength.call(ctx)).toEqual([2, 'weeks']);
+    expect(Trends.computed.barchartStart.call(ctx)).toBe(moment('2026-10-12').toISOString());
+    expect(Object.keys(ctx.weekly.byWeek)).toEqual(['2026-10-12', '2026-10-19']);
+    expect(ctx.weekly.byWeek['2026-10-12'].cat_events).toHaveLength(4);
+    expect(ctx.weekly.byWeek['2026-10-19'].cat_events).toHaveLength(6);
+  });
+
+  test('week grouping honours the configured start of week', () => {
+    const sunday = { ...vm('week'), settingsStore: { startOfWeek: 'Sunday' } };
+    sunday.weekly = Trends.computed.weekly.call(sunday);
+    expect(Object.keys(sunday.weekly.byWeek)).toEqual(['2026-10-11', '2026-10-18']);
+    const saturday = { ...vm('week'), settingsStore: { startOfWeek: 'Saturday' } };
+    saturday.weekly = Trends.computed.weekly.call(saturday);
+    expect(Object.keys(saturday.weekly.byWeek)).toEqual(['2026-10-10', '2026-10-17', '2026-10-24']);
+  });
+
+  test('grouping options expose the day/week labels through i18n', () => {
+    const ctx = { $t: key => key };
+    expect(Trends.computed.groupByOptions.call(ctx)).toEqual([
+      { value: 'day', text: 'trends.groupByDay' },
+      { value: 'week', text: 'trends.groupByWeek' },
+    ]);
+  });
+});
+
+describe('Trends view weekly grouping on the mounted component', () => {
+  let wrapper;
+  let calls;
+
+  const fixture = () => {
+    const byPeriod = {};
+    for (let d = 15; d <= 24; d++) {
+      byPeriod[`2026-10-${d}T04:00:00+02:00/2026-10-${d + 1}T04:00:00+02:00`] = {
+        cat_events: [workEvent(3600)],
+      };
+    }
+    return byPeriod;
+  };
+
+  beforeEach(async () => {
+    calls = [];
+    createTestingPinia({
+      initialState: {
+        buckets: {
+          buckets: [bucket('a', 'window'), bucket('a', 'afk')],
+        },
+        categories: {
+          classes: [{ name: ['Work'], rule: { type: 'none' }, data: { color: '#336699' } }],
+        },
+      },
+    });
+    getClient.mockReturnValue({
+      query: jest.fn((periods, query, options) => {
+        const call = {
+          periods,
+          query,
+          name: options && options.name,
+          settled: false,
+          deferred: deferred(),
+        };
+        calls.push(call);
+        return call.deferred.promise;
+      }),
+    });
+    queryLong.mockImplementation((periods, query) => {
+      const call = { periods, query, name: 'trendsTotals', settled: false, deferred: deferred() };
+      calls.push(call);
+      return call.deferred.promise;
+    });
+  });
+
+  afterEach(() => {
+    if (wrapper) wrapper.unmount();
+    wrapper = null;
+    jest.clearAllMocks();
+  });
+
+  const mount = async () => {
+    wrapper = shallowMount(Trends, {
+      global: {
+        plugins: [i18nInstance, { install: installBootstrapVue }],
+        mocks: { $route: reactive({ params: { host: 'a' } }), $filters: filters },
+        stubs: STUBS,
+      },
+    });
+    await flush();
+    return wrapper;
+  };
+
+  const resolveNewest = async (days, { dayEvents = [], totalsEvents = [] } = {}) => {
+    let firstDay = true;
+    for (let k = 0; k < days; k++) {
+      const pendingDays = calls.filter(call => !call.settled && call.name === 'trendsByDay');
+      if (!pendingDays.length) break;
+      const call = pendingDays[pendingDays.length - 1];
+      call.settled = true;
+      call.deferred.resolve([{ cat_events: firstDay ? dayEvents : [] }]);
+      firstDay = false;
+      await flush();
+    }
+    const pendingTotals = calls.filter(call => !call.settled && call.name === 'trendsTotals');
+    if (pendingTotals.length) {
+      const totals = pendingTotals[pendingTotals.length - 1];
+      totals.settled = true;
+      totals.deferred.resolve([{ cat_events: totalsEvents }]);
+      await flush();
+    }
+  };
+
+  test('switching to week grouping sums loaded days client-side, with no new query', async () => {
+    await mount();
+    await resolveNewest(7, { dayEvents: [workEvent(3600)], totalsEvents: [workEvent(1800)] });
+    const queriesBeforeToggle = calls.length;
+
+    wrapper.vm.byPeriod = fixture();
+    wrapper.vm.groupBy = 'week';
+    await nextTick();
+
+    expect(calls).toHaveLength(queriesBeforeToggle);
+    expect(wrapper.vm.barchartLength).toEqual([2, 'weeks']);
+    expect(wrapper.vm.barchartStart).toBe(moment('2026-10-12').toISOString());
+    expect(wrapper.vm.datasets[0].data).toEqual([4, 6]);
+  });
+
+  test('category filter and week grouping combine: query stays filtered, bars sum weekly', async () => {
+    await mount();
+    wrapper.vm.selectedCategory = ['Work'];
+    await flush();
+    await resolveNewest(7, { dayEvents: [workEvent(3600)], totalsEvents: [workEvent(1800)] });
+
+    const dayQueries = calls.filter(call => call.name === 'trendsByDay');
+    expect(dayQueries[dayQueries.length - 1].query.join(' ')).toContain('[["Work"]]');
+
+    wrapper.vm.byPeriod = fixture();
+    wrapper.vm.groupBy = 'week';
+    await nextTick();
+    expect(wrapper.vm.barchartLength).toEqual([2, 'weeks']);
+    expect(wrapper.vm.datasets[0].data).toEqual([4, 6]);
+  });
+
+  test('grouping toggle does not start a refresh; the existing generation still discards stale responses', async () => {
+    await mount();
+    // Original refresh still in flight (one day query + one totals query).
+    expect(calls.filter(call => !call.settled)).toHaveLength(2);
+
+    wrapper.vm.groupBy = 'week';
+    await flush();
+    // No second refresh was issued by the grouping toggle.
+    expect(calls.filter(call => !call.settled)).toHaveLength(2);
+
+    await resolveNewest(7, { dayEvents: [workEvent(30)], totalsEvents: [workEvent(20)] });
+    expect(wrapper.vm.currentTotals).toEqual({ '["Work"]': 30 });
+    expect(wrapper.vm.previousTotals).toEqual({ '["Work"]': 20 });
+    expect(wrapper.vm.loading).toBe(false);
+  });
+});

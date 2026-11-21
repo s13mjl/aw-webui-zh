@@ -29,6 +29,7 @@ import {
   timeperiodsHoursOfPeriod,
 } from '~/util/timeperiod';
 import { clampStackedHours } from '~/util/timelineClamp';
+import { i18n } from '~/i18n';
 
 function hourToTick(hours: number): string {
   if (hours > 1) {
@@ -104,6 +105,14 @@ export default {
           if (firstDays > 300) return date.format('YYYY');
           if (firstDays > 25) return date.format('YYYY-MM');
           return date.format('MM-DD');
+        });
+      } else if (resolution === 'weeks') {
+        // One bar per week (Trends), labelled with each week's start date
+        return _.range(count).map(w => {
+          const date = new Date(start);
+          date.setHours(12, 0, 0, 0);
+          date.setDate(date.getDate() + 7 * w);
+          return format_date_short(date, i18n.locale);
         });
       } else if (resolution.startsWith('week')) {
         // Look up days of the week from `start`

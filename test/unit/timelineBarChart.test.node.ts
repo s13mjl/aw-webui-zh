@@ -10,6 +10,10 @@ function chartOptions(count: number, resolution = 'days') {
   return computed.chartOptions.call({ timeperiod_length: [count, resolution] });
 }
 
+function chartLabels(start: string, count: number, resolution: string) {
+  return computed.labels.call({ timeperiod_start: start, timeperiod_length: [count, resolution] });
+}
+
 describe('TimelineBarChart options', () => {
   test('puts responsive height controls in options, not chart data', () => {
     const options = chartOptions(7);
@@ -43,5 +47,34 @@ describe('TimelineBarChart options', () => {
     for (const days of [90, 365]) {
       expect(chartOptions(days).scales.y.max).toBeUndefined();
     }
+  });
+});
+
+describe('TimelineBarChart weekly labels', () => {
+  test('labels a single weekly bar with its start date, not seven weekdays', () => {
+    expect(chartLabels('2026-01-05T00:00:00', 1, 'weeks')).toEqual(['Jan 5']);
+  });
+
+  test('labels each weekly bar across the year boundary', () => {
+    expect(chartLabels('2026-12-21T00:00:00', 4, 'weeks')).toEqual([
+      'Dec 21',
+      'Dec 28',
+      'Jan 4',
+      'Jan 11',
+    ]);
+  });
+
+  test('keeps singular week as seven consecutive weekday labels', () => {
+    const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+    expect(chartLabels('2026-01-05T00:00:00', 1, 'week')).toEqual(
+      [5, 6, 7, 8, 9, 10, 11].map(day => weekday.format(new Date(2026, 0, day, 12)))
+    );
+  });
+
+  test.each([
+    ['2026-03-23T00:00:00', ['Mar 23', 'Mar 30', 'Apr 6']],
+    ['2026-10-19T00:00:00', ['Oct 19', 'Oct 26', 'Nov 2']],
+  ])('keeps weekly labels on their calendar dates across DST from %s', (start, expected) => {
+    expect(chartLabels(start, 3, 'weeks')).toEqual(expected);
   });
 });
