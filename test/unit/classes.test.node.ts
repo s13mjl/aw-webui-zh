@@ -270,3 +270,85 @@ test('normalizeSelectKeys rejects empty/non-string lists and de-duplicates', () 
   expect(classes.normalizeSelectKeys(['app', 'title'])).toEqual(['app', 'title']);
   expect(classes.normalizeSelectKeys(['app', '', 'app'] as any)).toEqual(['app']);
 });
+
+// 同步上游 #1166：常用应用默认分类补全（上游携带 #495 的十一例）。
+describe('default category carry for common apps (#1166)', () => {
+  test.each([
+    ['Google Sheets', ['Work']],
+    ['TextEdit', ['Work']],
+    ['Pages', ['Work']],
+    ['Obsidian', ['Work']],
+    ['iTerm', ['Work', 'Programming']],
+    ['Visual Studio Code', ['Work', 'Programming']],
+    ['LinkedIn', ['Media', 'Social Media']],
+    ['Hacker News', ['Media', 'Social Media']],
+    ['Amazon Music', ['Media', 'Music']],
+    ['Texts', ['Comms', 'IM']],
+    ['Superhuman', ['Comms', 'Email']],
+  ])('%s is categorized by defaults', (str, expected) => {
+    expect(classes.matchString(str, classes.defaultCategories)?.name).toEqual(expected);
+  });
+
+  test.each([
+    ['Google Docs', ['Work']],
+    ['GitHub', ['Work', 'Programming']],
+    ['Slack', ['Comms', 'IM']],
+    ['Gmail', ['Comms', 'Email']],
+    ['Spotify', ['Media', 'Music']],
+    ['reddit', ['Media', 'Social Media']],
+    ['YouTube', ['Media', 'Video']],
+    ['Minecraft', ['Media', 'Games']],
+    ['unknown app', null],
+  ])('existing control %s keeps its category', (str, expected) => {
+    expect(classes.matchString(str, classes.defaultCategories)?.name ?? null).toEqual(expected);
+  });
+
+  // 应用名与窗口标题作为两个独立字段传入（本地 matchStrings 逐字段匹配，无 m 标志）。
+  test.each([
+    ['Pages', ['Work']],
+    ['Texts', ['Comms', 'IM']],
+  ])('matches the complete %s app beside a window title', (app, expected) => {
+    expect(classes.matchStrings([app, 'Untitled'], classes.defaultCategories)?.name).toEqual(
+      expected
+    );
+  });
+
+  // 相近但不同的应用/标题不得误伤：锚定整字段匹配，避免子串命中。
+  test.each([['VSCodium'], ['code-oss'], ['Chromium'], ['Google Chrome']])(
+    'does not misclassify the sibling editor/browser %s',
+    app => {
+      expect(classes.matchString(app, classes.defaultCategories)).toBeNull();
+    }
+  );
+
+  test.each(['Yellow Pages', 'Sacred Texts', 'Pages of history', 'Texts about history'])(
+    'does not categorize the unrelated browser title %s as an app',
+    title => {
+      expect(classes.matchString(`Firefox\n${title}`, classes.defaultCategories)).toBeNull();
+      const event: IEvent = {
+        timestamp: new Date().toISOString(),
+        duration: 1,
+        data: { app: 'Firefox', title },
+      };
+      expect(classes.classifyEvents([event], classes.defaultCategories)[0].data.$category).toEqual([
+        'Uncategorized',
+      ]);
+    }
+  );
+
+  test('saved custom rules still win and matching does not mutate them', () => {
+    const custom: Category[] = [
+      { name: ['Custom', 'Notes'], rule: { type: 'regex', regex: 'Obsidian', priority: 99 } },
+    ];
+    const customBefore = JSON.stringify(custom);
+    const defaultsBefore = JSON.stringify(classes.defaultCategories);
+
+    expect(
+      classes.matchString('Obsidian', [...classes.defaultCategories, ...custom])?.name
+    ).toEqual(['Custom', 'Notes']);
+    expect(classes.matchString('Google Docs', classes.defaultCategories)?.name).toEqual(['Work']);
+
+    expect(JSON.stringify(custom)).toBe(customBefore);
+    expect(JSON.stringify(classes.defaultCategories)).toBe(defaultsBefore);
+  });
+});
