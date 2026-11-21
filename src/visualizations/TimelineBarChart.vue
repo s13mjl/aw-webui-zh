@@ -22,7 +22,12 @@ import {
   get_hour_offset,
   get_short_month_labels,
 } from '~/util/time';
-import { timeperiodsForPeriod } from '~/util/timeperiod';
+import {
+  EXACT_HOURLY_MAX_MS,
+  exactBucketLabels,
+  timeperiodsForPeriod,
+  timeperiodsHoursOfPeriod,
+} from '~/util/timeperiod';
 import { clampStackedHours } from '~/util/timelineClamp';
 
 function hourToTick(hours: number): string {
@@ -79,6 +84,10 @@ export default {
     labels() {
       const start = this.timeperiod_start;
       const [count, resolution] = this.timeperiod_length;
+      if (resolution === 'milliseconds') {
+        // Exact interval: the same clipped buckets the category query uses
+        return start ? exactBucketLabels({ start, length: [count, resolution] }) : [];
+      }
       if (resolution.startsWith('day') && count == 1) {
         const hourOffset = get_hour_offset();
         return _.range(0, 24).map(h => `${(h + hourOffset) % 24}`);
@@ -121,8 +130,16 @@ export default {
     chartData() {
       let datasets = _.sortBy(this.datasets, d => d.label);
       const [count, resolution] = this.timeperiod_length;
-      if (this.clamp_hourly && resolution.startsWith('day') && count == 1) {
-        datasets = clampStackedHours(datasets);
+      if (this.clamp_hourly) {
+        if (resolution.startsWith('day') && count === 1) {
+          datasets = clampStackedHours(datasets);
+        } else if (resolution === 'milliseconds' && count <= EXACT_HOURLY_MAX_MS) {
+          const bucketHours = timeperiodsHoursOfPeriod({
+            start: this.timeperiod_start,
+            length: [count, resolution],
+          }).map(period => period.length[0]);
+          datasets = clampStackedHours(datasets, bucketHours);
+        }
       }
       return {
         labels: this.labels,
@@ -137,7 +154,9 @@ export default {
       const [count, resolution] = this.timeperiod_length;
       // Hourly bars are capped at 1h, daily bars at 24h. Longer adaptive
       // ranges (monthly/yearly bars) need an auto-scaled axis.
-      const isHourly = resolution.startsWith('day') && count == 1;
+      const isHourly =
+        (resolution.startsWith('day') && count == 1) ||
+        (resolution === 'milliseconds' && count <= EXACT_HOURLY_MAX_MS);
       const isDaily = resolution.startsWith('day') && count > 1 && count <= 62;
       return {
         responsive: true,

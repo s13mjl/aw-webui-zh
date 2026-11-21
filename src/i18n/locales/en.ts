@@ -370,6 +370,15 @@ export default {
     periodCustom: 'Custom',
     customRangeStart: 'Start date',
     customRangeEnd: 'End date',
+    periodExactInterval: 'exact times',
+    intervalStart: 'Start time',
+    intervalEnd: 'End time (exclusive)',
+    invalidInterval: 'Invalid time interval in URL, showing today instead.',
+    intervalNonexistentTime: 'That time does not exist in your time zone (clocks skip forward).',
+    intervalAmbiguousTime:
+      'That time happens twice in your time zone (clocks go back). Pick which one to use:',
+    intervalTooLong: 'An exact interval can be at most 92 days; use a date range for longer spans.',
+    intervalEndAfterStart: 'The end time must be after the start time.',
     filterAfkTooltip: 'Filter away time where the AFK watcher did not detect any input.',
     filterAudibleTooltip:
       'If the active window is an audible browser tab, count as active. Requires a browser watcher.',
@@ -438,6 +447,7 @@ export default {
     periodLast30d: 'the last 30 days',
     periodAll: 'all time',
     periodCustom: 'the selected range',
+    periodExactInterval: 'in the selected time interval',
   },
   visualizations: {
     noData: '(no data)',

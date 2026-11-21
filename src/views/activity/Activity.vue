@@ -18,6 +18,18 @@ div
         b.mr-1 {{ $t('activity.queryRange') }}
         span {{ periodReadableRange }}
 
+  b-alert(v-if="invalidInterval" variant="warning" show) {{ $t('activity.invalidInterval') }}
+  b-alert.py-1(v-if="intervalIssue" variant="warning" show data-testid="interval-issue")
+    span {{ intervalIssue.message }}
+    b-form-select.ml-2(
+      v-if="intervalIssue.options"
+      size="sm"
+      style="width: auto"
+      :options="intervalIssue.options"
+      :aria-label="intervalIssue.message"
+      @change="editInterval(intervalIssue.field, intervalIssue.wall, $event)"
+    )
+
   div.activity-toolbar.d-flex.flex-wrap.align-items-center
     div.d-flex.mr-2
       b-button-group
@@ -87,6 +99,25 @@ div
           :title="$t('activity.customRangeEnd')"
           :aria-label="$t('activity.customRangeEnd')"
           @change="setCustomEnd($event.target.value)"
+        )
+      template(v-else-if="exactInterval")
+        input.form-control.form-control-sm.activity-datetimeinput(
+          type="datetime-local"
+          step="1"
+          :value="instantToWall(exactInterval.start)"
+          :aria-label="$t('activity.intervalStart')"
+          :title="$t('activity.intervalStart')"
+          data-testid="interval-start"
+          @change="editInterval('start', $event.target.value)"
+        )
+        input.form-control.form-control-sm.activity-datetimeinput(
+          type="datetime-local"
+          step="1"
+          :value="instantToWall(exactInterval.end)"
+          :aria-label="$t('activity.intervalEnd')"
+          :title="$t('activity.intervalEnd')"
+          data-testid="interval-end"
+          @change="editInterval('end', $event.target.value)"
         )
       input.form-control.form-control-sm.activity-dateinput(
         v-else
@@ -186,6 +217,14 @@ div
   margin-bottom: 0.5rem;
 }
 
+.activity-datetimeinput {
+  // Wide enough for "2026-10-20 13:00" plus the native picker icon, but still
+  // allowed to shrink so both inputs fit a phone-width toolbar.
+  width: 12.5rem;
+  min-width: 0;
+  flex: 1 1 10rem;
+}
+
 .activity-dateinput {
   // Keep the date picker compact and aligned with the period button-group
   // regardless of mode (day / week / month / year / N days). The full
@@ -244,7 +283,19 @@ import { defineAsyncComponent } from 'vue';
 import { mapState } from 'pinia';
 import moment from 'moment';
 import { get_day_start_with_offset, get_today_with_offset } from '~/util/time';
-import { periodStartDate } from '~/util/timeperiod';
+import {
+  ExactInterval,
+  MAX_INTERVAL_MS,
+  exactIntervalReadable,
+  exactIntervalToTimeperiod,
+  formatExactInterval,
+  formatInstant,
+  instantToWall,
+  parseExactInterval,
+  periodStartDate,
+  shiftExactInterval,
+  wallTimeInstants,
+} from '~/util/timeperiod';
 import _ from 'lodash';
 
 import { useSettingsStore } from '~/stores/settings';
@@ -287,6 +338,9 @@ export default {
       settingsStore: useSettingsStore(),
 
       showOptions: false,
+      // Problem with the last exact start/end edit (nonexistent or repeated DST time, bad order)
+      intervalIssue: null,
+      navigationNow: Date.now(),
 
       include_audible: true,
       // Include stopwatch events when a stopwatch bucket exists. The
@@ -343,6 +397,7 @@ export default {
         year: this.$t('activity.periodYear').toString(),
         last7d: this.$t('activity.periodLast7d').toString(),
         last30d: this.$t('activity.periodLast30d').toString(),
+        interval: this.$t('activity.periodExactInterval').toString(),
         all: this.$t('activity.periodAll').toString(),
         custom: this.$t('activity.periodCustom').toString(),
       };
@@ -353,6 +408,9 @@ export default {
       }
       if (this.periodLength === 'last30d') {
         return this.$t('activity.periodLast30dTitle');
+      }
+      if (this.periodLength === 'interval') {
+        return this.periodReadableRange;
       }
       if (this.periodLength === 'all') {
         return this.$t('activity.periodAll');
@@ -425,10 +483,18 @@ export default {
       }
       return this.customStart;
     },
+    // Set when periodLength is 'interval' and the :date segment is a valid exact `start..end`
+    exactInterval: function (): ExactInterval | null {
+      if (this.periodLength !== 'interval') return null;
+      return parseExactInterval(this.date);
+    },
+    invalidInterval: function () {
+      return this.periodLength === 'interval' && !this.exactInterval;
+    },
     showPeriodUsage: function () {
       // The period-usage chart queries ±15 periods of the current length,
-      // which is far too expensive for year/custom/all-time ranges.
-      return !['year', 'all', 'custom'].includes(this.periodLength);
+      // which is far too expensive for year/custom/all-time/intervals.
+      return !['year', 'all', 'custom', 'interval'].includes(this.periodLength);
     },
     previousLink: function () {
       const path = `${this.link_prefix}/${this.previousPeriod()}/${this.subview}/${
@@ -452,6 +518,11 @@ export default {
       return path;
     },
     nextDisabled: function () {
+      if (this.exactInterval) {
+        return moment(shiftExactInterval(this.exactInterval, 1).start).isSameOrAfter(
+          this.navigationNow
+        );
+      }
       if (this.periodLength === 'custom') {
         return moment(this.customEnd).isSameOrAfter(this.today, 'day');
       }
@@ -466,6 +537,11 @@ export default {
     },
     _date: function () {
       const offset = this.settingsStore.startOfDay;
+      if (this.periodLength === 'interval') {
+        return this.exactInterval
+          ? moment(this.exactInterval.start).format('YYYY-MM-DD')
+          : get_today_with_offset(offset);
+      }
       const baseDate = this.date || get_today_with_offset(offset);
       if (['week', 'month', 'year'].includes(this.periodLength)) {
         // The URL date can be any day inside the period (old bookmarks, or
@@ -494,11 +570,24 @@ export default {
       return `/activity/${this.host}/${this.periodLength}`;
     },
     periodusage: function () {
+      // Neighbouring periods of an exact interval would be ±15 sub-day slices
+      if (!this.timeperiod || this.periodLength === 'interval') return [];
       return this.activityStore.getActiveHistoryAroundTimeperiod(this.timeperiod);
     },
     timeperiod: function () {
       const settingsStore = useSettingsStore();
 
+      if (this.exactInterval) {
+        // Exact instants: no start-of-day offset applies
+        return exactIntervalToTimeperiod(this.exactInterval);
+      }
+      if (this.periodLength === 'interval') {
+        // Invalid interval in the URL: fall back to today (a warning is shown)
+        return {
+          start: get_day_start_with_offset(this._date, settingsStore.startOfDay),
+          length: [1, 'day'],
+        };
+      }
       if (this.periodIsBrowseable) {
         // The URL date isn't necessarily aligned to the period (e.g. /week with no
         // date falls back to today), so snap it to the start of the week/month/year.
@@ -526,6 +615,12 @@ export default {
       };
     },
     periodReadableRange: function () {
+      if (this.exactInterval) {
+        return exactIntervalReadable(this.timeperiod);
+      }
+      if (this.periodLength === 'interval') {
+        return `${this._date}—${this._date}`;
+      }
       const periodStart = moment(this.timeperiod.start);
       const dateFormatString = 'YYYY-MM-DD';
 
@@ -566,6 +661,7 @@ export default {
       this.refresh();
     },
     timeperiod: function () {
+      this.intervalIssue = null;
       this.refresh();
     },
     filter_category: function () {
@@ -693,6 +789,9 @@ export default {
     },
 
     previousPeriod: function () {
+      if (this.exactInterval) {
+        return formatExactInterval(shiftExactInterval(this.exactInterval, -1));
+      }
       // Step from the period start the view shows, not the (possibly mid-period) URL date.
       const base = this.periodIsBrowseable ? moment(this.timeperiod.start) : moment(this._date);
       return base
@@ -703,6 +802,9 @@ export default {
         .format('YYYY-MM-DD');
     },
     nextPeriod: function () {
+      if (this.exactInterval) {
+        return formatExactInterval(shiftExactInterval(this.exactInterval, 1));
+      }
       // Step from the period start the view shows, not the (possibly mid-period) URL date.
       const base = this.periodIsBrowseable ? moment(this.timeperiod.start) : moment(this._date);
       return base
@@ -713,6 +815,58 @@ export default {
         .format('YYYY-MM-DD');
     },
 
+    instantToWall,
+
+    // Edit one end of the exact interval from a local wall time. A wall time that
+    // does not exist (spring-forward gap) is rejected, and one that happens twice
+    // (fall-back) asks which occurrence is meant instead of silently choosing.
+    editInterval: function (field: 'start' | 'end', wall: string, pick?: string) {
+      this.intervalIssue = null;
+      const current = this.exactInterval;
+      if (!current || !wall) return;
+      const candidates = wallTimeInstants(wall);
+      if (candidates.length === 0) {
+        this.intervalIssue = {
+          message: this.$t('activity.intervalNonexistentTime').toString(),
+        };
+        return;
+      }
+      if (candidates.length > 1 && !candidates.includes(pick)) {
+        this.intervalIssue = {
+          message: this.$t('activity.intervalAmbiguousTime').toString(),
+          field,
+          wall,
+          options: [
+            { value: null, text: '—', disabled: true },
+            ...candidates.map(c => ({ value: c, text: moment(c).format('HH:mm Z') })),
+          ],
+        };
+        return;
+      }
+      const next = { ...current, [field]: candidates.length > 1 ? pick : candidates[0] };
+      const span = moment(next.end).valueOf() - moment(next.start).valueOf();
+      if (span <= 0) {
+        this.intervalIssue = { message: this.$t('activity.intervalEndAfterStart').toString() };
+        return;
+      }
+      if (span > MAX_INTERVAL_MS) {
+        this.intervalIssue = { message: this.$t('activity.intervalTooLong').toString() };
+        return;
+      }
+      this.pushPeriod('interval', formatExactInterval(next));
+    },
+
+    pushPeriod: function (periodLength: string, date: string | null) {
+      const datePart = date ? `/${date}` : '';
+      const path = `/activity/${this.host}/${periodLength}${datePart}/${this.subview}/${this.currentViewId}`;
+      if (this.$route.path !== path) {
+        this.$router.push({
+          path,
+          query: this.$route.query,
+        });
+      }
+    },
+
     setDate: function (date, periodLength) {
       // periodLength is an optional argument, default to this.periodLength
       if (!periodLength) {
@@ -721,6 +875,25 @@ export default {
 
       const momentJsDate = moment(date);
       if (!momentJsDate.isValid()) {
+        return;
+      }
+
+      if (periodLength === 'interval') {
+        // Entering exact-times mode: start from the interval the view shows now
+        // (clipped to the interval budget), so the bounds are exact and editable.
+        if (!this.timeperiod || this.periodLength === 'interval') return;
+        const start = moment(this.timeperiod.start);
+        const end = start
+          .clone()
+          .add(
+            this.timeperiod.length[0],
+            this.timeperiod.length[1] as moment.unitOfTime.DurationConstructor
+          );
+        const capped = moment.min(end, start.clone().add(MAX_INTERVAL_MS, 'milliseconds'));
+        this.pushPeriod(
+          'interval',
+          formatExactInterval({ start: formatInstant(start), end: formatInstant(capped) })
+        );
         return;
       }
 
@@ -766,6 +939,8 @@ export default {
     },
 
     refresh: async function (force) {
+      // Invalidate the cached navigation boundary when refreshing newly recorded activity.
+      this.navigationNow = Date.now();
       // Ensure settings are loaded before reading always_active_pattern,
       // otherwise the default empty string is used and the pattern is
       // silently ignored on the initial page load. See #1117.

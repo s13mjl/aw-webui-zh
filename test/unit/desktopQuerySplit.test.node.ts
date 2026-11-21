@@ -5,6 +5,7 @@ import {
   periodsForFullDesktopQuery,
 } from '~/util/desktopQuerySplit';
 import { IEvent } from '~/util/interfaces';
+import moment from 'moment';
 
 function ev(
   data: Record<string, unknown>,
@@ -52,6 +53,30 @@ describe('periodsForFullDesktopQuery', () => {
     for (const period of periods) {
       expect(new Date(period.split('/')[0]) < now).toBe(true);
     }
+  });
+
+  test('keeps an exact interval up to a day as one chunk', () => {
+    const periods = periodsForFullDesktopQuery(
+      { start: '2026-08-20T13:00:00Z', length: [3600000, 'milliseconds'] },
+      now
+    );
+    expect(periods).toHaveLength(1);
+    const [start, end] = periods[0].split('/');
+    expect(moment(start).valueOf()).toBe(moment('2026-08-20T13:00:00Z').valueOf());
+    expect(moment(end).valueOf()).toBe(moment('2026-08-20T14:00:00Z').valueOf());
+  });
+
+  test('splits a long exact interval into clipped day chunks', () => {
+    const periods = periodsForFullDesktopQuery(
+      { start: '2026-08-20T13:00:00Z', length: [66 * 3600000, 'milliseconds'] },
+      now
+    );
+    expect(periods).toHaveLength(3);
+    const [, firstEnd] = periods[0].split('/');
+    expect(moment(firstEnd).valueOf()).toBe(moment('2026-08-21T13:00:00Z').valueOf());
+    const [lastStart, lastEnd] = periods[2].split('/');
+    expect(moment(lastStart).valueOf()).toBe(moment('2026-08-22T13:00:00Z').valueOf());
+    expect(moment(lastEnd).valueOf()).toBe(moment('2026-08-23T07:00:00Z').valueOf());
   });
 });
 
