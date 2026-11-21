@@ -1,5 +1,6 @@
 <template lang="pug">
   div
+    button.btn.btn-sm.btn-outline-secondary(v-if="expandedGroups.length" type="button" @click="collapseGroups") {{ $t('timeline.collapseGroups') }}
     div#visualization
 
     div.small.text-muted.my-2(v-if="bucketsFromEither.length != 1")
@@ -17,6 +18,22 @@ div#visualization {
 
   .vis-timeline {
     overflow: visible;
+  }
+
+  .vis-item.timeline-composite {
+    color: white;
+    background-image: repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 5px,
+      rgba(255, 255, 255, 0.12) 5px,
+      rgba(255, 255, 255, 0.12) 10px
+    );
+  }
+
+  th.timeline-composite-activity {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .vis-tooltip {
@@ -77,7 +94,9 @@ import {
 } from '../util/color';
 import { useCategoryStore } from '~/stores/categories';
 import { getSwimlane } from '../util/swimlane.js';
-import { IEvent } from '../util/interfaces';
+import { IEvent, IBucket } from '../util/interfaces';
+import { seconds_to_duration } from '../util/time';
+import { indexTimelineEvents, IndexedEvent } from '../util/timelineIndex';
 import { formatTimelineBucketLabelHtml, shortenBucketLabel } from '../util/timelineLabels';
 
 import { Timeline } from 'vis-timeline/esnext';
@@ -89,13 +108,16 @@ const PIXELS_PER_WHEEL_PAGE = 800;
 
 interface IChartDataItem {
   bucketId: string;
+  bucket: IBucket;
   title: string;
   tooltip: string;
   start: Date;
   end: Date;
   color: string;
   event: IEvent;
-  swimlane: string;
+  swimlane?: string;
+  members?: IndexedEvent[];
+  id?: string;
 }
 export default {
   components: {
@@ -110,6 +132,7 @@ export default {
     showQueriedInterval: { type: Boolean },
     swimlane: { type: String },
     updateTimelineWindow: { type: Boolean },
+    groupGranularity: { type: Number, default: 0 },
   },
   // Declared for Vue 3: without it the parent's @event-saved listener would
   // also be attached to the root element as a fallthrough attribute.
@@ -140,6 +163,8 @@ export default {
       editingEvent: null,
       editingEventBucket: null,
       eventOverrides: {} as Record<string, IEvent>,
+      itemEvents: new Map<string, IChartDataItem>(),
+      expandedGroups: [] as string[],
       pendingWindowRestore: null as { start: Date; end: Date } | null,
 
       updateHasRun: false,
@@ -163,6 +188,22 @@ export default {
         return [];
       }
     },
+    eventIndex(): IndexedEvent[] {
+      const seconds =
+        Number.isFinite(this.groupGranularity) && this.groupGranularity > 0
+          ? this.groupGranularity
+          : 0;
+      return indexTimelineEvents(
+        this.bucketsFromEither,
+        // Subsecond events are kept once grouping is active so consecutive
+        // tiny switches can be merged; the short-event suppression otherwise
+        // stays authoritative and runs before grouping.
+        () => this.filterShortEvents && seconds <= 0,
+        (bucketId, event) => this.displayEvent(bucketId, event),
+        seconds,
+        this.expandedGroups
+      ).entries;
+    },
     chartData(): IChartDataItem[] {
       const data: IChartDataItem[] = [];
       const categories = this.categorizedEvents || [];
@@ -183,30 +224,34 @@ export default {
           });
         }
       }
-      _.each(this.bucketsFromEither, bucket => {
-        if (bucket.events === undefined) {
+      const entries = this.eventIndex || [];
+      entries.forEach(entry => {
+        const e = entry.event;
+        if (entry.members) {
+          data.push({
+            bucketId: entry.bucket.id,
+            bucket: entry.bucket,
+            title: this.groupLabel(entry),
+            tooltip: this.groupBreakdownHtml(entry),
+            start: new Date(entry.start),
+            end: new Date(entry.end),
+            color: '#777',
+            event: e,
+            members: entry.members,
+            id: entry.id,
+          });
           return;
         }
-        let events = bucket.events;
-        // Filter out events shorter than 1 second (notably including 0-duration events)
-        // TODO: Use flooding instead, preferably with some additional method of removing/simplifying short events for even greater performance
-        if (this.filterShortEvents) {
-          events = _.filter(events, e => e.duration > 1);
-          console.log(`Filtered ${bucket.events.length - events.length} events`);
-        }
-        events.sort((a, b) => a.timestamp.valueOf() - b.timestamp.valueOf());
-        _.each(events, sourceEvent => {
-          const e = this.displayEvent(bucket.id, sourceEvent);
-          data.push({
-            bucketId: bucket.id,
-            title: getTitleAttr(bucket, e),
-            tooltip: buildTooltip(bucket, e),
-            start: new Date(e.timestamp),
-            end: new Date(moment(e.timestamp).add(e.duration, 'seconds').valueOf()),
-            color: getCategoryColorFromEvent(bucket, e),
-            event: e,
-            swimlane: getSwimlane(bucket, e.color, this.swimlane, e),
-          });
+        data.push({
+          bucketId: entry.bucket.id,
+          bucket: entry.bucket,
+          title: getTitleAttr(entry.bucket, e),
+          tooltip: buildTooltip(entry.bucket, e),
+          start: new Date(entry.start),
+          end: new Date(entry.end),
+          color: getCategoryColorFromEvent(entry.bucket, e),
+          event: e,
+          swimlane: getSwimlane(entry.bucket, e.color, this.swimlane, e),
         });
       });
       return data;
@@ -216,6 +261,10 @@ export default {
     categorizedEvents() {
       this.update();
     },
+    groupGranularity() {
+      this.expandedGroups = [];
+      this.update(false);
+    },
     buckets() {
       // For some reason, an object is passed here, after which the correct array arrives
       if (this.buckets.length === undefined) {
@@ -224,6 +273,7 @@ export default {
       }
 
       this.eventOverrides = {};
+      this.expandedGroups = [];
       this.update();
     },
     events() {
@@ -232,6 +282,7 @@ export default {
       }
 
       this.eventOverrides = {};
+      this.expandedGroups = [];
       this.update();
     },
   },
@@ -260,6 +311,43 @@ export default {
     }
   },
   methods: {
+    formatGroupDuration(duration: number): string {
+      const seconds = Number(duration.toFixed(6));
+      return Number.isInteger(seconds)
+        ? seconds_to_duration(seconds)
+        : `${seconds}${this.$t('units.secondsShort')}`;
+    },
+    groupLabel(entry: IndexedEvent): string {
+      return this.$t('timeline.groupedEvents', {
+        count: (entry.members || []).length,
+        duration: this.formatGroupDuration(entry.event.duration),
+      });
+    },
+    groupBreakdownHtml(entry: IndexedEvent): string {
+      const totals: Record<string, number> = {};
+      for (const member of entry.members || []) {
+        const label = String(
+          getTitleAttr(entry.bucket, member.event) || JSON.stringify(member.event.data)
+        );
+        totals[label] = (totals[label] || 0) + member.event.duration;
+      }
+      const rows = Object.entries(totals)
+        .sort((a, b) => b[1] - a[1])
+        .map(
+          ([label, duration]) =>
+            `<tr><th class="timeline-composite-activity" scope="row">${_.escape(
+              label
+            )}</th><td>${_.escape(this.formatGroupDuration(duration))}</td></tr>`
+        )
+        .join('');
+      return `<table><caption>${_.escape(
+        this.$t('timeline.groupBreakdown')
+      )}</caption>${rows}</table>`;
+    },
+    collapseGroups() {
+      this.expandedGroups = [];
+      this.update(false);
+    },
     onHorizontalWheel: function (event: WheelEvent) {
       if (!this.timeline || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
         return;
@@ -305,10 +393,18 @@ export default {
       if (properties.items.length == 0) {
         return;
       } else if (properties.items.length == 1) {
-        const event = this.chartData[properties.items[0]].event;
-        const groupId = this.items[properties.items[0]].group;
-        // Use group.id (not group.content) — content is '' when showRowLabels=false
-        const bucketId = _.find(this.groups, g => g.id == groupId).id;
+        const selected = this.itemEvents.get(properties.items[0]);
+        if (!selected) return;
+
+        // A composite group expands into its original members instead of opening an editor.
+        if (selected.members) {
+          this.expandedGroups = [...this.expandedGroups, selected.id];
+          this.update(false);
+          return;
+        }
+
+        const event = selected.event;
+        const bucketId = selected.bucketId;
 
         // Skip editing if event has no ID (e.g. merged query results) or bucket is a placeholder
         if (!event.id || !bucketId || bucketId === 'events' || bucketId === 'search') {
@@ -345,7 +441,7 @@ export default {
         this.update();
       }
     },
-    update() {
+    update(resetWindow = true) {
       // Guard against the buckets/events watch firing before mounted's
       // $nextTick has constructed the vis Timeline. Otherwise revisiting
       // the route with the keep-alive cache cleared throws
@@ -418,7 +514,7 @@ export default {
         // both light and dark category colors. See #1007.
         const textColor = getContrastTextColor(bgColor);
         return {
-          id: String(i),
+          id: item.id ?? String(i),
           group: item.bucketId,
           content: item.title,
           title: item.tooltip,
@@ -426,8 +522,10 @@ export default {
           end: moment(item.end),
           style: `background-color: ${bgColor}; border-color: ${borderColor}; color: ${textColor}`,
           subgroup: item.swimlane,
+          className: item.members ? 'timeline-composite' : '',
         };
       });
+      this.itemEvents = new Map(this.chartData.map((item, i) => [item.id ?? String(i), item]));
 
       if (groups.length > 0 && items.length > 0) {
         if (this.queriedInterval && this.showQueriedInterval) {
@@ -472,7 +570,7 @@ export default {
           this.options.min = start;
           this.options.max = end;
           this.timeline.setOptions(this.options);
-          if (this.updateTimelineWindow || boundsChanged) {
+          if (resetWindow !== false && (this.updateTimelineWindow || boundsChanged)) {
             this.timeline.setWindow(start, end);
           }
         }
@@ -500,6 +598,7 @@ export default {
         this.timeline.setData({ groups: [], items: [] });
         this.items = [];
         this.groups = [];
+        this.itemEvents = new Map();
       }
       if (this.pendingWindowRestore) {
         this.timeline.setWindow(this.pendingWindowRestore.start, this.pendingWindowRestore.end, {

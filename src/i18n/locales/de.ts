@@ -79,6 +79,9 @@ export default {
     timelineDuration: {
       title: 'Standarddauer',
       help: 'Standarddauer für „Zuletzt anzeigen“ in der Zeitleiste.',
+      groupGranularity: 'Kurze Ereignisse gruppieren (Sekunden)',
+      groupGranularityHelp:
+        'Fasst aufeinanderfolgende kurze Ereignisse in Gruppen dieser Dauer zusammen. 0 deaktiviert die Gruppierung. Der Dauerfilter der Zeitleiste bleibt unabhängig und entfernt Ereignisse vor der Gruppierung.',
     },
     landingPage: {
       title: 'Einstiegsseite',
@@ -382,6 +385,9 @@ export default {
     swimlanes: 'Schwimmbahnen:',
     filterAfk: 'AFK filtern',
     mergeByApp: 'Nach App zusammenführen',
+    groupedEvents: '{count} Ereignisse · {duration}',
+    collapseGroups: 'Gruppen einklappen',
+    groupBreakdown: 'Aktivitätsübersicht',
     noEvents: 'Keine Ereignisse entsprechen den Kriterien. Zeitleiste nicht aktualisiert.',
     categoryError:
       'Kategorisierte Zeitleiste nicht verfügbar. Rohe Bucket-Ereignisse werden weiterhin angezeigt.',
