@@ -21,6 +21,13 @@ div
       style="width: auto"
     )
 
+    b-form-group.mr-2.mb-1(:label="$t('activity.showCategory')" label-for="trends-category")
+      b-form-select#trends-category(
+        v-model="selectedCategory"
+        :options="categoryStore.category_select(true)"
+        size="sm"
+      )
+
     small.text-muted.ml-auto.mb-1
       | {{ $t('trends.comparing') }} #[b {{ currentRangeLabel }}] {{ $t('trends.vs') }} #[b {{ previousRangeLabel }}].
 
@@ -126,6 +133,8 @@ export default {
 
       periodDays: 7,
 
+      selectedCategory: null as string[] | null,
+
       loading: false,
 
       // Incremented for every refresh. Only the latest refresh may write the
@@ -153,6 +162,15 @@ export default {
 
     hostOptions(): { value: string; text: string }[] {
       return this.bucketsStore.knownHosts.map(h => ({ value: h, text: h }));
+    },
+
+    filterCategories(): string[][] | null {
+      if (!this.selectedCategory) return null;
+      const selected = this.selectedCategory;
+      const descendants = this.categoryStore.all_categories.filter(
+        path => path.length > selected.length && selected.every((part, i) => path[i] === part)
+      );
+      return [selected, ...descendants];
     },
 
     periodOptions(): { value: number; text: string }[] {
@@ -276,6 +294,9 @@ export default {
   },
 
   watch: {
+    selectedCategory() {
+      this.refresh();
+    },
     host() {
       this.refresh();
     },
@@ -438,7 +459,7 @@ export default {
           bid_afk: 'aw-watcher-afk_' + host,
           filter_afk: true,
           categories: cats,
-          filter_categories: null,
+          filter_categories: this.filterCategories,
           always_active_pattern: this.settingsStore.always_active_pattern || undefined,
         }) +
         `
