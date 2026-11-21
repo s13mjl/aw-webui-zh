@@ -472,6 +472,8 @@ export default {
     filterAfk: 'Filter AFK',
     mergeByApp: 'Merge by app',
     noEvents: 'No events match selected criteria. Timeline is not updated.',
+    categoryError: 'Categorized timeline unavailable. Raw bucket events are still shown.',
+    categoryRow: 'Categorized',
     scrollHint: 'Scroll to zoom, swipe/horizontal-scroll to pan, arrow keys to navigate',
     loading: 'Loading...',
     filters: 'Filters:',

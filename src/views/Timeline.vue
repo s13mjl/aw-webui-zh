@@ -79,7 +79,7 @@ div
       :title="$t('timeline.displayOptions')"
       :aria-label="$t('timeline.displayOptions')"
     )
-      template(v-slot:button-content)
+      template(v-slot:button-content="")
         icon(name="ellipsis-v")
       b-dropdown-header {{ $t('timeline.swimlanes') }}
       b-dropdown-item-button(
@@ -98,8 +98,11 @@ div
   b-alert.mb-2(v-if="buckets !== null && num_events === 0", variant="warning", show)
     | {{ $t('timeline.noEvents') }}
 
+  b-alert.mb-2(v-if="categoryError", variant="warning", show)
+    | {{ $t('timeline.categoryError') }}
+
   div(v-if="buckets !== null")
-    vis-timeline(:buckets="buckets", :showRowLabels='true', :queriedInterval="daterange", :swimlane="swimlane", :updateTimelineWindow='updateTimelineWindow', @event-saved="getBuckets")
+    vis-timeline(:buckets="buckets", :categorizedEvents="categorizedEvents", :showRowLabels='true', :queriedInterval="daterange", :swimlane="swimlane", :updateTimelineWindow='updateTimelineWindow', @event-saved="getBuckets")
 
     aw-devonly(:reason="$t('timeline.devReason')")
       aw-calendar(:buckets="buckets")
@@ -118,6 +121,7 @@ import { useCategoryStore } from '~/stores/categories';
 import { matchStrings } from '~/util/classes';
 import { getCategorizationStringsFromEvent } from '~/util/color';
 import { seconds_to_duration } from '~/util/time';
+import { categoryTimelineQuery, mergeCategoryIntervals } from '~/util/timelineCategories';
 
 export default {
   name: 'Timeline',
@@ -126,6 +130,8 @@ export default {
       all_buckets: null,
       hosts: null,
       buckets: null,
+      categorizedEvents: [],
+      categoryError: false,
       clients: null,
       fetchSeq: 0,
       daterange: null,
@@ -228,6 +234,9 @@ export default {
       this.getBuckets();
     },
   },
+  created() {
+    useCategoryStore().load();
+  },
   methods: {
     onCategorySelect(event) {
       const text = event.target.value;
@@ -266,6 +275,36 @@ export default {
       }
       if (this.filter_client) {
         buckets = _.filter(buckets, b => b.client == this.filter_client);
+      }
+
+      // Start the category query now so it runs concurrently with the raw-row
+      // filtering below, and publish raw rows without waiting for it.
+      let categoryPromise: Promise<{
+        events: ReturnType<typeof mergeCategoryIntervals>;
+        error: boolean;
+      }>;
+      const categoryQuery = categoryTimelineQuery(buckets, this.all_buckets, {
+        categories: useCategoryStore().classes_for_query,
+        filter_categories: this.filter_categories,
+        filter_afk: this.filter_afk,
+        always_active_pattern: this.always_active_pattern || undefined,
+      });
+      if (categoryQuery) {
+        categoryPromise = getClient()
+          .query([`${this.daterange[0].format()}/${this.daterange[1].format()}`], categoryQuery)
+          .then(data => {
+            let events = mergeCategoryIntervals(data[0] || []);
+            if (this.filter_duration > 0) {
+              events = events.filter(e => e.duration >= this.filter_duration);
+            }
+            return { events, error: false };
+          })
+          .catch(error => {
+            console.warn('Categorized timeline query failed:', error);
+            return { events: [], error: true };
+          });
+      } else {
+        categoryPromise = Promise.resolve({ events: [], error: false });
       }
 
       if (this.filter_duration > 0) {
@@ -307,7 +346,17 @@ export default {
         buckets = this._applyMergeSimilar(buckets);
       }
 
+      if (seq !== this.fetchSeq) return;
+      // Raw rows are ready; publish them before awaiting the category query.
+      // Clear the old category row so it can never be paired with a new range.
+      this.categorizedEvents = [];
+      this.categoryError = false;
       this.buckets = buckets;
+
+      const categoryResult = await categoryPromise;
+      if (seq !== this.fetchSeq) return;
+      this.categorizedEvents = categoryResult.events;
+      this.categoryError = categoryResult.error;
     },
 
     // Merges adjacent events with the same app name within window buckets.

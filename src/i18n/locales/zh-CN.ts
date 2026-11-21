@@ -460,6 +460,8 @@ export default {
     filterAfk: '过滤 AFK',
     mergeByApp: '按应用合并',
     noEvents: '没有符合筛选条件的事件。未更新时间线。',
+    categoryError: '分类时间线暂不可用，仍会显示原始存储桶事件。',
+    categoryRow: '已分类',
     scrollHint: '滚动缩放，滑动/水平滚动平移，方向键导航',
     loading: '加载中...',
     filters: '筛选：',
