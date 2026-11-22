@@ -49,6 +49,28 @@ function scoreCategories(events: IEvent[]): IEvent[] {
 }
 
 /**
+ * Applications can color an app by what it was used for. Matching the app name
+ * against the category rules doesn't work for apps whose activity is
+ * categorized by title or URL, such as browsers, which were always shown as
+ * Uncategorized. Apps without app_cat_events keep their old (name-based) color.
+ */
+export function withDominantCategory(appEvents: IEvent[], appCatEvents?: IEvent[]): IEvent[] {
+  if (!appEvents || !appCatEvents || appCatEvents.length === 0) return appEvents;
+  const appKey = (e: IEvent): string => e.data.classname ?? e.data.app;
+  const dominant = new Map<string, { duration: number; category: string[] }>();
+  for (const e of appCatEvents) {
+    const best = dominant.get(appKey(e));
+    if (!best || e.duration > best.duration) {
+      dominant.set(appKey(e), { duration: e.duration, category: e.data.$category });
+    }
+  }
+  return appEvents.map(e => {
+    const best = dominant.get(appKey(e));
+    return best ? { ...e, data: { ...e.data, $category: best.category } } : e;
+  });
+}
+
+/**
  * One day at a time, same reason as query_category_time_by_period.
  * Axios timeout is per request (default 30s). Measured 2026-08-28 on a
  * 31 MB / 4-month aw-server: July as one TIMEINTERVAL 0.95s vs max daily
@@ -699,7 +721,7 @@ export const useActivityStore = defineStore('activity', {
         data.cat_events = scoreCategories(data.cat_events);
       }
 
-      this.window.top_apps = data.app_events;
+      this.window.top_apps = withDominantCategory(data.app_events, data.app_cat_events);
       this.window.top_titles = data.title_events;
       this.category.top = data.cat_events;
       this.active.duration = data.duration;
