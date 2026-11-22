@@ -219,6 +219,7 @@ export default {
       importSetPrompt: 'The file contains category set "{id}". How should it be imported?',
       importReplace: 'Replace current categories',
       importAddOnTop: 'Add on top of my categories',
+      importInvalid: 'Invalid category import file.',
       newName: 'New class',
       fillRegex: 'FILL ME',
     },

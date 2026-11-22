@@ -2,6 +2,7 @@
 div
   p.mb-2
     | {{ $t('settings.categorization.rulesHelp') }}
+  b-alert(v-if="import_error" variant="danger" show) {{ import_error }}
   p
     | {{ $t('settings.categorization.forumIntro') }}
     |  #[a(href="https://forum.activitywatch.net/c/projects/category-rules") {{ $t('settings.categorization.forum') }}].
@@ -137,6 +138,7 @@ import CategoryEditModal from '~/components/CategoryEditModal.vue';
 import { useCategoryStore } from '~/stores/categories';
 
 import { downloadFile } from '~/util/export';
+import { parseCategoryImport, shouldAttemptJsonImport } from '~/util/importFile';
 
 export default {
   name: 'CategorizationSettings',
@@ -156,6 +158,7 @@ export default {
     showImportModal: false,
     pendingImportSetId: '',
     pendingImportCategories: null as any[] | null,
+    import_error: '',
   }),
   computed: {
     ...mapState(useCategoryStore, ['classes_unsaved_changes']),
@@ -225,23 +228,32 @@ export default {
     },
     importCategories: async function (elem) {
       const file = elem.target.files[0];
-      if (file.type != 'application/json') {
-        console.error('Only JSON files are possible to import');
+      this.import_error = '';
+      if (!file) return;
+      if (!shouldAttemptJsonImport(file)) {
+        this.import_error = this.$t('settings.categorization.importInvalid');
+        elem.target.value = '';
         return;
       }
 
-      const text = await file.text();
-      const import_obj = JSON.parse(text);
+      let import_obj: { categories: unknown[]; id?: string };
+      try {
+        import_obj = parseCategoryImport(await file.text());
+      } catch (e) {
+        console.error(e);
+        this.import_error = this.$t('settings.categorization.importInvalid');
+        // Allow the user to retry with a corrected file.
+        elem.target.value = '';
+        return;
+      }
 
-      if (import_obj.categories && !import_obj.id) {
-        this.categoryStore.import(import_obj.categories);
-      } else if (import_obj.id && import_obj.categories) {
+      if (import_obj.id) {
         // 命名分类集：先询问是替换主分类集，还是叠加到现有分类之上。
         this.pendingImportSetId = import_obj.id;
         this.pendingImportCategories = import_obj.categories;
         this.showImportModal = true;
       } else {
-        console.error('Unrecognized import format');
+        this.categoryStore.import(import_obj.categories as any);
       }
     },
     onImportReplace: function () {
