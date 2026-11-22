@@ -402,7 +402,7 @@ export default {
       const color = cat.data ? cat.data.color : undefined;
       const inherit_color = !color;
       const score = cat.data ? cat.data.score : undefined;
-      const inherit_score = !score;
+      const inherit_score = score === null || score === undefined;
       // Load patterns from the category if present; otherwise split the
       // existing regex heuristically into a patterns list.
       let patterns: string[];
