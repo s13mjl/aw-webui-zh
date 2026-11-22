@@ -36,6 +36,7 @@ export default {
     donate: 'Поддержать',
   },
   common: {
+    uncategorized: 'Без категории',
     loading: 'Загрузка…',
     requestFailed: 'Запрос не удался.',
     save: 'Сохранить',
@@ -57,6 +58,20 @@ export default {
     languageZhCN: '简体中文',
     rangeTo: 'до',
     requestFailed: 'Запрос не удался.',
+  },
+  categoryNames: {
+    work: 'Работа',
+    programming: 'Программирование',
+    image: 'Изображения',
+    video: 'Видео',
+    audio: 'Аудио',
+    media: 'Медиа',
+    games: 'Игры',
+    socialMedia: 'Соцсети',
+    music: 'Музыка',
+    comms: 'Общение',
+    im: 'Мессенджеры',
+    email: 'Почта',
   },
   notFound: {
     title: 'Ой, эта страница не найдена!',

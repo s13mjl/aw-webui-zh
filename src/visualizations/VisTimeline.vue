@@ -97,6 +97,8 @@ import { getSwimlane } from '../util/swimlane.js';
 import { IEvent, IBucket } from '../util/interfaces';
 import { seconds_to_duration } from '../util/time';
 import { indexTimelineEvents, IndexedEvent } from '../util/timelineIndex';
+
+import { categoryPathLabel } from '~/util/categoryLabels';
 import { formatTimelineBucketLabelHtml, shortenBucketLabel } from '../util/timelineLabels';
 
 import { Timeline } from 'vis-timeline/esnext';
@@ -214,7 +216,7 @@ export default {
           const category = allCats.find(c => _.isEqual(c.name, name));
           data.push({
             bucketId: '__categorized__',
-            title: name.join(' > '),
+            title: categoryPathLabel(name),
             tooltip: buildTooltip({ type: 'categorized' }, event),
             start: new Date(event.timestamp),
             end: new Date(moment(event.timestamp).add(event.duration, 'seconds').valueOf()),

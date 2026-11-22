@@ -37,6 +37,7 @@ export default {
     donate: '捐赠',
   },
   common: {
+    uncategorized: '未分类',
     loading: '加载中...',
     requestFailed: '请求失败。',
     save: '保存',
@@ -85,6 +86,20 @@ export default {
     hour12: '12 小时',
     hour24: '24 小时',
     hour48: '48 小时',
+  },
+  categoryNames: {
+    work: '工作',
+    programming: '编程',
+    image: '图像',
+    video: '视频',
+    audio: '音频',
+    media: '媒体',
+    games: '游戏',
+    socialMedia: '社交媒体',
+    music: '音乐',
+    comms: '通讯',
+    im: '即时通讯',
+    email: '电子邮件',
   },
   notFound: {
     title: '页面未找到！',

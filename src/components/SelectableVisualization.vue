@@ -68,7 +68,7 @@ div(v-if="editable || !activityStore.buckets.loaded || has_prerequisites || !set
                  with_limit)
     div(v-if="type == 'top_categories'")
       aw-summary(:fields="activityStore.category.top",
-                 :namefunc="e => e.data['$category'].join(' > ')",
+                 :namefunc="e => categoryPathLabel(e.data['$category'])",
                  :colorfunc="e => e.data['$category']",
                  :linkfunc="e => '#' + $route.path + '?category=' + encodeURIComponent(e.data['$category'].join('>'))",
                  with_limit)
@@ -127,6 +127,7 @@ import { useCategoryStore } from '~/stores/categories';
 import { useBucketsStore } from '~/stores/buckets';
 import { useViewsStore } from '~/stores/views';
 import { useSettingsStore } from '~/stores/settings';
+import { categoryPathLabel } from '~/util/categoryLabels';
 
 import moment from 'moment';
 import { isExactTimeperiod } from '~/util/timeperiod';
@@ -353,6 +354,7 @@ export default {
     }
   },
   methods: {
+    categoryPathLabel,
     onWatcherPropsChange(newProps) {
       if (!this.viewId || this.disabled) return;
       const mergedProps = { ...(this.props || {}), ...newProps };

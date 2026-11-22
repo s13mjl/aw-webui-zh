@@ -37,6 +37,7 @@ export default {
     donate: 'Підтримати',
   },
   common: {
+    uncategorized: 'Без категорії',
     loading: 'Завантаження…',
     requestFailed: 'Запит не вдався.',
     save: 'Зберегти',
@@ -58,6 +59,20 @@ export default {
     languageZhCN: '简体中文',
     rangeTo: 'до',
     requestFailed: 'Запит не вдався.',
+  },
+  categoryNames: {
+    work: 'Робота',
+    programming: 'Програмування',
+    image: 'Зображення',
+    video: 'Відео',
+    audio: 'Аудіо',
+    media: 'Медіа',
+    games: 'Ігри',
+    socialMedia: 'Соцмережі',
+    music: 'Музика',
+    comms: 'Спілкування',
+    im: 'Месенджери',
+    email: 'Пошта',
   },
   notFound: {
     title: 'Ой, цю сторінку не знайдено!',

@@ -37,6 +37,7 @@ export default {
     donate: 'Spenden',
   },
   common: {
+    uncategorized: 'Nicht kategorisiert',
     loading: 'Laden…',
     requestFailed: 'Anfrage fehlgeschlagen.',
     save: 'Speichern',
@@ -58,6 +59,20 @@ export default {
     languageZhCN: '简体中文',
     rangeTo: 'bis',
     requestFailed: 'Anfrage fehlgeschlagen.',
+  },
+  categoryNames: {
+    work: 'Arbeit',
+    programming: 'Programmierung',
+    image: 'Bild',
+    video: 'Video',
+    audio: 'Audio',
+    media: 'Medien',
+    games: 'Spiele',
+    socialMedia: 'Soziale Medien',
+    music: 'Musik',
+    comms: 'Kommunikation',
+    im: 'Chat',
+    email: 'E-Mail',
   },
   notFound: {
     title: 'Hoppla, diese Seite wurde nicht gefunden!',
