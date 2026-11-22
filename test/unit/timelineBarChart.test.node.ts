@@ -2,6 +2,7 @@
 // build is Vue 2-only), so that's the module to stub out here.
 jest.mock('vue-chartjs', () => ({ Bar: {} }));
 import TimelineBarChart from '~/visualizations/TimelineBarChart.vue';
+import { hourlyLabels, timeperiodsHoursOfPeriod } from '~/util/timeperiod';
 
 // Inspect computed Chart.js configuration without mounting a canvas in Node.
 const computed = (TimelineBarChart as any).computed;
