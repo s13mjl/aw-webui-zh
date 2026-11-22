@@ -241,14 +241,19 @@ function browsersWithBuckets(browserbuckets: string[]): [string, string][] {
 // ("ungoogled-chromium", "ungoogled_chromium", "Ungoogled Chromium") do not start with
 // "chromium", so the plain chromium alternative below misses them. It has no dedicated bucket
 // of its own, so it belongs with the prefix-matched alternatives rather than an anchored one.
+export const CHROME_HELIUM_ALT = String.raw`|helium(\.exe)?$`;
+
 export const browser_appname_regex: Record<string, string> = {
   // Chromium forks (Arc, Dia) run the chrome build of the extension, which announces itself
   // as chrome unless the user overrides the browser name in the extension settings. So by
   // default their events land in the chrome bucket and their app names have to be matched
   // here (#927, ActivityWatch/activitywatch#1094). The standalone arc key below only covers
   // setups where Arc was picked explicitly in the settings, which changes the bucket name.
+  //
+  // Helium is not a Chromium fork itself, but it can also run the Chrome Web Store extension
+  // build, so its events land in the chrome bucket unless a dedicated bucket exists (#898).
   chrome:
-    '(?i)^(google[-_ ]?chrome|chrome|chromium|arc(\\.exe)?$|dia(\\.exe)?$|ungoogled[-_ ]?chromium)',
+    '(?i)^(google[-_ ]?chrome|chrome|chromium|arc(\\.exe)?$|dia(\\.exe)?$|helium(\\.exe)?$|ungoogled[-_ ]?chromium)',
   firefox: '(?i)(firefox|librewolf|waterfox|nightly)',
   opera: '(?i)(opera)',
   brave: '(?i)(brave)',
@@ -264,6 +269,10 @@ export const browser_appname_regex: Record<string, string> = {
 
 // Returns a list of active browser events (where the browser was the active window) from all browser buckets
 function browserEvents(params: DesktopQueryParams): string {
+  const browsers = browsersWithBuckets(params.bid_browsers);
+  // 有独立 Helium 桶时，chrome 流必须去掉 Helium 匹配，否则同一批事件会被两个桶重复统计。
+  const hasDedicatedHelium = browsers.some(([browserName]) => browserName === 'helium');
+
   let code = `
     browser_events = [];
   `;
@@ -277,7 +286,7 @@ function browserEvents(params: DesktopQueryParams): string {
     code += `audible_events = [];`;
   }
 
-  _.each(browsersWithBuckets(params.bid_browsers), ([browserName, bucketId]) => {
+  _.each(browsers, ([browserName, bucketId]) => {
     const browser_appnames_str = JSON.stringify(browser_appnames[browserName]);
     code += `events_${browserName} = flood(query_bucket("${bucketId}"));`;
 
@@ -292,7 +301,10 @@ function browserEvents(params: DesktopQueryParams): string {
        window_${browserName} = filter_keyvals(events, "app", ${browser_appnames_str});`;
 
     // Add regex-based matching to cover case/spacing/versioning variants (e.g., Firefox.exe, firefox-esr-esr140)
-    const pattern = browser_appname_regex[browserName];
+    let pattern = browser_appname_regex[browserName];
+    if (browserName === 'chrome' && hasDedicatedHelium) {
+      pattern = pattern.replace(CHROME_HELIUM_ALT, '');
+    }
     if (pattern) {
       // JSON.stringify adds extra unnecessary escaping for backslashes (e.g. '\.' becomes '\\.')
       // which breaks regex patterns like arc(\.exe)?$ on Windows. Undo the double-escaping.
