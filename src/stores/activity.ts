@@ -89,6 +89,9 @@ export interface QueryOptions {
   // Needed for custom/all-time ranges, where querying ±15 periods of the
   // full range would be prohibitively expensive.
   skip_active_history?: boolean;
+  // All time: Top Bucket Data widens its start to the selected bucket's own
+  // earliest event, which the host-level range does not account for (#1077).
+  all_time?: boolean;
 }
 
 interface State {

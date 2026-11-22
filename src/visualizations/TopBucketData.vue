@@ -51,6 +51,7 @@ div
 <script lang="ts">
 import _ from 'lodash';
 import moment from 'moment';
+import { earliestEventInBucket, rangeCoveringEarliest } from '~/util/earliestEvent';
 import { useActivityStore } from '~/stores/activity';
 import { useBucketsStore } from '~/stores/buckets';
 import { getClient } from '~/util/awclient';
@@ -92,6 +93,8 @@ export default {
       fieldOptions: [] as string[],
       events: [] as any[],
       aggregated: [] as AggregatedEvent[],
+      // bucket id -> earliest event, for All time (see queryRange)
+      earliestByBucket: {} as Record<string, Date | null>,
       loading: false,
       error: '',
       loadGeneration: 0,
@@ -139,6 +142,11 @@ export default {
     },
     selectedBucketId: function () {
       this.emitSelection();
+      // 新选中的桶可能在上次查看后导入了更早的数据，丢弃它的最早事件缓存，
+      // 让普通切换也能看到完整历史（不必先点一次刷新）。
+      const rest = { ...this.earliestByBucket };
+      delete rest[this.selectedBucketId];
+      this.earliestByBucket = rest;
       this.loadEvents();
     },
     selectedField: function () {
@@ -174,22 +182,46 @@ export default {
         this.selectedBucketId = this.bucketsStore.buckets[0].id;
       }
     },
+    // All time 的共享范围只覆盖主机标准桶；选中的桶可能更早（例如导入的旧通话记录），
+    // 需要把起点扩展到该桶自己的最早事件。
+    async queryRange(
+      bucketId: string,
+      generation: number
+    ): Promise<{ start: string; end: string } | null> {
+      const range = this.timeRange;
+      const opts = this.activityStore.query_options;
+      if (!range || !opts || !opts.all_time) return range;
+      if (opts.force || !(bucketId in this.earliestByBucket)) {
+        const bucket = this.bucketsStore.getBucket(bucketId);
+        // 桶存储尚未加载或恢复的 initialBucketId 还不在列表里：不要缓存 null，
+        // 否则只能靠刷新重试。
+        if (!bucket) return range;
+        const earliest = await earliestEventInBucket(bucket, (id, params) =>
+          getClient().getEvents(id, params)
+        );
+        if (generation !== this.loadGeneration) return null;
+        this.earliestByBucket = { ...this.earliestByBucket, [bucketId]: earliest };
+      }
+      return rangeCoveringEarliest(range, this.earliestByBucket[bucketId]);
+    },
     async loadEvents() {
       // 同一个 bucket 可能有重叠的日期/刷新请求，也可能 A -> B -> A 再次被选中，
       // 仅比较 bucket 无法判断异步结果属于哪一次加载，用递增代数标记归属。
       const generation = ++this.loadGeneration;
       const bucketId = this.selectedBucketId;
-      const range = this.timeRange;
+      const timeRange = this.timeRange;
       this.error = '';
       this.aggregated = [];
       this.events = [];
       this.fieldOptions = [];
-      if (!bucketId || !range) {
+      if (!bucketId || !timeRange) {
         this.loading = false;
         return;
       }
       this.loading = true;
       try {
+        const range = await this.queryRange(bucketId, generation);
+        if (!range || generation !== this.loadGeneration) return;
         const events = await getClient().getEvents(bucketId, {
           start: range.start,
           end: range.end,
