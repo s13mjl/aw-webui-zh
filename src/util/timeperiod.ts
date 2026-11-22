@@ -3,6 +3,55 @@ import { get_day_start_with_offset } from './time';
 import { i18n } from '~/i18n';
 import { useSettingsStore } from '~/stores/settings';
 
+/**
+ * Resolve a local wall-clock time (YYYY-MM-DDTHH:mm) to the instant(s) that
+ * display it. A normal time has one instant; a spring-forward gap has none;
+ * a fall-back overlap has two. We never silently pick one.
+ */
+export function wallTimeInstants(wallTime: string): Date[] {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(wallTime);
+  if (!match) return [];
+  const [, yearStr, monthStr, dayStr, hourStr, minuteStr] = match;
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const hour = Number(hourStr);
+  const minute = Number(minuteStr);
+  if (hour > 23 || minute > 59) return [];
+
+  // The constructor normalizes invalid dates (2026-02-30 -> March), so verify
+  // the components survived unchanged before scanning.
+  const anchor = new Date(year, month - 1, day, hour, minute, 0, 0);
+  if (
+    anchor.getFullYear() !== year ||
+    anchor.getMonth() !== month - 1 ||
+    anchor.getDate() !== day
+  ) {
+    return [];
+  }
+
+  // Offsets range from UTC-12 to UTC+14; scan a margin around the anchor and
+  // match the local components. A minute step is enough for wall-clock input.
+  const matches: Date[] = [];
+  const seen = new Set<number>();
+  const marginMs = 26 * 60 * 60 * 1000;
+  for (let ms = anchor.getTime() - marginMs; ms <= anchor.getTime() + marginMs; ms += 60 * 1000) {
+    const candidate = new Date(ms);
+    if (
+      candidate.getFullYear() === year &&
+      candidate.getMonth() === month - 1 &&
+      candidate.getDate() === day &&
+      candidate.getHours() === hour &&
+      candidate.getMinutes() === minute &&
+      !seen.has(ms)
+    ) {
+      seen.add(ms);
+      matches.push(candidate);
+    }
+  }
+  return matches;
+}
+
 export interface TimePeriod {
   start: string;
   length: [number, string];
