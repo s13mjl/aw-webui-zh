@@ -448,6 +448,13 @@ export default {
     notFound: 'Не знайшли потрібне?',
     addWeek: 'Додати тиждень до пошуку:',
     addWeekBtn: '+1 тиждень',
+    windowEvents: 'Події вікон',
+    browserEvents: 'Події браузера',
+    timestamp: 'Час',
+    duration: 'Тривалість',
+    url: 'URL',
+    pageTitle: 'Заголовок',
+    noResults: 'Нічого не знайдено.',
   },
   query: {
     title: 'Оглядач запитів',
