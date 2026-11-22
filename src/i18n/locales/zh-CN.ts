@@ -962,6 +962,7 @@ export default {
     expand: '展开列表',
     condense: '折叠列表',
     edit: '编辑',
+    showMore: '再显示 {count} 个',
   },
   topBucketData: {
     bucket: '存储桶',
