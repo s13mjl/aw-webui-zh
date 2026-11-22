@@ -495,6 +495,10 @@ export default {
   timeline: {
     title: '时间线',
     eventsShown: '显示事件：',
+    list: '列表',
+    listShowing: '显示 {total} 个事件中的 {shown} 个',
+    showMore: '显示更多',
+    eventTitle: '标题',
     swimlanes: '泳道：',
     filterAfk: '过滤 AFK',
     mergeByApp: '按应用合并',

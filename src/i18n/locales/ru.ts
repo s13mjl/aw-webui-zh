@@ -409,6 +409,10 @@ export default {
   timeline: {
     title: 'Хронология',
     eventsShown: 'Показано событий:',
+    list: 'Список',
+    listShowing: 'Показано {shown} из {total} событий',
+    showMore: 'Показать ещё',
+    eventTitle: 'Заголовок',
     swimlanes: 'Дорожки:',
     filterAfk: 'Фильтр AFK',
     mergeByApp: 'Объединить по приложению',
