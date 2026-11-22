@@ -593,6 +593,13 @@ export default {
     showOptions: 'Show options',
     hideOptions: 'Hide options',
     searching: 'Searching...',
+    windowEvents: 'Window events',
+    browserEvents: 'Browser events',
+    timestamp: 'Timestamp',
+    duration: 'Duration',
+    url: 'URL',
+    pageTitle: 'Title',
+    noResults: 'No results found.',
   },
   query: {
     title: 'Query Explorer',

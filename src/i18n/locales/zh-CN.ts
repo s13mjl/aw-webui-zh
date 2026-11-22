@@ -575,6 +575,13 @@ export default {
     showOptions: '显示选项',
     hideOptions: '隐藏选项',
     searching: '搜索中...',
+    windowEvents: '窗口事件',
+    browserEvents: '浏览器事件',
+    timestamp: '时间',
+    duration: '时长',
+    url: '网址',
+    pageTitle: '标题',
+    noResults: '未找到结果。',
   },
   query: {
     title: '查询浏览器',

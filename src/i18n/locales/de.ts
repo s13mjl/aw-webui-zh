@@ -450,6 +450,13 @@ export default {
     notFound: 'Nicht gefunden, was Sie suchten?',
     addWeek: 'Eine Woche zur Suche hinzufügen:',
     addWeekBtn: '+1 Woche',
+    windowEvents: 'Fensterereignisse',
+    browserEvents: 'Browserereignisse',
+    timestamp: 'Zeitpunkt',
+    duration: 'Dauer',
+    url: 'URL',
+    pageTitle: 'Titel',
+    noResults: 'Keine Ergebnisse gefunden.',
   },
   query: {
     title: 'Abfrage-Explorer',

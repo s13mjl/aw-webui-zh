@@ -448,6 +448,13 @@ export default {
     notFound: 'Не нашли нужное?',
     addWeek: 'Добавить неделю к поиску:',
     addWeekBtn: '+1 неделя',
+    windowEvents: 'События окон',
+    browserEvents: 'События браузера',
+    timestamp: 'Время',
+    duration: 'Длительность',
+    url: 'URL',
+    pageTitle: 'Заголовок',
+    noResults: 'Ничего не найдено.',
   },
   query: {
     title: 'Обозреватель запросов',
