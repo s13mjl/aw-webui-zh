@@ -65,6 +65,9 @@ export default {
   settings: {
     title: 'Настройки',
     unsavedCategoriesLeave: 'В категориях есть несохранённые изменения. Действительно выйти?',
+    unsavedCategoriesLeaveTitle: 'Несохранённые изменения',
+    unsavedCategoriesLeaveOk: 'Покинуть',
+    unsavedCategoriesLeaveCancel: 'Остаться',
     daystart: {
       startOfDay: 'Начало дня',
       startOfDayHelp:

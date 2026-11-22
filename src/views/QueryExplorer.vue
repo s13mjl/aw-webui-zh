@@ -217,7 +217,16 @@ RETURN = sort_by_duration(merged_events);
       if (current) {
         this.saved_query_pending = true;
         try {
-          if (!confirm(this.$t('queryExplorer.updatePrompt', { name: draft.name }))) return;
+          const confirmed = await this.$bvModal.msgBoxConfirm(
+            this.$t('queryExplorer.updatePrompt', { name: draft.name }),
+            {
+              title: this.$t('queryExplorer.updateTitle'),
+              okTitle: this.$t('queryExplorer.updateOk'),
+              cancelTitle: this.$t('queryExplorer.cancel'),
+              centered: true,
+            }
+          );
+          if (!confirmed) return;
           await this.persistSavedQueries(
             this.savedQueries.map(savedQuery => (savedQuery.id === draft.id ? draft : savedQuery))
           );
@@ -299,7 +308,17 @@ RETURN = sort_by_duration(merged_events);
       const targetName = this.selectedSavedQuery.name;
       this.saved_query_pending = true;
       try {
-        if (!confirm(this.$t('queryExplorer.deletePrompt', { name: targetName }))) return;
+        const confirmed = await this.$bvModal.msgBoxConfirm(
+          this.$t('queryExplorer.deletePrompt', { name: targetName }),
+          {
+            title: this.$t('queryExplorer.deleteTitle'),
+            okTitle: this.$t('queryExplorer.deleteOk'),
+            okVariant: 'danger',
+            cancelTitle: this.$t('queryExplorer.cancel'),
+            centered: true,
+          }
+        );
+        if (!confirmed) return;
         const didPersist = await this.persistSavedQueries(
           this.savedQueries.filter(savedQuery => savedQuery.id !== targetId)
         );
