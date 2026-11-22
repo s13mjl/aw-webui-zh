@@ -18,6 +18,8 @@
  *             build but whose process name does not start with 'chromium':
  *             'ungoogled-chromium', 'ungoogled_chromium', 'Ungoogled Chromium',
  *             'ungoogled-chromium-bin'
+ *             Helium running the Chrome Web Store extension build (#898):
+ *             'Helium', 'helium.exe'
  *
  *   Firefox:  'Firefox', 'Firefox.exe', 'firefox', 'firefox.exe',
  *             'Firefox Developer Edition', 'firefoxdeveloperedition',
@@ -332,6 +334,34 @@ describe('browser regex escaping in generated query', () => {
     }
     expect(query).toContain('window_arc_re =');
     expect(query).toContain('window_chrome_re =');
+  });
+
+  test('chrome-only bucket still matches Helium app name (#898)', () => {
+    const query = fullDesktopQuery({
+      ...params,
+      bid_browsers: ['aw-watcher-web-chrome_testhost'],
+    }).join('\n');
+    expect(query).toContain(String.raw`helium(\.exe)?$`);
+  });
+
+  test('mixed chrome and Helium buckets: Helium bucket owns Helium events, chrome stream excludes Helium', () => {
+    const query = fullDesktopQuery({
+      ...params,
+      bid_browsers: ['aw-watcher-web-chrome_testhost', 'aw-watcher-web-helium_testhost'],
+    }).join('\n');
+    const chromeWindowFilter = query.slice(
+      query.indexOf('window_chrome_re ='),
+      query.indexOf('events_chrome = filter_period_intersect')
+    );
+    // 有独立 Helium 桶时，chrome 流不再匹配 Helium。
+    expect(chromeWindowFilter).not.toContain(String.raw`helium(\.exe)?$`);
+    // Dia 没有独立桶，仍需要由 chrome 流匹配。
+    expect(chromeWindowFilter).toContain(String.raw`dia(\.exe)?$`);
+    expect(query).toContain('window_helium_re =');
+    expect(query).toContain('(?i)(helium)');
+    expect(query).toContain('browser_events = concat(browser_events, events_chrome);');
+    expect(query).toContain('browser_events = concat(browser_events, events_helium);');
+    expect(query).not.toContain('union_no_overlap');
   });
 });
 
