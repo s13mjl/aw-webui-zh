@@ -52,7 +52,9 @@ describe('views store 草稿隔离与保存归属', () => {
 
   test('各类草稿编辑都不会改动已确认设置，load 可恢复', async () => {
     const { settings, views } = await setup();
-    views.views[0].elements[0].props!.nested['limit'] = 20;
+    const firstProps = views.views[0].elements[0].props;
+    if (!firstProps) throw new Error('expected first element props');
+    firstProps.nested['limit'] = 20;
     views.editView({ view_id: 'custom', el_id: '1', type: 'top_domains', props: { limit: 10 } });
     views.setElements({ view_id: 'custom', elements: [...views.views[0].elements].reverse() });
     views.addVisualization({ view_id: 'custom', type: 'top_urls' });
@@ -83,7 +85,10 @@ describe('views store 草稿隔离与保存归属', () => {
     const write = jest
       .spyOn(settings, 'save')
       .mockImplementationOnce(
-        () => new Promise<void>(resolve => { finish = resolve; })
+        () =>
+          new Promise<void>(resolve => {
+            finish = resolve;
+          })
       )
       .mockResolvedValue(undefined);
     views.addVisualization({ view_id: 'custom', type: 'top_urls' });
@@ -99,7 +104,10 @@ describe('views store 草稿隔离与保存归属', () => {
 
   test('持久化失败回滚已确认快照，但保留可重试的草稿', async () => {
     const { settings, views } = await setup();
-    jest.spyOn(settings, 'save').mockRejectedValueOnce(new Error('offline')).mockResolvedValue(undefined);
+    jest
+      .spyOn(settings, 'save')
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(undefined);
     views.addVisualization({ view_id: 'custom', type: 'top_urls' });
     const draft = copy(views.views);
     await expect(views.save()).rejects.toThrow('offline');
@@ -109,5 +117,49 @@ describe('views store 草稿隔离与保存归属', () => {
     await views.save();
     expect(settings.views).toEqual(draft);
     expect(views.saving).toBe(false);
+  });
+
+  test('save 等待持久化完成后再重载视图', async () => {
+    const { settings, views } = await setup();
+    views.addVisualization({ view_id: 'custom', type: 'top_urls' });
+    const edited = copy(views.views);
+    let finish!: () => void;
+    const save = jest
+      .spyOn(settings, 'save')
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            finish = resolve;
+          })
+      )
+      .mockResolvedValue(undefined);
+    const load = jest.spyOn(views, 'load');
+    let settled = false;
+    const saving = views.save().then(() => (settled = true));
+    // 让更新进入延迟的持久化阶段，但尚未完成。
+    await new Promise(resolve => setImmediate(resolve));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+    expect(load).not.toHaveBeenCalled();
+    expect(views.views).toEqual(edited);
+    finish();
+    await saving;
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(views.views).toEqual(edited);
+  });
+
+  test('持久化失败向上抛出，且不重载覆盖草稿', async () => {
+    const { settings, views } = await setup();
+    views.addVisualization({ view_id: 'custom', type: 'top_urls' });
+    const edited = copy(views.views);
+    const failure = new Error('offline');
+    // 同样观察被拒绝的 update，避免遗留未处理的 rejection。
+    const failedUpdate = Promise.reject(failure);
+    void failedUpdate.catch(() => undefined);
+    jest.spyOn(settings, 'update').mockReturnValueOnce(failedUpdate);
+    const load = jest.spyOn(views, 'load');
+    await expect(views.save()).rejects.toBe(failure);
+    expect(load).not.toHaveBeenCalled();
+    expect(views.views).toEqual(edited);
   });
 });
