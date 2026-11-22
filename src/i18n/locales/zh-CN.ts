@@ -690,7 +690,10 @@ export default {
     noHost: '没有具备 window/AFK 存储桶的主机。请安装',
     noHostLink: 'watcher',
     noHostSuffix: '以开始收集数据。',
-    noWords: '没有时长显著的词汇，一切就绪！',
+
+    notSelected: '（未选择）',
+    selectHostname: '请在',
+    hostnamePickerHint: '下选择主机名，以加载未分类词汇。主机名选择器在展开选项前是隐藏的。',    noWords: '没有时长显著的词汇，一切就绪！',
     newRule: '新建规则',
     appendRule: '追加规则',
     ignore: '忽略',
