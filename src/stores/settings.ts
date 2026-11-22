@@ -21,6 +21,8 @@ let settingsLoadPromise: Promise<void> | null = null;
 // Keep request bookkeeping out of persisted/reactive settings.
 const appearanceUpdates = new WeakMap<object, Record<string, Promise<void>>>();
 // A completed newer reload supersedes older responses, not independent writes.
+// Per-store load sequence: a response arriving after a newer load must not
+// overwrite state with stale values.
 const settingsLoads = new WeakMap<object, { issued: number; applied: number }>();
 
 // Backoffs for NewReleaseNotification
@@ -94,6 +96,12 @@ interface State {
   // Whether to hide visualizations that lack required data (default: off)
   hideUnsupportedVisualizations: boolean;
 
+  // Honor-system "I already support ActivityWatch" flag. Stored in the server's
+  // settings store (not localStorage) so every browser and the desktop clients
+  // (aw-qt, aw-tauri) see the same answer. It only suppresses in-app support
+  // prompts; it is never verified, and nothing is sent anywhere when it is set.
+  supporter: boolean;
+
   // Auto-export all buckets as JSON for backup. See #406.
   autoBackupEnabled: boolean;
   autoBackupIntervalHours: number;
@@ -153,6 +161,8 @@ export const useSettingsStore = defineStore('settings', {
     useMultidevice: false,
     requestTimeout: 30,
     hideUnsupportedVisualizations: false,
+
+    supporter: false,
 
     // Auto-export backup (disabled by default, weekly). See #406.
     autoBackupEnabled: false,
@@ -280,7 +290,14 @@ export const useSettingsStore = defineStore('settings', {
           console.error('failed to parse', key, raw, e);
         }
       }
-      this.$patch({ ...storage, _loaded: true, _storedKeys: Object.keys(storage) });
+      // Missing supporter storage means the default, including when reconciling
+      // an optimistic first-ever choice after a rejected POST.
+      this.$patch({
+        supporter: false,
+        ...storage,
+        _loaded: true,
+        _storedKeys: Object.keys(storage),
+      });
 
       const localeFromServer = 'locale' in server_settings;
       const localeFromLocalStorage = localStorage.getItem('locale') != null;

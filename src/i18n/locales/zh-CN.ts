@@ -223,6 +223,14 @@ export default {
       minShare: '最小未分类占比',
       minShareHelp: '当未分类时间占比超过此值（0-1）时显示提示。',
     },
+    supporter: {
+      title: '我已在支持 ActivityWatch',
+      help: '隐藏应用中请求支持 ActivityWatch 的提示。基于信任：仅保存在本地服务器上，不会验证，也不会发送任何内容。',
+      statusYes: '已是支持者',
+      statusNo: '尚未标记',
+      saving: '保存中…',
+      saveFailed: '保存支持者标记失败：{error}',
+    },
     backup: {
       title: '自动备份',
       help: '定期将所有存储桶数据导出为 JSON 文件并下载到默认下载目录。',
@@ -278,6 +286,9 @@ export default {
     spreadFollow: '关注原开发者并传播：',
     spreadStar: '给原开发者加星：',
     supportTitle: '支持原开发者！',
+    subscribeIntro:
+      '订阅可以帮助 ActivityWatch 持续维护，每月 5 美元起。所有功能仍免费，也可以随时取消。',
+    subscribeCta: '支持 ActivityWatch →',
     support1:
       '你喜欢 ActivityWatch 吗？它帮到你了吗？通过捐赠帮助原开发者继续帮助你！你可以通过以下方式捐赠：',
     support2: '更多信息请访问',
