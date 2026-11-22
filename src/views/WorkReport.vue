@@ -95,6 +95,7 @@ import {
   get_day_end_with_offset,
   get_today_with_offset,
 } from '~/util/time';
+import { periodStartDate } from '~/util/timeperiod';
 import {
   getSupportedWorkReportHosts,
   getWorkReportHostOptions,
@@ -349,7 +350,7 @@ export default {
       } else if (this.dateRange === 'last30d') {
         startDate = today.clone().subtract(29, 'days');
       } else if (this.dateRange === 'thisWeek') {
-        startDate = today.clone().startOf('isoWeek');
+        startDate = moment(periodStartDate(today.format('YYYY-MM-DD'), 'week'));
       } else if (this.dateRange === 'thisMonth') {
         startDate = today.clone().startOf('month');
       } else {
