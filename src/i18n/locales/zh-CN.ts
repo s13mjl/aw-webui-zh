@@ -212,6 +212,7 @@ export default {
       importSetPrompt: '文件中包含分类集“{id}”。要如何导入？',
       importReplace: '替换当前分类',
       importAddOnTop: '叠加到我的分类上',
+      importInvalid: '分类导入文件无效。',
       newName: '新分类',
       fillRegex: '请填写',
     },
