@@ -22,6 +22,7 @@ import { useCategoryStore } from '~/stores/categories';
 import { getClient } from '~/util/awclient';
 import {
   FullDesktopQueryResult,
+  categoryByPeriodFromChunks,
   mergeFullDesktopResults,
   periodsForFullDesktopQuery,
 } from '~/util/desktopQuerySplit';
@@ -58,20 +59,20 @@ async function queryDesktopPeriods(
   periods: string[],
   query: string[],
   name: string
-): Promise<FullDesktopQueryResult> {
+): Promise<{ merged: FullDesktopQueryResult; chunks: [string, FullDesktopQueryResult][] }> {
   const client = getClient();
   const signal = client.controller.signal;
-  const results: FullDesktopQueryResult[] = [];
+  const chunks: [string, FullDesktopQueryResult][] = [];
   for (const period of periods) {
     if (signal.aborted) {
       throw signal['reason'] || 'unknown reason';
     }
     const data = await client.query([period], query, { name, verbose: true });
     if (data && data[0]) {
-      results.push(data[0]);
+      chunks.push([period, data[0]]);
     }
   }
-  return mergeFullDesktopResults(results);
+  return { merged: mergeFullDesktopResults(chunks.map(([, result]) => result)), chunks };
 }
 
 export interface QueryOptions {
@@ -345,7 +346,9 @@ export const useActivityStore = defineStore('activity', {
       }
 
       // Perform this last, as it takes the longest
-      if (this.window.available) {
+      // Skipped when query_desktop_full already derived it from the day chunks
+      // (Year and other multi-day ranges).
+      if (this.window.available && this.category.by_period === null) {
         await this.query_category_time_by_period(query_options);
       }
     },
@@ -378,7 +381,7 @@ export const useActivityStore = defineStore('activity', {
         host_params: {},
         always_active_pattern,
       });
-      const merged = await queryDesktopPeriods(periods, q, 'multidevice');
+      const { merged } = await queryDesktopPeriods(periods, q, 'multidevice');
       this.query_window_completed(merged.window || {});
     },
 
@@ -409,8 +412,17 @@ export const useActivityStore = defineStore('activity', {
       });
       // Queried one day at a time, so no single request needs the extended
       // timeout that #1099 added for whole-period desktop queries.
-      const merged = await queryDesktopPeriods(periods, q, 'fullDesktopQuery');
+      const { merged, chunks } = await queryDesktopPeriods(periods, q, 'fullDesktopQuery');
       this.query_window_completed(merged.window || {});
+      // Day chunks never cross calendar-month boundaries, so the Year barchart
+      // can be summed from them instead of running 12 month-sized category
+      // requests (each could exceed the per-request timeout). Short ranges
+      // keep the dedicated category query below.
+      if (chunks.length > 1 && timeperiodsForBarchart(timeperiod).length > 1) {
+        this.query_category_time_by_period_completed({
+          by_period: categoryByPeriodFromChunks(timeperiod, chunks),
+        });
+      }
       this.query_browser_completed(merged.browser || {});
       if (include_stopwatch) {
         this.query_stopwatch_completed(merged.stopwatch || {});

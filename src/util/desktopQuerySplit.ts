@@ -6,6 +6,7 @@ import {
   EXACT_HOURLY_MAX_MS,
   TimePeriod,
   timeperiodToStr,
+  timeperiodsForBarchart,
   timeperiodsDaysOfPeriod,
   timeperiodsExactDaysOfPeriod,
 } from '~/util/timeperiod';
@@ -120,6 +121,34 @@ export function mergeEventsByKeys(events: IEvent[], keys: string[], limit?: numb
   }
   const merged = Array.from(groups.values()).sort((a, b) => b.duration - a.duration);
   return limit === undefined ? merged : merged.slice(0, limit);
+}
+
+/**
+ * Category-by-period data for the barchart, built from the day-chunked desktop
+ * query results instead of one category request per bar. Day chunks never cross
+ * a calendar-month boundary, so Year barcharts get the same monthly keys without
+ * 12 month-sized requests that can exceed the 30s timeout.
+ */
+export function categoryByPeriodFromChunks(
+  timeperiod: TimePeriod,
+  chunks: [string, FullDesktopQueryResult][]
+): Record<string, { cat_events: IEvent[] }> {
+  const byPeriod: Record<string, { cat_events: IEvent[] }> = {};
+  for (const bucket of timeperiodsForBarchart(timeperiod)) {
+    const key = timeperiodToStr(bucket);
+    const start = new Date(key.split('/')[0]);
+    const end = moment(bucket.start)
+      .add(bucket.length[0], bucket.length[1] as moment.unitOfTime.DurationConstructor)
+      .toDate();
+    const events = chunks
+      .filter(([period]) => {
+        const chunkStart = new Date(period.split('/')[0]);
+        return chunkStart >= start && chunkStart < end;
+      })
+      .flatMap(([, result]) => (result.window && result.window.cat_events) || []);
+    byPeriod[key] = { cat_events: mergeEventsByKeys(events, ['$category']) };
+  }
+  return byPeriod;
 }
 
 function concatEvents(chunks: Array<IEvent[] | undefined>): IEvent[] {
