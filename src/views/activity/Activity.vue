@@ -30,6 +30,15 @@ div
       @change="editInterval(intervalIssue.field, intervalIssue.wall, $event)"
     )
 
+  b-alert.activity-diagnostic(
+    v-if="activityDiagnostic"
+    variant="warning"
+    show
+    data-testid="activity-diagnostic"
+  )
+    span {{ activityDiagnosticMessage }}
+    router-link.ml-1(to="/buckets") {{ $t('activity.diagnosticOpenRawData') }}
+
   div.activity-toolbar.d-flex.flex-wrap.align-items-center
     div.d-flex.mr-2
       b-button-group
@@ -296,6 +305,10 @@ import {
   shiftExactInterval,
   wallTimeInstants,
 } from '~/util/timeperiod';
+import {
+  ActivityDiagnostic,
+  activityDiagnostic as diagnoseActivity,
+} from '~/util/activityDiagnostics';
 import _ from 'lodash';
 
 import { useSettingsStore } from '~/stores/settings';
@@ -534,6 +547,38 @@ export default {
     currentViewId: function () {
       // If localStore is not yet initialized, then currentView can be undefined. In that case, we return an empty string (which should route to the default view)
       return this.currentView !== undefined ? this.currentView.id : '';
+    },
+    activityDiagnostic: function (): ActivityDiagnostic | null {
+      return diagnoseActivity({
+        host: this.host,
+        buckets: this.bucketsStore.buckets,
+        isMultidevice: this.settingsStore.useMultidevice,
+        queryComplete: this.activityStore.loaded && this.activityStore.window.top_apps !== null,
+        rawWindowDuration: this.activityStore.window.raw_duration,
+      });
+    },
+    activityDiagnosticMessage: function (): string {
+      if (!this.activityDiagnostic) return '';
+      const params = { host: this.activityDiagnostic.host };
+      if (this.activityDiagnostic.kind === 'ambiguous-window') {
+        return this.$t('activity.diagnosticAmbiguousWindow', {
+          ...params,
+          buckets: this.activityDiagnostic.bucketIds.join(', '),
+        }).toString();
+      }
+      if (this.activityDiagnostic.kind === 'mismatched-hostnames') {
+        return this.$t('activity.diagnosticMismatchedHostnames', {
+          ...params,
+          windowHosts: this.activityDiagnostic.windowHosts.join(', '),
+          afkHosts: this.activityDiagnostic.afkHosts.join(', '),
+        }).toString();
+      }
+      const key = {
+        'missing-window': 'diagnosticMissingWindow',
+        'missing-afk': 'diagnosticMissingAfk',
+        'no-window-events': 'diagnosticNoWindowEvents',
+      }[this.activityDiagnostic.kind];
+      return this.$t(`activity.${key}`, params).toString();
     },
     _date: function () {
       const offset = this.settingsStore.startOfDay;

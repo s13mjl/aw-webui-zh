@@ -155,6 +155,10 @@ export function canonicalEvents(params: DesktopQueryParams): string {
         // correctly counts as active. See #852.
         (params.include_audible ? `not_afk = period_union(not_afk, audible_events);` : '')
       : '',
+    // Snapshot raw window events before AFK/category/stopwatch filters rewrite
+    // `events`. Activity uses it to tell a truly empty period apart from one
+    // where the filters hid all events.
+    'raw_window_events = events;',
     // Filter out window events when the user was afk
     params.filter_afk ? 'events = filter_period_intersect(events, not_afk);' : '',
     params.bid_stopwatch
@@ -374,6 +378,7 @@ export function fullDesktopQuery(params: DesktopQueryParams): string[] {
     app_events  = limit_events(app_events, ${default_limit});
     title_events  = limit_events(title_events, ${default_limit});
     duration = sum_durations(events);
+    raw_window_duration = sum_durations(raw_window_events);
     ` + // Browser events are retrieved in canonicalQuery
       `
     browser_events = split_url_events(browser_events);
@@ -397,7 +402,8 @@ export function fullDesktopQuery(params: DesktopQueryParams): string[] {
             "title_events": title_events,
             "cat_events": cat_events,
             "active_events": not_afk,
-            "duration": duration
+            "duration": duration,
+            "raw_duration": raw_window_duration
         },
         "browser": {
             "domains": browser_domains,

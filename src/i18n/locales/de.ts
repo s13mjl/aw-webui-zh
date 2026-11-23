@@ -346,6 +346,17 @@ export default {
     errIdNotUnique: 'ID ist nicht eindeutig',
     errMissingId: 'ID fehlt',
     errMissingName: 'Name fehlt',
+    diagnosticMissingWindow:
+      'Kein Fenster-Bucket für {host}. Starten Sie aw-watcher-window und laden Sie die Seite neu.',
+    diagnosticMissingAfk:
+      'Kein AFK-Bucket für {host}. Starten Sie aw-watcher-afk und laden Sie die Seite neu.',
+    diagnosticAmbiguousWindow:
+      'Mehrere Fenster-Buckets können {host} beschreiben: {buckets}. Wählen Sie oben das richtige Gerät oder prüfen Sie die Rohdaten.',
+    diagnosticMismatchedHostnames:
+      'aw-watcher-window meldet {host} als {windowHosts}, aw-watcher-afk aber als {afkHosts}. Die Aktivitätsansicht benötigt beide unter demselben Hostnamen: Starten Sie beide Watcher neu und laden Sie diese Seite dann neu.',
+    diagnosticNoWindowEvents:
+      'Für diesen Zeitraum wurden keine Fensteraktivitäten gefunden. Prüfen Sie, ob aw-watcher-window läuft. Unter Wayland versuchen Sie awatcher.',
+    diagnosticOpenRawData: 'Rohdaten öffnen.',
   },
   activityView: {
     addVisualization: 'Visualisierung hinzufügen',
