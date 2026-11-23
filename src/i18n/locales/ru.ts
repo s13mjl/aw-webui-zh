@@ -298,6 +298,8 @@ export default {
     for: 'для',
     host: 'Хост:',
     timeActive: 'Активное время:',
+    timeActiveTooltip:
+      'Active window time in the queried range, after the filters below. The bars in the period chart show raw device active time, so they can be slightly higher.',
     queryRange: 'Диапазон запроса:',
     filters: 'Фильтры',
     filtersTitle: 'Фильтры',
