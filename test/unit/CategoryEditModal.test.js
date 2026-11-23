@@ -168,46 +168,71 @@ describe('CategoryEditModal rule priority', () => {
   });
 });
 
-describe('CategoryEditModal deferred hide (#1028)', () => {
-  function ctx() {
+describe('CategoryEditModal field-scoped rules', () => {
+  const handleSubmit = vm => CategoryEditModal.methods.handleSubmit.call(vm);
+
+  function ctx(match_fields, extra = {}) {
     const updateClass = jest.fn();
-    const vm = {
-      ...CategoryEditModal.methods,
-      editing: {
-        id: 1,
-        name: 'Browser',
-        parent: ['Work'],
-        rule: { type: 'regex', regex: 'Firefox' },
-        patterns: ['Firefox'],
-        match_fields: [],
-        priority: null,
-        inherit_color: true,
-        color: null,
-        inherit_score: true,
-        score: null,
+    return {
+      vm: {
+        editing: {
+          id: 1,
+          name: 'Browser',
+          parent: ['Work'],
+          rule: { type: 'regex', regex: 'Firefox', select_keys: ['stale'] },
+          patterns: ['Firefox'],
+          match_fields,
+          priority: 0,
+          inherit_color: true,
+          color: null,
+          inherit_score: true,
+          score: null,
+        },
+        validPattern: true,
+        validPriority: true,
+        checkFormValidity: () => true,
+        categoryStore: { updateClass },
+        $nextTick: callback => callback(),
+        $refs: { edit: { hide: jest.fn() } },
+        priorityFromInput: CategoryEditModal.methods.priorityFromInput,
+        priorityFromRule: CategoryEditModal.methods.priorityFromRule,
+        ...extra,
       },
-      checkFormValidity: () => true,
-      categoryStore: { updateClass },
-      $nextTick: callback => callback(),
-      $refs: { edit: { hide: jest.fn() } },
-      $t: key => key,
-      submitError: null,
+      updateClass,
     };
-    return { vm, updateClass };
   }
 
-  test('does not throw when the modal was destroyed before the deferred hide', () => {
-    const { vm, updateClass } = ctx();
-    vm.$refs = {};
-    expect(() => vm.handleSubmit()).not.toThrow();
-    expect(updateClass).toHaveBeenCalled();
+  test('blank field selection keeps the legacy unrestricted rule', () => {
+    const { vm, updateClass } = ctx([]);
+    handleSubmit(vm);
+    expect(updateClass.mock.calls[0][0].rule.select_keys).toBeUndefined();
   });
 
-  test('showModal is a no-op when the modal ref is gone', () => {
-    expect(() => vmShowRefOnly()).not.toThrow();
+  test('explicit field selection is preserved even when all offered fields are selected', () => {
+    const { vm, updateClass } = ctx(['app', 'title']);
+    handleSubmit(vm);
+    expect(updateClass.mock.calls[0][0].rule.select_keys).toEqual(['app', 'title']);
   });
 
-  function vmShowRefOnly() {
-    return CategoryEditModal.methods.showModal.call({ $refs: {} });
-  }
+  test('only canonical fields are offered by default', () => {
+    const fieldOptions = CategoryEditModal.computed.fieldOptions.call({
+      editing: { match_fields: [] },
+    });
+    expect(fieldOptions).toEqual(['app', 'title']);
+  });
+
+  test('stale unknown fields are still listed but rejected on submit', () => {
+    const fieldOptions = CategoryEditModal.computed.fieldOptions.call({
+      editing: { match_fields: ['stale'] },
+    });
+    expect(fieldOptions).toEqual(['app', 'title', 'stale']);
+
+    const { vm, updateClass } = ctx(['stale']);
+    vm.$t = k => k;
+    vm.checkFormValidity = CategoryEditModal.methods.checkFormValidity;
+    expect(vm.checkFormValidity()).toBe(false);
+    expect(vm.submitError).toBe('categoryEdit.errorInvalidField');
+    handleSubmit(vm);
+    expect(updateClass).not.toHaveBeenCalled();
+  });
 });
