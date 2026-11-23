@@ -1,10 +1,13 @@
 import {
   DESKTOP_QUERY_EVENT_LIMIT,
+  FullDesktopQueryResult,
+  categoryByPeriodFromChunks,
   mergeEventsByKeys,
   mergeFullDesktopResults,
   periodsForFullDesktopQuery,
 } from '~/util/desktopQuerySplit';
 import { IEvent } from '~/util/interfaces';
+import { timeperiodToStr, timeperiodsForBarchart } from '~/util/timeperiod';
 import moment from 'moment';
 
 function ev(
@@ -179,5 +182,38 @@ describe('mergeFullDesktopResults', () => {
     expect(merged.window?.duration).toBe(5);
     expect(merged.window?.app_events).toEqual([]);
     expect(merged.browser?.duration).toBe(0);
+  });
+});
+
+describe('categoryByPeriodFromChunks', () => {
+  test('sums day chunks into the same calendar-month keys as the Year barchart', () => {
+    const timeperiod = { start: '2026-01-01T00:00:00Z', length: [1, 'year'] as [number, string] };
+    const months = timeperiodsForBarchart(timeperiod);
+    expect(months).toHaveLength(12);
+
+    const chunks: [string, FullDesktopQueryResult][] = [
+      [
+        '2026-01-15T00:00:00Z/2026-01-16T00:00:00Z',
+        { window: { cat_events: [ev({ $category: ['Work'] }, 3600)] } },
+      ],
+      [
+        '2026-02-10T00:00:00Z/2026-02-11T00:00:00Z',
+        {
+          window: {
+            cat_events: [ev({ $category: ['Work'] }, 1800), ev({ $category: ['Games'] }, 600)],
+          },
+        },
+      ],
+    ];
+    const byPeriod = categoryByPeriodFromChunks(timeperiod, chunks);
+    const janKey = timeperiodToStr(months[0]);
+    const febKey = timeperiodToStr(months[1]);
+
+    expect(Object.keys(byPeriod)).toHaveLength(12);
+    expect(byPeriod[janKey].cat_events).toEqual([
+      expect.objectContaining({ data: expect.objectContaining({ $category: ['Work'] }) }),
+    ]);
+    expect(byPeriod[febKey].cat_events).toHaveLength(2);
+    expect(byPeriod[timeperiodToStr(months[2])].cat_events).toEqual([]);
   });
 });
