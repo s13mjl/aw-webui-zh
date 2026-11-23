@@ -99,6 +99,9 @@ function comparableCategory(c: Category): Category {
  * `createMissingParents` for one. Everything else (new categories, edits,
  * edited secondary categories, which become primary-set overrides) goes to
  * the primary set. Secondary sets are never written.
+ *
+ * Removed secondary names are masked by tombstones on the primary set, so
+ * renames/deletions survive reload without modifying the source set.
  */
 function syncToPrimarySet(state: State) {
   if (state.active_set_ids.length === 0 || state.category_sets.length === 0) return;
@@ -123,6 +126,16 @@ function syncToPrimarySet(state: State) {
   // Parents createMissingParents adds for the merged sets, as they look untouched.
   const merged = mergeCategorySets(orderedActiveSets(state.category_sets, state.active_set_ids));
   const mergedNames = new Set(merged.map(key));
+  const currentNames = new Set(current.map(key));
+  const tombstones = new Set(primarySet.tombstones ?? []);
+  for (const name of secondary.keys()) {
+    if (mergedNames.has(name) && !currentNames.has(name)) tombstones.add(name);
+  }
+  // Explicitly adding a previously hidden name restores it; changing the active
+  // set selection alone leaves masks intact.
+  for (const name of currentNames) tombstones.delete(name);
+  if (tombstones.size > 0) primarySet.tombstones = [...tombstones];
+  else delete primarySet.tombstones;
   const synthesized = new Map<string, Category>();
   for (const c of createMissingParents(_.cloneDeep(merged))) {
     if (!mergedNames.has(key(c))) synthesized.set(key(c), cleanCategory(c));
@@ -137,6 +150,9 @@ function syncToPrimarySet(state: State) {
       _.isEqual(_.omit(comparableCategory(inherited), 'id'), _.omit(comparableCategory(c), 'id'))
     );
   });
+  // Masks can remove the last child of an untouched generated parent. Rebuild
+  // the view now so a later save/switch cannot promote that orphan to primary.
+  state.classes = computeEffectiveClasses(state.category_sets, state.active_set_ids);
 }
 
 // 同步上游 #1228：每个 store 的待写入队列放在可序列化的 Pinia state 之外。

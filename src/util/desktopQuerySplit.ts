@@ -14,6 +14,8 @@ export { DESKTOP_QUERY_EVENT_LIMIT };
 
 export interface WindowQueryResult {
   app_events?: IEvent[];
+  // Per-app durations split by category, for coloring Top Applications.
+  app_cat_events?: IEvent[];
   title_events?: IEvent[];
   cat_events?: IEvent[];
   active_events?: IEvent[];
@@ -146,6 +148,10 @@ export function mergeFullDesktopResults(results: FullDesktopQueryResult[]): Full
         ['app'],
         DESKTOP_QUERY_EVENT_LIMIT
       ),
+      app_cat_events: mergeEventsByKeys(concatEvents(windows.map(w => w.app_cat_events)), [
+        'app',
+        '$category',
+      ]),
       title_events: mergeEventsByKeys(
         concatEvents(windows.map(w => w.title_events)),
         ['app', 'title'],

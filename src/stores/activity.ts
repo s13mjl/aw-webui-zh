@@ -49,6 +49,28 @@ function scoreCategories(events: IEvent[]): IEvent[] {
 }
 
 /**
+ * Applications can color an app by what it was used for. Matching the app name
+ * against the category rules doesn't work for apps whose activity is
+ * categorized by title or URL, such as browsers, which were always shown as
+ * Uncategorized. Apps without app_cat_events keep their old (name-based) color.
+ */
+export function withDominantCategory(appEvents: IEvent[], appCatEvents?: IEvent[]): IEvent[] {
+  if (!appEvents || !appCatEvents || appCatEvents.length === 0) return appEvents;
+  const appKey = (e: IEvent): string => e.data.classname ?? e.data.app;
+  const dominant = new Map<string, { duration: number; category: string[] }>();
+  for (const e of appCatEvents) {
+    const best = dominant.get(appKey(e));
+    if (!best || e.duration > best.duration) {
+      dominant.set(appKey(e), { duration: e.duration, category: e.data.$category });
+    }
+  }
+  return appEvents.map(e => {
+    const best = dominant.get(appKey(e));
+    return best ? { ...e, data: { ...e.data, $category: best.category } } : e;
+  });
+}
+
+/**
  * One day at a time, same reason as query_category_time_by_period.
  * Axios timeout is per request (default 30s). Measured 2026-08-28 on a
  * 31 MB / 4-month aw-server: July as one TIMEINTERVAL 0.95s vs max daily
@@ -98,6 +120,9 @@ interface State {
     available: boolean;
     top_apps: IEvent[];
     top_titles: IEvent[];
+    // Unfiltered window-bucket activity (see queries.ts), used by diagnostics:
+    // zero means the period is genuinely empty, not hidden by AFK/category filters.
+    raw_duration: number;
   };
 
   browser: {
@@ -163,6 +188,7 @@ export const useActivityStore = defineStore('activity', {
       available: false,
       top_apps: [],
       top_titles: [],
+      raw_duration: 0,
     },
 
     browser: {
@@ -604,6 +630,7 @@ export const useActivityStore = defineStore('activity', {
 
       this.query_window_completed({
         duration: _.sumBy(window_events, 'duration'),
+        raw_duration: _.sumBy(window_events, 'duration'),
         app_events,
         title_events,
         cat_events,
@@ -691,7 +718,14 @@ export const useActivityStore = defineStore('activity', {
 
     query_window_completed(
       this: State,
-      data = { app_events: [], title_events: [], cat_events: [], active_events: [], duration: 0 }
+      data = {
+        app_events: [],
+        title_events: [],
+        cat_events: [],
+        active_events: [],
+        duration: 0,
+        raw_duration: 0,
+      }
     ) {
       // Set $color and $score for categories
       if (data.cat_events) {
@@ -699,8 +733,9 @@ export const useActivityStore = defineStore('activity', {
         data.cat_events = scoreCategories(data.cat_events);
       }
 
-      this.window.top_apps = data.app_events;
+      this.window.top_apps = withDominantCategory(data.app_events, data.app_cat_events);
       this.window.top_titles = data.title_events;
+      this.window.raw_duration = data.raw_duration || 0;
       this.category.top = data.cat_events;
       this.active.duration = data.duration;
       this.active.events = data.active_events;

@@ -367,6 +367,8 @@ export default {
       'A valid file to import is a JSON file from either an export of a single bucket or an export from multiple buckets. If there are buckets with the same name the import will fail.',
     exportBuckets: 'Export buckets',
     exportAllJson: 'Export all buckets as JSON',
+    exporting: 'Exporting...',
+    exportFailed: 'Export failed: {message}',
     tools: 'Tools',
     importFailed: 'Import failed, see aw-server logs for more info',
     importFailedDetail: 'Import failed: {detail}',
@@ -380,9 +382,13 @@ export default {
   },
   activity: {
     title: 'Activity',
+    browserAllowlistMiss:
+      'No matching browser window for this period. If you were browsing in a Chromium/Firefox fork, its app name may not be recognized yet.',
     for: 'for',
     host: 'Host:',
     timeActive: 'Time active:',
+    timeActiveTooltip:
+      'Active window time in the queried range, after the filters below. The bars in the period chart show raw device active time, so they can be slightly higher.',
     queryRange: 'Query range:',
     filters: 'Filters',
     filtersTitle: 'Filters',
@@ -434,6 +440,16 @@ export default {
     nextAria: 'Next {period}',
     filtersAria: 'Filters',
     refreshAria: 'Refresh',
+    diagnosticMissingWindow:
+      'No window bucket for {host}. Start aw-watcher-window, then refresh this page.',
+    diagnosticMissingAfk: 'No AFK bucket for {host}. Start aw-watcher-afk, then refresh this page.',
+    diagnosticAmbiguousWindow:
+      'Multiple window buckets may describe {host}: {buckets}. Choose the correct device above or inspect Raw Data.',
+    diagnosticMismatchedHostnames:
+      'aw-watcher-window reports {host} as {windowHosts}, but aw-watcher-afk reports it as {afkHosts}. Activity needs both under the same hostname: restart both watchers, then refresh this page.',
+    diagnosticNoWindowEvents:
+      'No window activity was found for this period. Check that aw-watcher-window is running. On Wayland, try awatcher.',
+    diagnosticOpenRawData: 'Open Raw Data.',
   },
   activityView: {
     addVisualization: 'Add visualization',

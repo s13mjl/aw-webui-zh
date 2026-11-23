@@ -355,6 +355,8 @@ export default {
     importHelp: '有效的导入文件是从单个或多个存储桶导出的 JSON 文件。',
     exportBuckets: '导出存储桶',
     exportAllJson: '导出所有存储桶为 JSON',
+    exporting: '正在导出...',
+    exportFailed: '导出失败：{message}',
     tools: '工具',
     importFailed: '导入失败，详见 aw-server 日志',
     importFailedDetail: '导入失败：{detail}',
@@ -368,9 +370,13 @@ export default {
   },
   activity: {
     title: '活动',
+    browserAllowlistMiss:
+      '此时间段内未找到匹配的浏览器窗口。如果您使用的是 Chromium/Firefox 衍生浏览器，其应用名称可能尚未被识别。',
     for: '查看',
     host: '主机：',
     timeActive: '活跃时间：',
+    timeActiveTooltip:
+      'Active window time in the queried range, after the filters below. The bars in the period chart show raw device active time, so they can be slightly higher.',
     queryRange: '查询范围：',
     filters: '筛选',
     filtersTitle: '筛选',
@@ -419,6 +425,15 @@ export default {
     nextAria: '下一个 {period}',
     filtersAria: '筛选',
     refreshAria: '刷新',
+    diagnosticMissingWindow: '{host} 没有窗口存储桶。请启动 aw-watcher-window，然后刷新此页面。',
+    diagnosticMissingAfk: '{host} 没有 AFK 存储桶。请启动 aw-watcher-afk，然后刷新此页面。',
+    diagnosticAmbiguousWindow:
+      '多个窗口存储桶可能都对应 {host}：{buckets}。请在上方选择正确的设备，或查看原始数据。',
+    diagnosticMismatchedHostnames:
+      'aw-watcher-window 将 {host} 报告为 {windowHosts}，而 aw-watcher-afk 将其报告为 {afkHosts}。活动视图要求两者使用相同的主机名：请重启这两个监视器，然后刷新此页面。',
+    diagnosticNoWindowEvents:
+      '未找到该时间段的窗口活动。请确认 aw-watcher-window 正在运行。在 Wayland 上可尝试 awatcher。',
+    diagnosticOpenRawData: '打开原始数据。',
   },
   activityView: {
     addVisualization: '添加可视化',

@@ -296,9 +296,13 @@ export default {
   },
   activity: {
     title: 'Aktivität',
+    browserAllowlistMiss:
+      'Für diesen Zeitraum wurde kein passendes Browserfenster gefunden. Falls Sie in einem Chromium-/Firefox-Derivat gesurft haben, wird dessen App-Name möglicherweise noch nicht erkannt.',
     for: 'für',
     host: 'Host:',
     timeActive: 'Aktive Zeit:',
+    timeActiveTooltip:
+      'Active window time in the queried range, after the filters below. The bars in the period chart show raw device active time, so they can be slightly higher.',
     queryRange: 'Abfragezeitraum:',
     filters: 'Filter',
     filtersTitle: 'Filter',
@@ -344,6 +348,17 @@ export default {
     errIdNotUnique: 'ID ist nicht eindeutig',
     errMissingId: 'ID fehlt',
     errMissingName: 'Name fehlt',
+    diagnosticMissingWindow:
+      'Kein Fenster-Bucket für {host}. Starten Sie aw-watcher-window und laden Sie die Seite neu.',
+    diagnosticMissingAfk:
+      'Kein AFK-Bucket für {host}. Starten Sie aw-watcher-afk und laden Sie die Seite neu.',
+    diagnosticAmbiguousWindow:
+      'Mehrere Fenster-Buckets können {host} beschreiben: {buckets}. Wählen Sie oben das richtige Gerät oder prüfen Sie die Rohdaten.',
+    diagnosticMismatchedHostnames:
+      'aw-watcher-window meldet {host} als {windowHosts}, aw-watcher-afk aber als {afkHosts}. Die Aktivitätsansicht benötigt beide unter demselben Hostnamen: Starten Sie beide Watcher neu und laden Sie diese Seite dann neu.',
+    diagnosticNoWindowEvents:
+      'Für diesen Zeitraum wurden keine Fensteraktivitäten gefunden. Prüfen Sie, ob aw-watcher-window läuft. Unter Wayland versuchen Sie awatcher.',
+    diagnosticOpenRawData: 'Rohdaten öffnen.',
   },
   activityView: {
     addVisualization: 'Visualisierung hinzufügen',

@@ -293,9 +293,13 @@ export default {
   },
   activity: {
     title: 'Активность',
+    browserAllowlistMiss:
+      'Для этого периода не найдено подходящее окно браузера. Если вы использовали форк Chromium/Firefox, имя его приложения может пока не распознаваться.',
     for: 'для',
     host: 'Хост:',
     timeActive: 'Активное время:',
+    timeActiveTooltip:
+      'Active window time in the queried range, after the filters below. The bars in the period chart show raw device active time, so they can be slightly higher.',
     queryRange: 'Диапазон запроса:',
     filters: 'Фильтры',
     filtersTitle: 'Фильтры',
@@ -340,6 +344,17 @@ export default {
     errIdNotUnique: 'ID не уникален',
     errMissingId: 'Нет ID',
     errMissingName: 'Нет названия',
+    diagnosticMissingWindow:
+      'Нет bucket-а окон для {host}. Запустите aw-watcher-window и обновите страницу.',
+    diagnosticMissingAfk:
+      'Нет AFK-bucket-а для {host}. Запустите aw-watcher-afk и обновите страницу.',
+    diagnosticAmbiguousWindow:
+      'Несколько bucket-ов окон могут описывать {host}: {buckets}. Выберите нужное устройство выше или проверьте необработанные данные.',
+    diagnosticMismatchedHostnames:
+      'aw-watcher-window сообщает {host} как {windowHosts}, а aw-watcher-afk — как {afkHosts}. Для просмотра активности оба должны использовать одно имя хоста: перезапустите оба watcher-а, затем обновите страницу.',
+    diagnosticNoWindowEvents:
+      'За этот период активность окон не найдена. Проверьте, что aw-watcher-window запущен. В Wayland попробуйте awatcher.',
+    diagnosticOpenRawData: 'Открыть необработанные данные.',
   },
   activityView: {
     addVisualization: 'Добавить визуализацию',
